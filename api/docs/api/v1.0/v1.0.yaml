@@ -1,463 +1,304 @@
-{
-  "openapi": "3.0.0",
-  "info": {
-    "title": "Xpense.API",
-    "description": "Financial Tracker and advisor",
-    "version": "1.0",
-    "contact": {
-      "email": "imhalawa@outlook.com",
-      "name": "Mohamed Halawa",
-      "url": "https://www.halawa.dev"
-    }
-  },
-  "servers": [
-    {
-      "description": "Development Environment",
-      "url": "http://localhost:4000/api"
-    },
-    {
-      "description": "Staging Environment",
-      "url": "http://localhost:4001/api"
-    },
-    {
-      "description": "Production Environment",
-      "url": "https://www.xpense.io/api"
-    }
-  ],
-  "tags": [
-    {
-      "description": "Accounts management",
-      "name": "Accounts"
-    },
-    {
-      "description": "Transactions management",
-      "name": "Transactions"
-    }
-  ],
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT"
-      }
-    },
-    "responses": {
-      "InternalServerError": {
-        "description": "Internal Server Error",
-        "content": {
-          "application/json": {
-            "example": "An Internal Server Error Occured"
-          }
-        }
-      },
-      "TooManyRequests": {
-        "description": "Too many requests",
-        "content": {
-          "application/json": {
-            "example": "Too many requests, please try again after 4 seconds."
-          }
-        }
-      }
-    },
-    "schemas": {
-      "Account": {
-        "$ref": "schemas/accounts/account.json"
-      },
-      "Accounts": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/Account"
-        },
-        "maxItems": 100
-      },
-      "InvalidAccount": {
-        "$ref": "schemas/accounts/invalid-account.json"
-      },
-      "AccountNotFound": {
-        "type": "string",
-        "example": "Account was not found"
-      },
-      "Transaction": {
-        "$ref": "schemas/transactions/transaction.json"
-      },
-      "Transactions": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/Transaction"
-        },
-        "maxItems": 100
-      },
-      "InvalidTransaction": {
-        "$ref": "schemas/transactions/invalid-transaction.json"
-      },
-      "TransactionNotFound": {
-        "type": "string",
-        "example": "Transaction was not found"
-      }
-    }
-  },
-  "paths": {
-    "/accounts/{accountId}": {
-      "get": {
-        "summary": "Get Account Information",
-        "tags": ["Accounts"],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "accountId",
-            "schema": {
-              "type": "integer"
-            },
-            "required": true,
-            "description": "Numeric ID of account to get"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Account"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "put": {
-        "summary": "Update an Account Information",
-        "tags": ["Accounts"],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "accountId",
-            "schema": {
-              "type": "integer"
-            },
-            "required": true,
-            "description": "Numeric ID of account to Update"
-          }
-        ],
-        "requestBody": {
-          "description": "Account Information",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Account"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request: Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidAccount"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Deletes an account",
-        "tags": ["Accounts"],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request: Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidAccount"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/accounts": {
-      "post": {
-        "summary": "Create a new account",
-        "tags": ["Accounts"],
-        "requestBody": {
-          "description": "Account",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Account"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request: Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidAccount"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/accounts?search={search}&filter={filterBy}&pageNumber={pageNumber}": {
-      "get": {
-        "tags": ["Accounts"],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "search",
-            "description": "Search accounts by term",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "filter",
-            "description": "Filter search results by term",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "pageNumber",
-            "description": "Page number for accounts",
-            "schema": {
-              "type": "integer"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Accounts"
-                }
-              }
-            },
-            "headers": {
-              "X-Page-Number": {
-                "schema": {
-                  "type": "integer"
-                },
-                "description": "Indicator of the current page",
-                "example": "1"
-              },
-              "X-Total-Pages": {
-                "schema": {
-                  "type": "integer"
-                },
-                "description": "Indicates the total number of pages avaliable",
-                "example": "5"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/transactions/{transactionId}": {
-      "get": {
-        "summary": "Get Transaction Information",
-        "tags": ["Transactions"],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "transactionId",
-            "schema": {
-              "type": "integer"
-            },
-            "required": true,
-            "description": "Numeric ID of transaction to get"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Transaction"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Deletes a transaction",
-        "tags": ["Transactions"],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request: Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidTransaction"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/transactions?search={search}&filter={filterBy}&pageNumber={pageNumber}": {
-      "get": {
-        "tags": ["Transactions"],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "search",
-            "description": "Search transactions by term",
-            "schema": {
-              "type": "string",
-              "maxLength": 50,
-              "pattern": "^[a-zA-Z0-9]+$"
-            }
-          },
-          {
-            "in": "query",
-            "name": "filter",
-            "description": "Filter transactions search results by term",
-            "schema": {
-              "type": "string",
-              "maxLength": 50,
-              "pattern": "^[a-zA-Z0-9]+$"
-            }
-          },
-          {
-            "in": "query",
-            "name": "pageNumber",
-            "description": "Page number for transactions",
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Accounts"
-                }
-              }
-            },
-            "headers": {
-              "X-Page-Number": {
-                "schema": {
-                  "type": "integer"
-                },
-                "description": "Indicator of the current page",
-                "example": "1"
-              },
-              "X-Total-Pages": {
-                "schema": {
-                  "type": "integer"
-                },
-                "description": "Indicates the total number of pages avaliable",
-                "example": "5"
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransactionNotFound"
-                }
-              }
-            }
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          }
-        }
-      }
-    },
-    "/transactions": {
-      "post": {
-        "summary": "Create a new transaction",
-        "tags": ["Transactions"],
-        "requestBody": {
-          "description": "Transaction",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Transaction"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request: Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidTransaction"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    }
-  },
-  "security": [{}]
-}
+openapi: 3.0.0
+info:
+  title: Xpense.API
+  description: Financial Tracker and advisor
+  version: '1.0'
+  contact:
+    email: imhalawa@outlook.com
+    name: Mohamed Halawa
+    url: https://www.halawa.dev
+servers:
+  - description: Development Environment
+    url: http://localhost:4000/api
+  - description: Staging Environment
+    url: http://localhost:4001/api
+  - description: Production Environment
+    url: https://www.xpense.io/api
+tags:
+  - description: Accounts management
+    name: Accounts
+  - description: Transactions management
+    name: Transactions
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          example: An Internal Server Error Occured
+    TooManyRequests:
+      description: Too many requests
+      content:
+        application/json:
+          example: Too many requests, please try again after 4 seconds.
+  schemas:
+    Account:
+      $ref: schemas/accounts/account.json
+    Accounts:
+      type: array
+      items:
+        $ref: '#/components/schemas/Account'
+      maxItems: 100
+    InvalidAccount:
+      $ref: schemas/accounts/invalid-account.json
+    AccountNotFound:
+      type: string
+      example: Account was not found
+    Transaction:
+      $ref: schemas/transactions/transaction.json
+    Transactions:
+      type: array
+      items:
+        $ref: '#/components/schemas/Transaction'
+      maxItems: 100
+    InvalidTransaction:
+      $ref: schemas/transactions/invalid-transaction.json
+    TransactionNotFound:
+      type: string
+      example: Transaction was not found
+paths:
+  /accounts/{accountId}:
+    get:
+      summary: Get Account Information
+      tags:
+        - Accounts
+      parameters:
+        - in: path
+          name: accountId
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of account to get
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: Update an Account Information
+      tags:
+        - Accounts
+      parameters:
+        - in: path
+          name: accountId
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of account to Update
+      requestBody:
+        description: Account Information
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: 'Bad Request: Validation Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidAccount'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Deletes an account
+      tags:
+        - Accounts
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: 'Bad Request: Validation Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidAccount'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /accounts:
+    post:
+      summary: Create a new account
+      tags:
+        - Accounts
+      requestBody:
+        description: Account
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: 'Bad Request: Validation Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidAccount'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /accounts?search={search}&filter={filterBy}&pageNumber={pageNumber}:
+    get:
+      tags:
+        - Accounts
+      parameters:
+        - in: query
+          name: search
+          description: Search accounts by term
+          schema:
+            type: string
+          required: false
+        - in: query
+          name: filter
+          description: Filter search results by term
+          schema:
+            type: string
+          required: false
+        - in: query
+          name: pageNumber
+          description: Page number for accounts
+          schema:
+            type: integer
+          required: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accounts'
+          headers:
+            X-Page-Number:
+              schema:
+                type: integer
+              description: Indicator of the current page
+              example: '1'
+            X-Total-Pages:
+              schema:
+                type: integer
+              description: Indicates the total number of pages avaliable
+              example: '5'
+  /transactions/{transactionId}:
+    get:
+      summary: Get Transaction Information
+      tags:
+        - Transactions
+      parameters:
+        - in: path
+          name: transactionId
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of transaction to get
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Deletes a transaction
+      tags:
+        - Transactions
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: 'Bad Request: Validation Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidTransaction'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /transactions?search={search}&filter={filterBy}&pageNumber={pageNumber}:
+    get:
+      tags:
+        - Transactions
+      parameters:
+        - in: query
+          name: search
+          description: Search transactions by term
+          schema:
+            type: string
+            maxLength: 50
+            pattern: ^[a-zA-Z0-9]+$
+        - in: query
+          name: filter
+          description: Filter transactions search results by term
+          schema:
+            type: string
+            maxLength: 50
+            pattern: ^[a-zA-Z0-9]+$
+        - in: query
+          name: pageNumber
+          description: Page number for transactions
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accounts'
+          headers:
+            X-Page-Number:
+              schema:
+                type: integer
+              description: Indicator of the current page
+              example: '1'
+            X-Total-Pages:
+              schema:
+                type: integer
+              description: Indicates the total number of pages avaliable
+              example: '5'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionNotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /transactions:
+    post:
+      summary: Create a new transaction
+      tags:
+        - Transactions
+      requestBody:
+        description: Transaction
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transaction'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: 'Bad Request: Validation Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidTransaction'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+security:
+  - {}
