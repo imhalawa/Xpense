@@ -1,27 +1,22 @@
+using Microsoft.EntityFrameworkCore;
+using Xpense.API.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Register Controllers
 builder.Services.AddControllers();
 
-// Swagger
-builder.Services.AddSwaggerGen();
+// Register XpenseDbContext, XpenseDbContextFactory
+builder.Services.AddPooledDbContextFactory<XpenseDbContext>(optionsBuilder =>
+{
+    optionsBuilder.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+
 
 
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 app.UseRouting();
 app.MapControllers();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("","v1");
-        options.RoutePrefix=String.Empty;
-    });
-}
-
 app.Run();
