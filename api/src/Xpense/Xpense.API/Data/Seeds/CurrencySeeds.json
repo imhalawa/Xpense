@@ -1,0 +1,20 @@
+// REF: https://www.iso.org/iso-4217-currency-codes.html
+{
+  "currencies": [
+    {
+      "id": 1,
+      "name": "United States Dollar",
+      "isoCode": "USD"
+    },
+{
+      "id": 2,
+      "name": "Euro",
+      "isoCode": "EUR"
+    },
+    {
+      "id": 3,
+      "name": "Egyptian Pount",
+      "isoCode": "EGP"
+    }
+  ]
+}
