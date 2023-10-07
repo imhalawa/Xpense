@@ -16,7 +16,7 @@ public class TagEntityTypeConfiguration : BaseEntityTypeConfiguration<Tag>
         builder.Property(e => e.FgColorHex).HasMaxLength(6).IsFixedLength();
 
         // Tag Name Index
-        builder.HasIndex(e => e.Name).IsUnique();
+        builder.HasIndex(e => e.Name);
 
         // Tags (M) - Transactions (M)
         builder.HasMany(e => e.Transactions).WithMany(e => e.Tags);
