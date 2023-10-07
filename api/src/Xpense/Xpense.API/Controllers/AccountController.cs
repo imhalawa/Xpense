@@ -2,8 +2,9 @@
 
 namespace Xpense.API.Controllers
 {
-    [Route("api/account")]
     [ApiController]
+    [ApiVersion("1.0")]
+    [Route("api/account")]
     public class AccountController : ControllerBase
     {
         /// <summary>
