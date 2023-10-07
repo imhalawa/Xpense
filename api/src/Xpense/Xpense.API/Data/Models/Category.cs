@@ -1,4 +1,4 @@
-﻿using Xpense.API.Enums;
+﻿using System.Collections.Generic;
 
 namespace Xpense.API.Data.Models;
 

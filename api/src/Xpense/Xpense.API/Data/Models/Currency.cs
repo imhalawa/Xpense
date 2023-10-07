@@ -1,4 +1,6 @@
-﻿namespace Xpense.API.Data.Models
+﻿using System.Collections.Generic;
+
+namespace Xpense.API.Data.Models
 {
     public class Currency : BaseEntity
     {
