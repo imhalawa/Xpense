@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using Castle.Core.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
@@ -9,9 +10,20 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using Xpense.API.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Activate Serilog
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .WriteTo.Console();
+});
 
 // Register Controllers
 builder.Services.AddControllers();
@@ -45,7 +57,6 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // Register API Versioning Services, see https://github.com/dotnet/aspnet-api-versioning/wiki
-
 builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new ApiVersion(1, 0);
