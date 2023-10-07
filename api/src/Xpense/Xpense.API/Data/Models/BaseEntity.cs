@@ -1,4 +1,6 @@
-﻿namespace Xpense.API.Data.Models
+﻿using System;
+
+namespace Xpense.API.Data.Models
 {
     public class BaseEntity
     {

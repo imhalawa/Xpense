@@ -1,10 +1,7 @@
-﻿using System.Data;
-using System.Reflection;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Reflection;
 using Xpense.API.Data.Models;
-using Xpense.API.Data.TypeConfiguration;
-using Xpense.API.Enums;
 
 namespace Xpense.API.Data
 {
