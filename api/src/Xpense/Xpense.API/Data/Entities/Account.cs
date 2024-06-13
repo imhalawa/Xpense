@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
-using Xpense.API.Enums;
-using Xpense.API.Resources;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Xpense.API.Data.Models
 {
@@ -18,16 +17,11 @@ namespace Xpense.API.Data.Models
 
         /// <summary>Gets or sets the account number.</summary>
         /// <value>The number.</value>
-        public string Number { get; set; }
+        public string AccountNumber { get; set; }
 
         /// <summary>Gets or sets the account balance.</summary>
         /// <value>The balance.</value>
         public decimal Balance { get; set; }
-
-        /// <summary>Gets or sets a value indicating whether this account is transaction locked.</summary>
-        /// <value>
-        ///   <c>true</c> if this account is transaction locked; otherwise, <c>false</c>.</value>
-        public bool IsTransactionLocked { get; set; }
 
         /// <summary>Gets or sets a value indicating whether this account is default account for transactions.</summary>
         /// <value>
@@ -37,24 +31,12 @@ namespace Xpense.API.Data.Models
         /// </value>
         public bool IsDefaultAccount { get; set; }
 
-        public int CurrencyId { get; set; }
-
-        /// <summary>
-        ///   <para> Gets or sets the account type of <see cref="AccountType" /> type.</para>
-        /// </summary>
-        /// <value>The account type.</value>
-        public AccountType Type { get; set; }
-
-        /// <summary>
-        ///   <para>
-        /// Gets or sets the account currency of <see cref="Currency" /> type.</para>
-        /// </summary>
-        /// <value>The currency.</value>
-        public Currency Currency { get; set; }
-
         public virtual ICollection<Transaction> DepositTransactions { get; set; }
         public virtual ICollection<Transaction> WithdrawTransactions { get; set; }
 
-        public virtual ICollection<Tag> Tags { get; set; }
+        public override bool Equals(object other)
+        {
+            return this.AccountNumber == ((Account)other).AccountNumber;
+        }
     }
 }

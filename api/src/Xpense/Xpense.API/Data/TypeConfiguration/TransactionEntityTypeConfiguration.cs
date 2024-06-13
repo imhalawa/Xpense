@@ -4,7 +4,7 @@ using Xpense.API.Data.Models;
 
 namespace Xpense.API.Data.TypeConfiguration;
 
-public class TransactionEntityTypeConfiguration: BaseEntityTypeConfiguration<Transaction>
+public class TransactionEntityTypeConfiguration : BaseEntityTypeConfiguration<Transaction>
 {
     public override void Configure(EntityTypeBuilder<Transaction> builder)
     {
@@ -12,18 +12,22 @@ public class TransactionEntityTypeConfiguration: BaseEntityTypeConfiguration<Tra
         builder.Metadata.SetSchema(XpenseSchema);
 
         // Transaction (M) - Account(1) [Deposit Transactions]
-        builder.HasOne(e => e.ToAccount).WithMany(e => e.DepositTransactions).HasForeignKey(e=>e.ToAccountId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(e => e.ToAccount).WithMany(e => e.DepositTransactions).HasForeignKey(e => e.ToAccountId).OnDelete(DeleteBehavior.Restrict);
 
         // Transaction (M) - Account(1) [Withdraw Transactions]
         builder.HasOne(e => e.FromAccount).WithMany(e => e.WithdrawTransactions).HasForeignKey(e => e.FromAccountId).OnDelete(DeleteBehavior.Restrict);
 
         // Transaction (M) - Category(1)
-        builder.HasOne(e => e.Category).WithMany(e => e.Transactions).HasForeignKey(e=>e.CategoryId);
+        builder.HasOne(e => e.Category).WithMany(e => e.Transactions).HasForeignKey(e => e.CategoryId);
 
         // Transaction (M) - Tag(M) 
-        builder.HasMany(e => e.Tags).WithMany(e => e.Transactions);
-
-        // Transaction (M) - CurrencyExchangeRateAudit(1)
-        builder.HasOne(e => e.CurrencyExchangeRateAudit).WithMany(e => e.Transactions).HasForeignKey(e=>e.CurrencyExchangeRateAuditId);
+        builder
+            .HasMany(e => e.Tags)
+            .WithMany(e => e.Transactions)
+            .UsingEntity("TransactionTags",
+               l => l.HasOne(typeof(Tag)).WithMany().HasForeignKey("TagId").HasPrincipalKey(nameof(Tag.Id)),
+               r => r.HasOne(typeof(Transaction)).WithMany().HasForeignKey("TransactionId").HasPrincipalKey(nameof(Transaction.Id)),
+               j => j.HasKey("TransactionId", "TagId")
+            );
     }
 }

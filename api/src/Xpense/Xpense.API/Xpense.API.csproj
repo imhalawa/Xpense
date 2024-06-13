@@ -10,6 +10,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Folder Include="Data\Abstract\" />
 		<Folder Include="Data\Repositories\" />
 		<Folder Include="Mapping\" />
 		<Folder Include="Validation\" />

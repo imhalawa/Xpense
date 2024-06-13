@@ -7,7 +7,6 @@ namespace Xpense.API.Data.TypeConfiguration
     public class BaseEntityTypeConfiguration<T> : IEntityTypeConfiguration<T> where T : BaseEntity
     {
         protected const string XpenseSchema = "Xpense";
-        protected const string CurrencySchema = "Currency";
 
         public virtual void Configure(EntityTypeBuilder<T> builder)
         {

@@ -2,10 +2,11 @@
 
 namespace Xpense.API.Data.Models;
 
-public class Category:BaseEntity
+public class Tag : BaseEntity
 {
     public string Name { get; set; }
-    public int CategoryLevelId { get; set; }
-    public CategoryLevel CategoryLevel { get; set; }
+    public string BgColorHex { get; set; }
+    public string FgColorHex { get; set; }
+
     public virtual ICollection<Transaction> Transactions { get; set; }
 }

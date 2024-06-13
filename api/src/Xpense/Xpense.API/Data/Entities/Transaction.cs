@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Xpense.API.Enums;
+using Xpense.API.Data.Enums;
 
 namespace Xpense.API.Data.Models
 {
@@ -9,14 +9,11 @@ namespace Xpense.API.Data.Models
         public string? Reason { get; set; }
         public TransactionType TransactionType { get; set; }
 
-        public int FromAccountId { get; set; }
+        public int? FromAccountId { get; set; }
         public Account FromAccount { get; set; }
 
         public int ToAccountId { get; set; }
         public Account ToAccount { get; set; }
-
-        public int CurrencyExchangeRateAuditId { get; set; }
-        public CurrencyExchangeRateAudit CurrencyExchangeRateAudit { get; set; }
 
         public int CategoryId { get; set; }
         public Category Category { get; set; }
