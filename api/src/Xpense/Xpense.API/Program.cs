@@ -29,7 +29,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 builder.Services.AddControllers();
 
 // Register XpenseDbContext, XpenseDbContextFactory
-builder.Services.AddPooledDbContextFactory<XpenseDbContext>(optionsBuilder =>
+builder.Services.AddDbContext<XpenseDbContext>(optionsBuilder =>
 {
     optionsBuilder.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });

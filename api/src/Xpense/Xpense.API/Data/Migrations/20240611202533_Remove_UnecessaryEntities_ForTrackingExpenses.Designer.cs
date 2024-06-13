@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Xpense.API.Data;
 
@@ -11,9 +12,11 @@ using Xpense.API.Data;
 namespace Xpense.API.Data.Migrations
 {
     [DbContext(typeof(XpenseDbContext))]
-    partial class XpenseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240611202533_Remove_UnecessaryEntities_ForTrackingExpenses")]
+    partial class Remove_UnecessaryEntities_ForTrackingExpenses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,19 +25,19 @@ namespace Xpense.API.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("TransactionTags", b =>
+            modelBuilder.Entity("TagTransaction", b =>
                 {
-                    b.Property<int>("TransactionId")
+                    b.Property<int>("TagsId")
                         .HasColumnType("int");
 
-                    b.Property<int>("TagId")
+                    b.Property<int>("TransactionsId")
                         .HasColumnType("int");
 
-                    b.HasKey("TransactionId", "TagId");
+                    b.HasKey("TagsId", "TransactionsId");
 
-                    b.HasIndex("TagId");
+                    b.HasIndex("TransactionsId");
 
-                    b.ToTable("TransactionTags", "Xpense");
+                    b.ToTable("TagTransaction", "Xpense");
                 });
 
             modelBuilder.Entity("Xpense.API.Data.Models.Account", b =>
@@ -204,17 +207,17 @@ namespace Xpense.API.Data.Migrations
                     b.ToTable("Transactions", "Xpense");
                 });
 
-            modelBuilder.Entity("TransactionTags", b =>
+            modelBuilder.Entity("TagTransaction", b =>
                 {
                     b.HasOne("Xpense.API.Data.Models.Tag", null)
                         .WithMany()
-                        .HasForeignKey("TagId")
+                        .HasForeignKey("TagsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Xpense.API.Data.Models.Transaction", null)
                         .WithMany()
-                        .HasForeignKey("TransactionId")
+                        .HasForeignKey("TransactionsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -13,15 +13,9 @@ public class AccountEntityTypeConfiguration: BaseEntityTypeConfiguration<Account
 
 
         builder.Property(e => e.Name).HasMaxLength(100).IsRequired();
-        builder.Property(e => e.Number).HasMaxLength(10).IsRequired().IsFixedLength();
+        builder.Property(e => e.AccountNumber).HasMaxLength(10).IsRequired().IsFixedLength();
 
         // Account Number Index 
-        builder.HasIndex(e => e.Number).IsUnique();
-
-        // Account(M) - Currency(1)
-        builder.HasOne(e => e.Currency).WithMany(c => c.LinkedAccounts).HasForeignKey(e=>e.CurrencyId);
-
-        // Account(m) - Tags(m)
-        builder.HasMany(e => e.Tags).WithMany(e => e.Accounts);
+        builder.HasIndex(e => e.AccountNumber).IsUnique();
     }
 }

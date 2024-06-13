@@ -1,4 +1,4 @@
-﻿namespace Xpense.API.Enums;
+﻿namespace Xpense.API.Data.Enums;
 
 public enum TransactionType
 {
