@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Reflection;
-using Castle.Core.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
@@ -11,7 +10,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using Xpense.API.Data;
+using Xpense.Persistence;
+using Xpense.Persistence.Repositories;
+using Xpense.Services.Abstract.Persistence;
+using Xpense.Services.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,16 +27,17 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .WriteTo.Console();
 });
 
-// Register Controllers
+// Register Services
 builder.Services.AddControllers();
-
-// Register XpenseDbContext, XpenseDbContextFactory
+builder.Services.AddScoped<IRepository<Account>, Repository<Account>>();
+builder.Services.AddScoped<IRepository<Category>, Repository<Category>>();
+builder.Services.AddScoped<IRepository<Tag>, Repository<Tag>>();
+builder.Services.AddScoped<IRepository<Transaction>, Repository<Transaction>>();
 builder.Services.AddDbContext<XpenseDbContext>(optionsBuilder =>
 {
-    optionsBuilder.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+optionsBuilder.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
-// Register Swagger Generation Services
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo()
@@ -82,11 +85,5 @@ if (app.Environment.IsDevelopment())
         options.InjectStylesheet("/static/styles/swagger-ui.css");
     });
 }
-
-
-
-
-
-
 
 app.Run();
