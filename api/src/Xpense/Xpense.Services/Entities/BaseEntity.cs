@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Xpense.Services.Entities
+﻿namespace Xpense.Services.Entities
 {
     public class BaseEntity
     {

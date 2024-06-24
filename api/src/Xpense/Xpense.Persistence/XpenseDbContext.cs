@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.Extensions.Configuration;
 using System.Linq.Expressions;
 using System.Reflection;
 using Xpense.Services.Entities;
@@ -8,11 +9,15 @@ namespace Xpense.Persistence
 {
     public class XpenseDbContext : DbContext
     {
+        private readonly DbContextOptions<XpenseDbContext> options;
+
         public XpenseDbContext() { }
 
         public XpenseDbContext(DbContextOptions<XpenseDbContext> options) : base(options)
         {
+            this.options = options;
         }
+        
         public virtual DbSet<Account> Accounts { get; set; }
         public virtual DbSet<Transaction> Transactions { get; set; }
         public virtual DbSet<Category> Categories { get; set; }
@@ -24,6 +29,11 @@ namespace Xpense.Persistence
             ConfigureDecimalColumnsStore(modelBuilder, 18, 2);
             ApplyGlobalQueryFilter(modelBuilder, s => !s.IsDeleted);
             base.OnModelCreating(modelBuilder);
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            base.OnConfiguring(optionsBuilder);
         }
 
         private void ConfigureDecimalColumnsStore(ModelBuilder modelBuilder, int precision, int scale)

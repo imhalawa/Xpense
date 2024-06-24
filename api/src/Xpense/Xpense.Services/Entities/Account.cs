@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Xpense.Services.Entities
+﻿namespace Xpense.Services.Entities
 {
     /// <summary>Account Entity</summary>
     public class Account : BaseEntity

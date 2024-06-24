@@ -1,4 +1,4 @@
-﻿using Xpense.Services.Models.Account;
+﻿using Xpense.Services.Entities;
 
 namespace Xpense.Services.Abstract.Services
 {

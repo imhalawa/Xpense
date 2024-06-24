@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace Xpense.Services.Entities;
+﻿namespace Xpense.Services.Entities;
 
 public class Tag : BaseEntity
 {

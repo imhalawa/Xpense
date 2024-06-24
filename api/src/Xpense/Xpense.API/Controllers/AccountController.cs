@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using Xpense.Services.Models.Account;
+using Xpense.Services.Models;
 
 namespace Xpense.API.Controllers
 {

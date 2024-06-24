@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Xpense.Services.Enums;
+﻿using Xpense.Services.Enums;
 
 namespace Xpense.Services.Entities
 {
