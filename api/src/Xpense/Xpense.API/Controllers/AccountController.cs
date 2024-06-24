@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
+using Xpense.Services.Models;
 
 namespace Xpense.API.Controllers
 {
@@ -7,15 +9,37 @@ namespace Xpense.API.Controllers
     [Route("api/account")]
     public class AccountController : ControllerBase
     {
-        /// <summary>
-        /// Gets an account by number
-        /// </summary>
-        /// <param name="number">The Account Number.</param>
-        /// <returns></returns>
-        [HttpGet("{number:length(10)}")]
-        public ActionResult<string> Get(int number)
+        [HttpGet("{id:int}", Name = "Get Account By (Id)")]
+        public async Task<IActionResult> GetById(int id)
         {
-            return Ok("Sample Account");
+            return Ok("Account");
+        }
+
+        [HttpGet("{accountNumber:minlength(10):maxlength(10)}", Name = "Get Account By (Account Number)")]
+        public async Task<IActionResult> GetByAccountNumber(string accountNumber)
+        {
+            return Ok("Account");
+        }
+
+        [HttpPost("", Name = "Create Account", Order = 1)]
+        public async Task<IActionResult> Create([FromBody] CreateAccount createAccount)
+        {
+            
+
+
+            return Ok($"{createAccount.Name} Account Created");
+        }
+
+        [HttpDelete("{id:int}",Name ="Delete Account By Id")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            return Ok("");
+        }
+
+        [HttpDelete("{accountNumber:minlength(10):maxlength(10)}", Name = "Delete Account By Number")]
+        public async Task<IActionResult> Delete(string number)
+        {
+            return Ok("");
         }
     }
 }

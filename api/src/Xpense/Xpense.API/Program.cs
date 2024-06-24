@@ -1,17 +1,8 @@
-using System;
-using System.IO;
-using System.Reflection;
-using Castle.Core.Configuration;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Versioning;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.OpenApi.Models;
 using Serilog;
-using Xpense.API.Data;
+using Xpense.API.Extensions.cs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,45 +16,13 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .WriteTo.Console();
 });
 
-// Register Controllers
+// Register Services
 builder.Services.AddControllers();
-
-// Register XpenseDbContext, XpenseDbContextFactory
-builder.Services.AddDbContext<XpenseDbContext>(optionsBuilder =>
-{
-    optionsBuilder.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
-
-// Register Swagger Generation Services
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new OpenApiInfo()
-    {
-        Version = "v1",
-        Title = "Xpense",
-        Description = "Financial Tracking Services and Advisory",
-        // TODO: Add Terms of Use
-        Contact = new OpenApiContact()
-        {
-            Name = "Mohamed Halawa",
-            Email = "imhalawa@outlook.com",
-            Url = new Uri("https://halawa.dev/about")
-        },
-    });
-
-    // Read XML Comments Generated Document
-    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-});
-
-// Register API Versioning Services, see https://github.com/dotnet/aspnet-api-versioning/wiki
-builder.Services.AddApiVersioning(options =>
-{
-    options.DefaultApiVersion = new ApiVersion(1, 0);
-    options.AssumeDefaultVersionWhenUnspecified = true;
-    options.ReportApiVersions = true;
-    options.ApiVersionReader = new HeaderApiVersionReader("x-xpns-version");
-});
+builder.Services.ConfigureSwagger();
+builder.Services.ConfigurePersistence(builder.Configuration);
+builder.Services.AddRepositories();
+builder.Services.AddServices();
+builder.Services.ConfigureApiVersioning();
 
 var app = builder.Build();
 
@@ -82,11 +41,5 @@ if (app.Environment.IsDevelopment())
         options.InjectStylesheet("/static/styles/swagger-ui.css");
     });
 }
-
-
-
-
-
-
 
 app.Run();
