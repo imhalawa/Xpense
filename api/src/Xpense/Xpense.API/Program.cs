@@ -17,11 +17,12 @@ builder.Host.UseSerilog((context, services, configuration) =>
 });
 
 // Register Services
-builder.Services.AddControllers();
+builder.Services.AddSingleton(Log.Logger);
+builder.Services.AddControllers().AddNewtonsoftJson();
 builder.Services.ConfigureSwagger();
 builder.Services.ConfigurePersistence(builder.Configuration);
 builder.Services.AddRepositories();
-builder.Services.AddServices();
+builder.Services.AddUseCases();
 builder.Services.ConfigureApiVersioning();
 
 var app = builder.Build();
@@ -29,6 +30,7 @@ var app = builder.Build();
 app.UseStaticFiles("/static");
 app.UseRouting();
 app.MapControllers();
+app.UseGlobalExceptionHandler();
 
 // Enable Swagger & Swagger UI
 if (app.Environment.IsDevelopment())

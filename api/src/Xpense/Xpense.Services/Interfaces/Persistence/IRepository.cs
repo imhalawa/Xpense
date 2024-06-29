@@ -4,7 +4,7 @@
     {
         Task<IEnumerable<T>> GetAll();
         Task<T> GetById(int id);
-        void Add(T entity);
+        void Create(T entity);
         void Delete(T entity);
         void Update(T entity);
         Task<IEnumerable<T>> Filter(int pageNumber, int pageSize);

@@ -4,49 +4,43 @@ using Xpense.Services.Entities;
 
 namespace Xpense.Persistence.Repositories
 {
-    public class Repository<T> : IRepository<T> where T : BaseEntity
+    public class Repository<T>(XpenseDbContext dbContext) : IRepository<T> where T : BaseEntity
     {
-        private readonly XpenseDbContext _dbContext;
-        private readonly DbSet<T> _dbSet;
+        protected readonly DbSet<T> DbSet = dbContext.Set<T>();
 
-        public Repository(XpenseDbContext dbContext)
+        public void Create(T entity)
         {
-            _dbContext = dbContext;
-            _dbSet = _dbContext.Set<T>();
-        }
-
-        public void Add(T entity)
-        {
-            _dbSet.Add(entity);
+            DbSet.Add(entity);
         }
 
         public void Delete(T entity)
         {
-            _dbSet.Remove(entity);
+            DbSet.Remove(entity);
         }
 
         public async Task<IEnumerable<T>> GetAll()
         {
-            return await _dbSet.ToListAsync();
+            return await DbSet.ToListAsync();
         }
 
         public async Task<T> GetById(int id)
         {
-            return await _dbSet.FindAsync(id);
+            return await DbSet.FindAsync(id);
         }
 
         public void Update(T entity)
         {
-            _dbSet.Update(entity);
+            DbSet.Update(entity);
         }
+
         public async Task<int> SaveChanges()
         {
-            return await _dbContext.SaveChangesAsync();
+            return await dbContext.SaveChangesAsync();
         }
 
         public async Task<IEnumerable<T>> Filter(int pageNumber, int pageSize)
         {
-            return await _dbSet.Skip(pageSize * (pageNumber - 1)).Take(pageSize).ToListAsync();
+            return await DbSet.Skip(pageSize * (pageNumber - 1)).Take(pageSize).ToListAsync();
         }
     }
 }

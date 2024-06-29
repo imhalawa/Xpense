@@ -28,8 +28,8 @@
         /// </value>
         public bool IsDefaultAccount { get; set; }
 
-        public virtual required ICollection<Transaction> DepositTransactions { get; set; }
-        public virtual required ICollection<Transaction> WithdrawTransactions { get; set; }
+        public virtual ICollection<Transaction> DepositTransactions { get; set; }
+        public virtual ICollection<Transaction> WithdrawTransactions { get; set; }
 
         public override bool Equals(object other)
         {

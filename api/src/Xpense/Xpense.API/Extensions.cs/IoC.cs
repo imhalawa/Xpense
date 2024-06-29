@@ -11,6 +11,8 @@ using Xpense.Persistence;
 using Xpense.Persistence.Repositories;
 using Xpense.Services.Abstract.Persistence;
 using Xpense.Services.Entities;
+using Xpense.Services.Interfaces.Persistence;
+using Xpense.Services.UseCases.Account;
 
 namespace Xpense.API.Extensions.cs
 {
@@ -68,12 +70,18 @@ namespace Xpense.API.Extensions.cs
 
         public static void AddRepositories(this IServiceCollection services)
         {
-            services.AddScoped<IRepository<Account>, Repository<Account>>();
+            services.AddScoped<IAccountRepository, AccountRepository>();
             services.AddScoped<IRepository<Category>, Repository<Category>>();
             services.AddScoped<IRepository<Tag>, Repository<Tag>>();
             services.AddScoped<IRepository<Transaction>, Repository<Transaction>>();
         }
 
-        public static void AddServices(this IServiceCollection services) { }
+        public static void AddUseCases(this IServiceCollection services) {
+            services.AddScoped<GetAccountByNumberUseCase>();
+            services.AddScoped<GetAllAccountsUseCase>();
+            services.AddScoped<CreateAccountUseCase>();
+            services.AddScoped<DeleteAccountUseCase>();
+            services.AddScoped<UpdateAccountUseCase>();
+        }
     }
 }
