@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using Xpense.Services.Exceptions;
-using Xpense.Services.Models.Requests.Account;
-using Xpense.Services.Models.Response.Account;
-using Xpense.Services.UseCases.Account;
+using Xpense.Services.Features.Accounts.Requests;
+using Xpense.Services.Features.Accounts.Responses;
+using Xpense.Services.Features.Accounts.Usecases;
 
 
 namespace Xpense.API.Controllers

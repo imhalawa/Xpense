@@ -1,8 +1,8 @@
-using Xpense.Services.Interfaces.Persistence;
-using Xpense.Services.Interfaces.UseCases;
-using Xpense.Services.Models.Response.Account;
+using Xpense.Services.Abstract.Persistence;
+using Xpense.Services.Abstract.UseCases;
+using Xpense.Services.Features.Accounts.Responses;
 
-namespace Xpense.Services.UseCases.Account;
+namespace Xpense.Services.Features.Accounts.Usecases;
 
 public class GetAllAccountsUseCase(IAccountRepository repository): IQueryHandler<IEnumerable<GetAccountResponse>>
 {

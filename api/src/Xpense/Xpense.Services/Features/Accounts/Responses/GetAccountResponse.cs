@@ -1,4 +1,4 @@
-namespace Xpense.Services.Models.Response.Account;
+namespace Xpense.Services.Features.Accounts.Responses;
 
 public class GetAccountResponse(
     int id,

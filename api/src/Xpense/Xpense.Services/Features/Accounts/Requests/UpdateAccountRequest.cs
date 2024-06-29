@@ -1,6 +1,6 @@
-using Xpense.Services.UseCases.Account;
+using Xpense.Services.Features.Accounts.Commands;
 
-namespace Xpense.Services.Models.Requests.Account;
+namespace Xpense.Services.Features.Accounts.Requests;
 
 public class UpdateAccountRequest(string number, string name, bool isDefault)
 {

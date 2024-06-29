@@ -11,8 +11,7 @@ using Xpense.Persistence;
 using Xpense.Persistence.Repositories;
 using Xpense.Services.Abstract.Persistence;
 using Xpense.Services.Entities;
-using Xpense.Services.Interfaces.Persistence;
-using Xpense.Services.UseCases.Account;
+using Xpense.Services.Features.Accounts.Usecases;
 
 namespace Xpense.API.Extensions.cs
 {

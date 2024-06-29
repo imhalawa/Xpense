@@ -1,8 +1,8 @@
+using Xpense.Services.Abstract.Persistence;
+using Xpense.Services.Abstract.UseCases;
 using Xpense.Services.Exceptions;
-using Xpense.Services.Interfaces.Persistence;
-using Xpense.Services.Interfaces.UseCases;
 
-namespace Xpense.Services.UseCases.Account;
+namespace Xpense.Services.Features.Accounts.Usecases;
 
 public class DeleteAccountUseCase(IAccountRepository repository): ICommandHandler<string>
 {

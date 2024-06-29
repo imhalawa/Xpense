@@ -1,4 +1,4 @@
-namespace Xpense.Services.UseCases.Account;
+namespace Xpense.Services.Features.Accounts.Commands;
 
 public class UpdateAccountCommand(string number, string name, bool isDefault)
 {
