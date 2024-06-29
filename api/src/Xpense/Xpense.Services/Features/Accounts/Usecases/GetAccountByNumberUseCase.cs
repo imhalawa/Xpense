@@ -1,14 +1,14 @@
 using Xpense.Services.Abstract.Persistence;
 using Xpense.Services.Abstract.UseCases;
-using Xpense.Services.Features.Accounts.Responses;
+using Xpense.Services.Entities;
 
 namespace Xpense.Services.Features.Accounts.Usecases;
 
-public class GetAccountByNumberUseCase(IAccountRepository repository) : IQueryParamHandler<string, GetAccountResponse>
+public class GetAccountByNumberUseCase(IAccountRepository repository) : IQueryParamHandler<string, Account>
 {
-    public async Task<GetAccountResponse> Execute(string accountNumber, CancellationToken cancellationToken = default)
+    public async Task<Account> Execute(string accountNumber, CancellationToken cancellationToken = default)
     {
         var account = await repository.GetAccountByNumber(accountNumber);
-        return GetAccountResponse.Of(account);
+        return account;
     }
 }

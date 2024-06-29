@@ -1,10 +1,13 @@
-﻿using System.Threading.Tasks;
+﻿using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using Xpense.API.Helpers;
+using Xpense.API.Models;
+using Xpense.API.Models.Requests;
+using Xpense.API.Models.Responses;
 using Xpense.Services.Exceptions;
-using Xpense.Services.Features.Accounts.Requests;
-using Xpense.Services.Features.Accounts.Responses;
 using Xpense.Services.Features.Accounts.Usecases;
 
 
@@ -19,7 +22,7 @@ namespace Xpense.API.Controllers
         DeleteAccountUseCase deleteAccountUseCase,
         GetAccountByNumberUseCase getAccountByNumberUseCase,
         UpdateAccountUseCase updateAccountUseCase,
-        ILogger logger) : ControllerBase
+        ILogger logger) : XpenseController
     {
         [HttpGet(
             "{number:minlength(10):maxlength(10)}",
@@ -33,12 +36,14 @@ namespace Xpense.API.Controllers
                 if (string.IsNullOrWhiteSpace(number) || number.Length != 10)
                     return ValidationProblem($"Please provide a valid account number");
 
-                var result = await getAccountByNumberUseCase.Execute(number);
-                return Ok(Models.Response.Ok(result));
+                var account = await getAccountByNumberUseCase.Execute(number);
+                var result = GetAccountResponse.Of(account);
+
+                return Ok(result);
             }
             catch (AccountNotFoundException ex)
             {
-                return NotFound(Models.Response.NotFound(ex.Message));
+                return NotFound(ex.Message);
             }
         }
 
@@ -46,22 +51,23 @@ namespace Xpense.API.Controllers
         public async Task<IActionResult> Get()
         {
             var accounts = await getAllAccountsAccounts.Execute();
-            return Ok(Models.Response.Ok(accounts));
+            var result = accounts.Select(GetAccountResponse.Of);
+            return Ok(result);
         }
 
         [HttpPost("", Name = "Create Account", Order = 1)]
-        public async Task<IActionResult> Create([FromBody] CreateAccount request)
+        public async Task<ActionResult<Response<CreateAccountResponse>>> Create([FromBody] CreateAccountRequest request)
         {
             try
             {
-                var result = await createAccount.Handle(request.ToCommand());
-                logger.Information($"Attempt to create account: {request.Name}");
-                return Ok(Models.Response.Ok(result));
+                var createdAccount = await createAccount.Handle(request.ToCommand());
+                var result = CreateAccountResponse.Of(createdAccount);
+                return Ok(result);
             }
             catch (AccountCreationFailedException exception)
             {
                 logger.Warning(exception.Message);
-                return BadRequest(Models.Response.BadRequest(exception.Message));
+                return BadRequest(exception.Message);
             }
         }
 
@@ -77,12 +83,12 @@ namespace Xpense.API.Controllers
                     return ValidationProblem($"Please provide a valid account number");
 
                 await deleteAccountUseCase.Handle(number);
-                return Ok(Models.Response.Ok("Account Deleted Successfully"));
+                return Ok("Account Deleted Successfully");
             }
             catch (AccountNotFoundException exception)
             {
                 logger.Warning(exception.Message);
-                return NotFound(Models.Response.NotFound(exception.Message));
+                return NotFound(exception.Message);
             }
             catch (AccountUpdateFailedException exception)
             {
@@ -94,10 +100,23 @@ namespace Xpense.API.Controllers
         [HttpPut(Name = "Update account")]
         public async Task<IActionResult> Update([FromBody] UpdateAccountRequest request)
         {
-            if (request == null || !ModelState.IsValid)
-                return ValidationProblem($"Invalid Patch Request: {ModelState}");
-            var result = await updateAccountUseCase.Handle(request.ToCommand());
-            return Ok(Models.Response.Ok(result));
+            try
+            {
+                if (request == null || !ModelState.IsValid)
+                    return ValidationProblem($"Invalid Patch Request: {ModelState}");
+                var result = await updateAccountUseCase.Handle(request.ToCommand());
+                return Ok(result);
+            }
+            catch (AccountNotFoundException exception)
+            {
+                logger.Warning(exception.Message);
+                return NotFound(exception.Message);
+            }
+            catch (AccountUpdateFailedException exception)
+            {
+                logger.Warning(exception.Message);
+                return Problem(exception.Message);
+            }
         }
     }
 }

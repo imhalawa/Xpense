@@ -32,7 +32,7 @@ public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger logg
     private static string Serialize(Exception ex)
     {
         var response =
-            Response.Problem(
+            Response<ErrorDetails>.Problem(
                 ErrorDetails.Of("Internal Server Error, please check the logs or contact the administrator!"));
         return JsonSerializer.Serialize(response);
     }

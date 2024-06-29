@@ -6,5 +6,5 @@ public class Category : BaseEntity
 {
     public required string Name { get; set; }
     public Priority Priority { get; set; }
-    public virtual required ICollection<Transaction> Transactions { get; set; }
+    public virtual ICollection<Transaction> Transactions { get; set; }
 }

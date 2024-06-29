@@ -1,14 +1,14 @@
 ﻿using Xpense.Services.Abstract.Persistence;
 using Xpense.Services.Abstract.UseCases;
+using Xpense.Services.Entities;
 using Xpense.Services.Exceptions;
 using Xpense.Services.Features.Accounts.Commands;
-using Xpense.Services.Features.Accounts.Responses;
 
 namespace Xpense.Services.Features.Accounts.Usecases;
 
-public class CreateAccountUseCase(IAccountRepository repository) : ICommandResultHandler<CreateAccountCommand, CreateAccountResponse>
+public class CreateAccountUseCase(IAccountRepository repository) : ICommandResultHandler<CreateAccountCommand, Account>
 {
-    public async Task<CreateAccountResponse> Handle(CreateAccountCommand request)
+    public async Task<Account> Handle(CreateAccountCommand request)
     {
         var account = new Entities.Account()
         {
@@ -26,6 +26,6 @@ public class CreateAccountUseCase(IAccountRepository repository) : ICommandResul
             throw new AccountCreationFailedException(request.Name);
         }
 
-        return CreateAccountResponse.Of(account);
+        return account;
     }
 }

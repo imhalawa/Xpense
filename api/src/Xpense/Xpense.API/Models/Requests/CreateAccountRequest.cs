@@ -1,9 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using Xpense.Services.Features.Accounts.Commands;
 
-namespace Xpense.Services.Features.Accounts.Requests
+namespace Xpense.API.Models.Requests
 {
-   public class CreateAccount
+   public class CreateAccountRequest
    {
       [Required]
       public required string Name { get; set; }

@@ -1,33 +1,40 @@
+
 namespace Xpense.API.Models;
 
-public class Response
+public class Response<T>
 {
+    private Response(int statusCode, T data)
+    {
+        StatusCode = statusCode;
+        Data = data;
+    }
+
     public int StatusCode { get; set; }
-    public object Data { get; set; }
+    public T Data { get; set; }
 
-    private Response(int status, object data)
+
+    public static Response<T> Ok(T data)
     {
-        this.StatusCode = status;
-        this.Data = data;
+        return new Response<T>(200, data);
     }
 
-    public static Response Ok(object data)
+    public static Response<T> NotFound(T data)
     {
-        return new Response(200, data);
+        return new Response<T>(404, data);
     }
 
-    public static Response NotFound(object data)
+    public static Response<T> BadRequest(T data)
     {
-        return new Response(404, data);
+        return new Response<T>(400, data);
     }
 
-    public static Response BadRequest(object data)
+    public static Response<T> Problem(T data)
     {
-        return new Response(400, data);
+        return new Response<T>(500, data);
     }
-
-    public static Response Problem(object error)
+    
+    public static Response<T> Of(int statusCode, T data)
     {
-        return new Response(500, error);
+        return new Response<T>(statusCode, data);
     }
 }
