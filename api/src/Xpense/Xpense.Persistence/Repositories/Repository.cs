@@ -24,6 +24,11 @@ namespace Xpense.Persistence.Repositories
             return await DbSet.ToListAsync();
         }
 
+        public async Task<ICollection<T>> GetAll(int[] ids)
+        {
+            return await DbSet.Where(e => ids.Contains(e.Id)).ToListAsync();
+        }
+
         public async Task<T> GetById(int id)
         {
             return await DbSet.FindAsync(id);
@@ -38,11 +43,6 @@ namespace Xpense.Persistence.Repositories
         public async Task<int> SaveChanges()
         {
             return await dbContext.SaveChangesAsync();
-        }
-
-        public async Task<IEnumerable<T>> Filter(int pageNumber, int pageSize)
-        {
-            return await DbSet.Skip(pageSize * (pageNumber - 1)).Take(pageSize).ToListAsync();
         }
     }
 }

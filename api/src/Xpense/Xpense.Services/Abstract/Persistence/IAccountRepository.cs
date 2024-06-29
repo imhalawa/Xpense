@@ -8,4 +8,6 @@ public interface IAccountRepository: IRepository<Account>
     bool HasDefaultAccount();
     void DeleteAccountByNumber(string accountNumber);
     Task<Account> GetAccountByNumber(string accountNumber);
+    Task<Account> GetDefaultAccount();
+    Task<bool> Exists(string accountNumber);
 }

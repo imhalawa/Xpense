@@ -3,11 +3,11 @@
     public interface IRepository<T> where T : class
     {
         Task<IEnumerable<T>> GetAll();
+        Task<ICollection<T>> GetAll(int[] ids);
         Task<T> GetById(int id);
         void Create(T entity);
         void Delete(T entity);
         void Update(T entity);
-        Task<IEnumerable<T>> Filter(int pageNumber, int pageSize);
         Task<int> SaveChanges();
     }
 }

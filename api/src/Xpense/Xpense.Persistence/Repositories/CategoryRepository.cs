@@ -20,4 +20,9 @@ public class CategoryRepository(XpenseDbContext dbContext) : Repository<Category
             throw new CategoryNotFoundException(id, ex);
         }
     }
+
+    public async Task<bool> Exists(int id)
+    {
+        return await DbSet.AnyAsync(a => a.Id == id);
+    }
 }

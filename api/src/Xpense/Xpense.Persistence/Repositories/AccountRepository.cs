@@ -45,4 +45,21 @@ public class AccountRepository(XpenseDbContext context) : Repository<Account>(co
             throw new AccountNotFoundException(accountNumber, ex);
         }
     }
+
+    public async Task<Account> GetDefaultAccount()
+    {
+        try
+        {
+            return await DbSet.FirstAsync(c => c.IsDefaultAccount);
+        }
+        catch (Exception e)
+        {
+            throw new DefaultAccountNotFoundException(e);
+        }
+    }
+
+    public async Task<bool> Exists(string accountNumber)
+    {
+        return await DbSet.AnyAsync(a => a.AccountNumber == accountNumber);
+    }
 }

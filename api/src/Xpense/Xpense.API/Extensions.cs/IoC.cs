@@ -14,6 +14,7 @@ using Xpense.Services.Entities;
 using Xpense.Services.Features.Accounts.Usecases;
 using Xpense.Services.Features.Categories.UseCases;
 using Xpense.Services.Features.Tags.UseCases;
+using Xpense.Services.Features.Transactions.UseCases;
 
 namespace Xpense.API.Extensions.cs
 {
@@ -74,7 +75,7 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<IAccountRepository, AccountRepository>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<ITagRepository, TagRepository>();
-            services.AddScoped<IRepository<Transaction>, Repository<Transaction>>();
+            services.AddScoped<ITransactionRepository, TransactionRepository>();
         }
 
         public static void AddUseCases(this IServiceCollection services) {
@@ -95,6 +96,9 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<GetTagByIdUseCase>();
             services.AddScoped<GetAllTagsUseCase>();
             services.AddScoped<UpdateTagUseCase>();
+            
+            services.AddScoped<DepositTransactionUseCase>();
+            services.AddScoped<WithdrawTransactionUseCase>();
         }
     }
 }

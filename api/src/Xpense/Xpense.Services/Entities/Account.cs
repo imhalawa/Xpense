@@ -3,7 +3,6 @@
     /// <summary>Account Entity</summary>
     public class Account : BaseEntity
     {
-
         /// <summary>
         ///   <para>
         /// Gets or sets the account friendly name.
@@ -34,6 +33,18 @@
         public override bool Equals(object other)
         {
             return AccountNumber == ((Account)other).AccountNumber;
+        }
+
+        public void Deposit(decimal amount)
+        {
+            Balance += amount;
+            Touch();
+        }
+
+        public void Withdraw(decimal amount)
+        {
+            Balance -= amount;
+            Touch();
         }
     }
 }
