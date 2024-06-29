@@ -12,7 +12,8 @@ public class CategoryRepository(XpenseDbContext dbContext) : Repository<Category
         try
         {
             var category = await DbSet.FirstAsync(e => e.Id == id);
-            DbSet.Remove(category);
+            category.MarkAsDeleted();
+            DbSet.Update(category);
         }
         catch (Exception ex)
         {

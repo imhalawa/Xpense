@@ -28,7 +28,7 @@ namespace Xpense.API.Controllers
             "{number:minlength(10):maxlength(10)}",
             Name = "Get Account By (Account Number)"
         )]
-        [ProducesResponseType<GetAccountResponse>(StatusCodes.Status200OK, "application/json")]
+        [ProducesResponseType<AccountResponse>(StatusCodes.Status200OK, "application/json")]
         public async Task<IActionResult> GetByAccountNumber(string number)
         {
             try
@@ -37,7 +37,7 @@ namespace Xpense.API.Controllers
                     return ValidationProblem($"Please provide a valid account number");
 
                 var account = await getAccountByNumberUseCase.Execute(number);
-                var result = GetAccountResponse.Of(account);
+                var result = AccountResponse.Of(account);
 
                 return Ok(result);
             }
@@ -51,7 +51,7 @@ namespace Xpense.API.Controllers
         public async Task<IActionResult> Get()
         {
             var accounts = await getAllAccountsAccounts.Execute();
-            var result = accounts.Select(GetAccountResponse.Of);
+            var result = accounts.Select(AccountResponse.Of);
             return Ok(result);
         }
 

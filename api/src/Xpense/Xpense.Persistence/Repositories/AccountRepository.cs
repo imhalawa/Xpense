@@ -26,7 +26,6 @@ public class AccountRepository(XpenseDbContext context) : Repository<Account>(co
         {
             var account = DbSet.First(account => account.AccountNumber == accountNumber);
             account.MarkAsDeleted();
-            account.Touch();
             DbSet.Update(account);
         }
         catch (Exception ex)

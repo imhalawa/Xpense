@@ -13,6 +13,7 @@ using Xpense.Services.Abstract.Persistence;
 using Xpense.Services.Entities;
 using Xpense.Services.Features.Accounts.Usecases;
 using Xpense.Services.Features.Categories.UseCases;
+using Xpense.Services.Features.Tags.UseCases;
 
 namespace Xpense.API.Extensions.cs
 {
@@ -72,7 +73,7 @@ namespace Xpense.API.Extensions.cs
         {
             services.AddScoped<IAccountRepository, AccountRepository>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();
-            services.AddScoped<IRepository<Tag>, Repository<Tag>>();
+            services.AddScoped<ITagRepository, TagRepository>();
             services.AddScoped<IRepository<Transaction>, Repository<Transaction>>();
         }
 
@@ -87,6 +88,13 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<GetAllCategoriesUseCase>();
             services.AddScoped<GetCategoryByIdUseCase>();
             services.AddScoped<DeleteCategoryByIdUseCase>();
+            services.AddScoped<UpdateCategoryUseCase>();
+
+            services.AddScoped<CreateTagUseCase>();
+            services.AddScoped<DeleteTagUseCase>();
+            services.AddScoped<GetTagByIdUseCase>();
+            services.AddScoped<GetAllTagsUseCase>();
+            services.AddScoped<UpdateTagUseCase>();
         }
     }
 }

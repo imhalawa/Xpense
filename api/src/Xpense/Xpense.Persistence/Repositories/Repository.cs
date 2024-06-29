@@ -15,7 +15,8 @@ namespace Xpense.Persistence.Repositories
 
         public void Delete(T entity)
         {
-            DbSet.Remove(entity);
+            entity.MarkAsDeleted();
+            entity.Touch();
         }
 
         public async Task<IEnumerable<T>> GetAll()
@@ -30,6 +31,7 @@ namespace Xpense.Persistence.Repositories
 
         public void Update(T entity)
         {
+            entity.Touch();
             DbSet.Update(entity);
         }
 

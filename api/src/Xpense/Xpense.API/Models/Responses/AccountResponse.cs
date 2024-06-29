@@ -2,7 +2,7 @@ using System;
 
 namespace Xpense.API.Models.Responses;
 
-public class GetAccountResponse(
+public class AccountResponse(
     int id,
     string accountNumber,
     string name,
@@ -19,7 +19,7 @@ public class GetAccountResponse(
     public DateTime CreatedAt { get; set; } = createdAt;
     public DateTime? LastModifiedOn { get; set; } = lastModifiedOn;
 
-    public static GetAccountResponse Of(Services.Entities.Account account) => new
+    public static AccountResponse Of(Services.Entities.Account account) => new
     (
         account.Id,
         account.AccountNumber,

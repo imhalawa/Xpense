@@ -16,6 +16,7 @@ namespace Xpense.API.Controllers
         GetAllCategoriesUseCase getAllCategoriesUseCase,
         GetCategoryByIdUseCase getCategoryByIdUseCase,
         DeleteCategoryByIdUseCase deleteCategoryByIdUseCase,
+        UpdateCategoryUseCase updateCategoryUseCase,
         ILogger logger
     ) : XpenseController
     {
@@ -27,7 +28,7 @@ namespace Xpense.API.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById([FromRoute] int id)
         {
             try
             {
@@ -46,18 +47,18 @@ namespace Xpense.API.Controllers
         {
             try
             {
-                deleteCategoryByIdUseCase.Handle(id);
-                return Ok("Categor Deleted Successfully!");
+                await deleteCategoryByIdUseCase.Handle(id);
+                return Ok("Category Deleted Successfully!");
             }
             catch (CategoryDeletionFailedException exception)
             {
-                logger.Error(exception,exception.Message);
+                logger.Error(exception, exception.Message);
                 return Problem(exception);
             }
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(CreateCategoryRequest request)
+        public async Task<IActionResult> Create([FromBody] CreateCategoryRequest request)
         {
             try
             {
@@ -72,10 +73,23 @@ namespace Xpense.API.Controllers
         }
 
         [HttpPut]
-        // public IActionResult<GetCategoryResponse> Update()
-        public async Task<IActionResult> Update()
+        public async Task<IActionResult> Update([FromBody] UpdateCategoryRequest request)
         {
-            return Ok();
+            try
+            {
+                var category = await updateCategoryUseCase.Handle(request.ToCommand());
+                return Ok(CategoryResponse.Of(category));
+            }
+            catch (CategoryNotFoundException exception)
+            {
+                logger.Warning(exception.Message);
+                return NotFound(exception.Message);
+            }
+            catch (CategoryUpdateFailedException exception)
+            {
+                logger.Warning(exception.Message);
+                return NotFound(exception.Message);
+            }
         }
     }
 }
