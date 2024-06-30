@@ -1,40 +1,30 @@
 import * as React from 'react';
 import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-import {Icon, Link} from "@mui/material";
-import {Link as RouterLink} from 'react-router-dom';
-import {AccountBalanceWallet} from "@mui/icons-material";
+import MenuLinks from "./MenuLinks/MenuLinks.tsx";
+import MenuLinksDrawer from "./MenuLinksDrawer/MenuLinksDrawer.tsx";
+import {useMediaQuery} from "@mui/material";
 
-const NavigationBar =
-    () => {
-        return <>
-            <Box sx={{flexGrow: 1}}>
-                <AppBar position="static" color="transparent">
-                    <Toolbar>
-                        <Icon
-                            size="large"
-                            edge="start"
-                            color="primary"
-                            aria-label="menu"
-                            sx={{mr: 2}}
-                        >
-                            <AccountBalanceWallet/>
-                        </Icon>
-                        <Typography variant="h6" component="div" color="black" sx={{flexGrow: 1}}>
-                            Xpense
-                        </Typography>
+const NavigationBar = () => {
+    const matchMd = useMediaQuery('(min-width: 768px)');
 
-                        <Link mx={2} underline="none" color="black" component={RouterLink} to="/expenses">Expenses</Link>
-                        <Link mx={2} underline="none" color="black" component={RouterLink} to="/income">Income</Link>
-                        <Link mx={2} underline="none" color="black" component={RouterLink} to="/accounts">Accounts</Link>
-                        <Link mx={2} underline="none" color="black" component={RouterLink} to="/categories">Categories</Link>
-                    </Toolbar>
-                </AppBar>
-            </Box>
-        </>
-    }
+
+    return <>
+        <AppBar position="static" color="default">
+            <Toolbar>
+                <Typography variant="h6" component="div" color="black" sx={{flexGrow: 1}}>
+                    Xpense
+                </Typography>
+
+                {matchMd && <MenuLinks/>}
+
+                {!matchMd && <MenuLinksDrawer/>}
+
+            </Toolbar>
+        </AppBar>
+    </>
+}
 
 
 export default NavigationBar;
