@@ -1,5 +1,9 @@
 import {Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText} from "@mui/material";
-import {AccountBalanceRounded, AccountTreeRounded, MenuOpenRounded, MenuRounded, TrendingDownRounded, TrendingUpRounded} from "@mui/icons-material";
+import {
+    DataUsageOutlined,
+    MenuOpenRounded,
+    MenuRounded, ReceiptLongOutlined, SettingsOutlined,
+} from "@mui/icons-material";
 import {Link as RouterLink} from "react-router-dom";
 import * as React from "react";
 
@@ -23,36 +27,28 @@ const MenuLinksDrawer = () => {
 
             <Drawer open={open} onClose={handleCloseMenu} anchor='bottom'>
                 <List>
-                    <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/expenses">
+                    <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/">
                         <ListItemIcon>
-                            <TrendingDownRounded/>
+                            <DataUsageOutlined/>
                         </ListItemIcon>
                         <ListItemText>
-                            Expenses
+                            Dashboard
                         </ListItemText>
                     </ListItemButton>
-                    <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/income">
+                    <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/transactions">
                         <ListItemIcon>
-                            <TrendingUpRounded/>
+                            <ReceiptLongOutlined/>
                         </ListItemIcon>
                         <ListItemText>
-                            Income
+                            Transactions
                         </ListItemText>
                     </ListItemButton>
-                    <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/categories">
+                    <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/settings">
                         <ListItemIcon>
-                            <AccountTreeRounded/>
+                            <SettingsOutlined/>
                         </ListItemIcon>
                         <ListItemText>
-                            Categories
-                        </ListItemText>
-                    </ListItemButton>
-                    <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/accounts">
-                        <ListItemIcon>
-                            <AccountBalanceRounded/>
-                        </ListItemIcon>
-                        <ListItemText>
-                            Accounts
+                            Settings
                         </ListItemText>
                     </ListItemButton>
                 </List>

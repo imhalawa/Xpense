@@ -1,36 +1,32 @@
 import Box from "@mui/material/Box";
 import {Icon, Link} from "@mui/material";
-import {AccountBalanceRounded, AccountTreeRounded, TrendingDownRounded, TrendingUpRounded} from "@mui/icons-material";
+import {
+    DataUsageOutlined, ReceiptLongOutlined,
+    SettingsOutlined,
+} from "@mui/icons-material";
 import {Link as RouterLink} from "react-router-dom";
 import * as React from "react";
 
 const MenuLinks = () => {
-
     return <>
-        <Box mx={2} display="flex" alignItems="center">
-            <Icon sx={{mr: 0.5}}>
-                <TrendingDownRounded/>
-            </Icon>
-            <Link underline="none" color="black" component={RouterLink} to="/expenses">Expenses</Link>
-        </Box>
-        <Box mx={2} display="flex" alignItems="center">
-            <Icon sx={{mr: 0.5}}>
-                <TrendingUpRounded/>
-            </Icon>
-            <Link underline="none" color="black" component={RouterLink} to="/income">Income</Link>
-        </Box>
-        <Box mx={2} display="flex" alignItems="center">
-            <Icon sx={{mr: 0.5}}>
-                <AccountTreeRounded/>
-            </Icon>
-            <Link underline="none" color="black" component={RouterLink} to="/categories">Categories</Link>
-        </Box>
-        <Box mx={2} display="flex" alignItems="center">
-            <Icon sx={{mr: 0.5}}>
-                <AccountBalanceRounded/>
-            </Icon>
-            <Link underline="none" color="black" component={RouterLink} to="/accounts">Accounts</Link>
-        </Box>
+        <Link underline="none" color="neutral"  component={RouterLink} to="/">
+            <Box mx={2} display="flex" alignItems="center">
+                <Icon component={DataUsageOutlined} sx={{mr: 0.5}}/>
+                Dashboard
+            </Box>
+        </Link>
+        <Link underline="hover" color="black" component={RouterLink} to="/transactions">
+            <Box mx={2} display="flex" alignItems="center">
+                <Icon component={ReceiptLongOutlined} sx={{mr: 0.5}}/>
+                Transactions
+            </Box>
+        </Link>
+        <Link underline="hover" color="black" component={RouterLink} to="/settings">
+            <Box mx={2} display="flex" alignItems="center">
+                <Icon component={SettingsOutlined} sx={{mr: 0.5}}/>
+                Settings
+            </Box>
+        </Link>
     </>
 }
 

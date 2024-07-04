@@ -9,18 +9,14 @@ import {useMediaQuery} from "@mui/material";
 const NavigationBar = () => {
     const matchMd = useMediaQuery('(min-width: 768px)');
 
-
     return <>
         <AppBar position="static" color="default">
             <Toolbar>
                 <Typography variant="h6" component="div" color="black" sx={{flexGrow: 1}}>
                     Xpense
                 </Typography>
-
                 {matchMd && <MenuLinks/>}
-
                 {!matchMd && <MenuLinksDrawer/>}
-
             </Toolbar>
         </AppBar>
     </>
