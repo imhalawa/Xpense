@@ -1,11 +1,7 @@
 import {Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText} from "@mui/material";
-import {
-    DataUsageOutlined,
-    MenuOpenRounded,
-    MenuRounded, ReceiptLongOutlined, SettingsOutlined,
-} from "@mui/icons-material";
 import {Link as RouterLink} from "react-router-dom";
 import * as React from "react";
+import { Activity, ArrowLeftRight, Ellipsis, EllipsisVertical, Settings } from "lucide-react";
 
 const MenuLinksDrawer = () => {
     const [open, setOpen] = React.useState(false);
@@ -21,15 +17,15 @@ const MenuLinksDrawer = () => {
     return (
         <>
             <IconButton color="primary" onClick={handleOpenMenu}>
-                {open && <MenuOpenRounded/>}
-                {!open && <MenuRounded/>}
+                {open && <Ellipsis/>}
+                {!open && <EllipsisVertical/>}
             </IconButton>
 
             <Drawer open={open} onClose={handleCloseMenu} anchor='bottom'>
                 <List>
                     <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/">
                         <ListItemIcon>
-                            <DataUsageOutlined/>
+                            <Activity/>
                         </ListItemIcon>
                         <ListItemText>
                             Dashboard
@@ -37,7 +33,7 @@ const MenuLinksDrawer = () => {
                     </ListItemButton>
                     <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/transactions">
                         <ListItemIcon>
-                            <ReceiptLongOutlined/>
+                            <ArrowLeftRight/>
                         </ListItemIcon>
                         <ListItemText>
                             Transactions
@@ -45,7 +41,7 @@ const MenuLinksDrawer = () => {
                     </ListItemButton>
                     <ListItemButton onClick={handleCloseMenu} component={RouterLink} to="/settings">
                         <ListItemIcon>
-                            <SettingsOutlined/>
+                            <Settings/>
                         </ListItemIcon>
                         <ListItemText>
                             Settings

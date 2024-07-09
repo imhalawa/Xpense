@@ -13,11 +13,9 @@
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@fontsource/lato": "^5.0.21",
-    "@fontsource/poppins": "^5.0.14",
-    "@fontsource/raleway": "^5.0.19",
-    "@mui/icons-material": "^5.15.21",
     "@mui/material": "^5.15.21",
     "@mui/x-charts": "^7.8.0",
+    "lucide-react": "^0.407.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.24.0"
