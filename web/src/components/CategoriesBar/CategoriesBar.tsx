@@ -1,6 +1,6 @@
 import Paper from "@mui/material/Paper";
-import CategoryChip from "../ExpenseCategoryChip/CategoryChip.tsx";
-import {ICategory} from "../../../typings/ICategory.ts";
+import CategoryChip from "../Chips/CategoryChip/CategoryChip.tsx";
+import {ICategory} from "../../typings/ICategory.ts";
 
 interface CategoriesBarProps {
     categories: ICategory[];
