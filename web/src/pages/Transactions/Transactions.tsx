@@ -1,8 +1,5 @@
 import { Box, Grid, Typography } from "@mui/material";
-import XpensesDataGrid from "../../components/DataGrid/DataGrid";
-import { createTransactionFixture } from "../../fixtures";
-
-const transactions = createTransactionFixture();
+import TransactionsGrid from "../../components/TransactionsGrid/TransactionsGrid";
 
 const Transactions = () => {
   return (
@@ -12,11 +9,7 @@ const Transactions = () => {
       </Grid>
       <Grid item spacing={2} xs={12}>
         <Box sx={{ height: "80vh", width: "100%" }}>
-          <XpensesDataGrid
-            rows={transactions}
-            dense
-            onClick={() => console.log("row clicked")}
-          />
+          <TransactionsGrid />
         </Box>
       </Grid>
     </Grid>

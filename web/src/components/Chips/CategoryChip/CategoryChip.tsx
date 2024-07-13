@@ -5,7 +5,7 @@ interface CategoryChipProps {
     id: number;
     name: string;
     priority: IPriority;
-    onClick: () => void;
+    onClick?: () => void;
     onDelete?: () => void;
 }
 
