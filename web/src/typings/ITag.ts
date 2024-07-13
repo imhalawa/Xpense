@@ -1,4 +1,5 @@
-export interface ITag {
-    id: number,
-    name: string;
+import { IOption } from "./IOption";
+
+export interface ITag extends IOption {
+  id: number;
 }

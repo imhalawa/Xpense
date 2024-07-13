@@ -1,24 +1,30 @@
 import { Link, Typography } from "@mui/material";
-import { Euro, DollarSign } from "lucide-react";
-import CategoryChip from "../Chips/CategoryChip/CategoryChip";
-import DataGrid, { IDataGridHeader } from "../DataGrid/DataGrid";
-import { ITransactionRow } from "../../typings/ITransactionRow";
-import { TransactionType } from "../../typings/ITransactionType";
-import { formatDate } from "../../utils/DateUtils";
-import { Currency } from "../../typings/IMoney";
-import { createTransactionFixture } from "../../fixtures";
+import {
+  Euro,
+  DollarSign,
+  CurrencyIcon,
+  CalendarDaysIcon,
+  CircleAlertIcon,
+  StoreIcon,
+  CreditCardIcon,
+  TagIcon,
+} from "lucide-react";
+import CategoryChip from "../../../components/Chips/CategoryChip/CategoryChip";
+import DataGrid, {
+  IDataGridHeader,
+} from "../../../components/DataGrid/DataGrid";
+import { ITransaction } from "../../../typings/ITransaction";
+import { TransactionType } from "../../../typings/ITransactionType";
+import { formatDate } from "../../../utils/DateUtils";
+import { Currency } from "../../../typings/IMoney";
 
-const headers: IDataGridHeader<ITransactionRow>[] = [
-  {
-    headerName: "ID",
-    field: "id",
-    order: 1,
-  },
+const headers: IDataGridHeader<ITransaction>[] = [
   {
     headerName: "Amount",
     field: "amount",
+    icon: <CurrencyIcon />,
     order: 2,
-    render: (row: ITransactionRow) => {
+    render: (row: ITransaction) => {
       return (
         <>
           {row.type == TransactionType.CREDIT ? (
@@ -48,7 +54,8 @@ const headers: IDataGridHeader<ITransactionRow>[] = [
     headerName: "Date",
     field: "date",
     order: 3,
-    render: (row: ITransactionRow) => {
+    icon: <CalendarDaysIcon />,
+    render: (row: ITransaction) => {
       return <>{formatDate(row.date)}</>;
     },
   },
@@ -56,11 +63,12 @@ const headers: IDataGridHeader<ITransactionRow>[] = [
     headerName: "Category",
     field: "category",
     order: 4,
-    render: (row: ITransactionRow) => {
+    icon: <CircleAlertIcon />,
+    render: (row: ITransaction) => {
       return (
         <CategoryChip
           id={row.category.id}
-          name={row.category.name}
+          name={row.category.label}
           priority={row.category.priority}
         />
       );
@@ -70,15 +78,17 @@ const headers: IDataGridHeader<ITransactionRow>[] = [
     headerName: "Merchant",
     field: "merchant",
     order: 5,
-    render: (row: ITransactionRow) => {
-      return <>{row.merchant.name}</>;
+    icon: <StoreIcon />,
+    render: (row: ITransaction) => {
+      return <>{row.merchant.label}</>;
     },
   },
   {
     headerName: "Account Number",
     field: "account",
     order: 6,
-    render: (row: ITransactionRow) => {
+    icon: <CreditCardIcon />,
+    render: (row: ITransaction) => {
       return <>{row.account.accountNumber}</>;
     },
   },
@@ -86,12 +96,14 @@ const headers: IDataGridHeader<ITransactionRow>[] = [
     headerName: "Tags",
     field: "tags",
     order: 7,
-    render: (row: ITransactionRow) => {
+    icon: <TagIcon />,
+    render: (row: ITransaction) => {
       return (
         <>
           {row.tags &&
-            row.tags.map((tag) => (
+            row.tags.map((tag, index) => (
               <Link
+                key={index}
                 underline="hover"
                 sx={{
                   mr: 1,
@@ -101,7 +113,7 @@ const headers: IDataGridHeader<ITransactionRow>[] = [
                 }}
                 color="darkblue"
               >
-                #{tag.name}
+                #{tag.label}
               </Link>
             ))}
         </>
@@ -110,9 +122,17 @@ const headers: IDataGridHeader<ITransactionRow>[] = [
   },
 ];
 
-const TransactionsGrid = () => {
-  const transactions = createTransactionFixture();
-  return <DataGrid headers={headers} rows={transactions} dense />;
+interface ITransactionsGridProps {
+  transactions: ITransaction[];
+}
+
+const TransactionsGrid = ({ transactions }: ITransactionsGridProps) => {
+  return (
+    <DataGrid
+      headers={headers}
+      rows={transactions.sort((a, b) => b.date - a.date)}
+    />
+  );
 };
 
 export default TransactionsGrid;

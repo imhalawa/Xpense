@@ -1,11 +1,11 @@
 export interface ICategory {
-    id: number;
-    name: string;
-    priority: IPriority;
+  id: number;
+  label: string;
+  priority: IPriority;
 }
 
 export interface IPriority {
-    id: number;
-    name: string;
-    weight: number;
+  id: number;
+  name: string;
+  weight: number;
 }

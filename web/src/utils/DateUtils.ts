@@ -1,9 +1,9 @@
+import dayjs from "dayjs";
+
 export const ToUnixTimeStamp = (date: string) => {
-  return Math.floor(new Date(date).getTime() / 1000);
+  return dayjs(date).unix();
 };
 
 export const formatDate = (date: number) => {
-  const formatter = Intl.DateTimeFormat("en-US");
-  const result = formatter.format(date);
-  return result;
+  return dayjs.unix(date).format("DD MMM YYYY HH:mm:ss");
 };

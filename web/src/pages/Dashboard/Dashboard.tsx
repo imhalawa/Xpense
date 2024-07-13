@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import XpenseAreaChart, {
   XpenseAreaChartEntry,
 } from "../../components/Charts/XpenseLineCharts/XpenseLineCharts.tsx";
-import TransactionsGrid from "../../components/TransactionsGrid/TransactionsGrid.tsx";
+import TransactionsGrid from "../Transactions/TransactionsGrid/TransactionsGrid.tsx";
 
 const pieData = [
   { id: 0, value: 10, label: "Category A" },

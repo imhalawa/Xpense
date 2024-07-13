@@ -1,4 +1,5 @@
-export interface IMerchant {
-    id: number,
-    name: string
+import { IOption } from "./IOption";
+
+export interface IMerchant extends IOption {
+  id: number;
 }

@@ -33,7 +33,7 @@ const CategoriesBar = ({categories}: CategoriesBarProps) => {
                     <CategoryChip
                         key={category.id}
                         id={category.id}
-                        name={category.name}
+                        name={category.label}
                         priority={category.priority}
                         onClick={() => handleClick(category.id)}
                     />
