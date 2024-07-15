@@ -31,15 +31,23 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
     },
   });
 
-  const _ = watch("dateOfTransaction");
+  watch("dateOfTransaction");
+
+  const submit = (data: ITransactionFormData) => {
+    if (dayjs.unix(data.dateOfTransaction).isSame(dayjs(), "day")) {
+      setValue("dateOfTransaction", dayjs().unix());
+    }
+    onSubmit(data);
+  };
+
+  // TODO: Tags can be added twice, a filter required to prevent this
 
   useEffect(() => {
-    // TODO: date time is not updating anymore fix this!
     setValue("dateOfTransaction", selectedDate?.unix() ?? dayjs().unix());
   }, [selectedDate, setValue]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={handleSubmit(submit)}>
       <Grid container spacing={1}>
         {/* Amount */}
         <Grid item xs={8}>

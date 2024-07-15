@@ -7,20 +7,18 @@ import { ITransaction } from "../../typings";
 import dayjs, { Dayjs } from "dayjs";
 import { ITransactionFormData, mapToTransaction } from "../../typings/forms/ITransactionFormData";
 import TransactionsForm from "./TransactionsForm/TransactionsForm";
+import { useLoading } from "../../contexts/Loading";
 
 const Transactions = () => {
+  const {setLoading} =useLoading();
   const [transactions, setTransactions] = useState<ITransaction[]>(createTransactionFixture());
-  const [loading, setLoading] = useState(false);
-
   const [filteredTransactions, setFilteredTransactions] = useState<ITransaction[]>(transactions);
-
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
 
   const onSubmit = (transaction: ITransactionFormData) => {
     setLoading(true);
     setTimeout(() => {
       console.log(transaction);
-      // TODO: Implement a mapper from ITransactionFormData to ITransaction
       setTransactions([...transactions, mapToTransaction(transaction)]);
       setLoading(false);
     }, 1000);
@@ -44,24 +42,18 @@ const Transactions = () => {
     <Grid container spacing={2} mt={2}>
       <Grid item xs={12}>
         <Typography variant="h4">Transactions</Typography>
-
-        {loading ? (
-          <LinearProgress color="primary" sx={{ mt: 0 }} />
-        ) : (
-          <hr
-            style={{
-              marginTop: 0,
-              marginBottom: 0,
-              borderBottomWidth: 2,
-            }}
-          />
-        )}
+        <hr />
       </Grid>
       <Grid item xs={12} md={2}>
         <TransactionsForm onSubmit={onSubmit} selectedDate={selectedDate} />
         <hr />
         <FormControl fullWidth>
-          <DateCalendar value={selectedDate} onChange={(date) => setSelectedDate(date)} disableFuture />
+          <DateCalendar
+            value={selectedDate}
+            sx={{ width: "100%" }}
+            onChange={(date) => setSelectedDate(date)}
+            disableFuture
+          />
           <Button onClick={() => setSelectedDate(null)}>Clear</Button>
         </FormControl>
       </Grid>

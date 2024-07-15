@@ -37,12 +37,7 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
   },
 }));
 
-const DataGrid = <T,>({
-  headers,
-  rows,
-  dense,
-  emptyAlert,
-}: IDataGridProps<T>): JSX.Element => {
+const DataGrid = <T,>({ headers, rows, dense, emptyAlert }: IDataGridProps<T>): JSX.Element => {
   const sortedHeaders = headers.sort((a, b) => a.order - b.order);
   return (
     <TableContainer component={Paper}>
@@ -51,16 +46,11 @@ const DataGrid = <T,>({
         size={dense ? "small" : "medium"}
         aria-label={"simple table" + (dense ? "dense" : "")}
       >
-        <TableHead sx={{ backgroundColor: "#4d94fd" }}>
-          <TableRow>
+        <TableHead >
+          <TableRow sx={{ backgroundColor: "#4d94fd" }}>
             {sortedHeaders.map((header) => (
               <TableCell key={header.headerName}>
-                <Box
-                  display="flex"
-                  flexDirection="row"
-                  alignItems="center"
-                  gap={1}
-                >
+                <Box display="flex" flexDirection="row" alignItems="center" gap={1}>
                   {header.icon && header.icon}
                   <Typography variant="body2">{header.headerName}</Typography>
                 </Box>
@@ -81,15 +71,10 @@ const DataGrid = <T,>({
             </TableCell>
           ) : (
             rows.map((row, index) => (
-              <StyledTableRow
-                key={Math.random() + index}
-                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-              >
+              <StyledTableRow key={Math.random() + index} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
                 {sortedHeaders.map((header, idx) => (
                   <TableCell key={Math.random() + idx}>
-                    {header.render != null
-                      ? header.render(row)
-                      : (row[header.field] as ReactNode)}
+                    {header.render != null ? header.render(row) : (row[header.field] as ReactNode)}
                   </TableCell>
                 ))}
               </StyledTableRow>

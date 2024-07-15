@@ -6,6 +6,7 @@ import XpenseAreaChart, {
   XpenseAreaChartEntry,
 } from "../../components/Charts/XpenseLineCharts/XpenseLineCharts.tsx";
 import TransactionsGrid from "../Transactions/TransactionsGrid/TransactionsGrid.tsx";
+import { createTransactionFixture } from "../../fixtures.ts";
 
 const pieData = [
   { id: 0, value: 10, label: "Category A" },
@@ -59,7 +60,7 @@ const Dashboard = () => {
           </Box>
         </Grid>
         <Grid item lg={9} md={12} xs={12} my={2}>
-          <TransactionsGrid />
+          <TransactionsGrid transactions={createTransactionFixture()} dense={true} />
         </Grid>
       </Grid>
 
