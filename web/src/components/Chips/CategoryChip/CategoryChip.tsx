@@ -1,5 +1,5 @@
 import { Chip } from "@mui/material";
-import { IPriority } from "../../../typings/ICategory.ts";
+import { IPriority } from "../../../typings/models/ICategory.ts";
 
 interface CategoryChipProps {
   id: number;

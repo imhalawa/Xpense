@@ -1,42 +1,17 @@
 import * as yup from "yup";
-import { Currency, IAccount, ICategory, IMerchant, ITag, TransactionType } from "..";
-import { IPriority } from "../ICategory";
-import buildTransaction from "../ITransaction";
-
-
-// TODO move each schema to a separate file and import them here
-
-export const accountSchema: yup.ObjectSchema<IAccount> = yup.object().shape({
-  id: yup.number().required(),
-  label: yup.string().required(),
-  accountNumber: yup.string().required(),
-  balance: yup.number().required().positive("Account balance must be positive"),
-  isMainAccount: yup.boolean().required(),
-});
-
-export const prioritySchema: yup.ObjectSchema<IPriority> = yup.object().shape({
-  id: yup.number().required(),
-  name: yup.string().required(),
-  weight: yup.number().required(),
-});
-
-export const categorySchema: yup.ObjectSchema<ICategory> = yup.object().shape({
-  id: yup.number().required(),
-  label: yup.string().required(),
-  priority: prioritySchema.required(),
-});
-
-export const merchantSchema: yup.ObjectSchema<IMerchant> = yup.object().shape({
-  id: yup.number().required(),
-  label: yup.string().required(),
-  create: yup.boolean().optional(),
-});
-
-export const tagSchema: yup.ObjectSchema<ITag> = yup.object().shape({
-  id: yup.number().required().nullable(),
-  label: yup.string().nonNullable().required(),
-  create: yup.boolean().required(),
-});
+import {
+  accountSchema,
+  Currency,
+  IAccount,
+  ICategory,
+  IMerchant,
+  ITag,
+  merchantSchema,
+  tagSchema,
+  TransactionType,
+} from "..";
+import buildTransaction from "../models/ITransaction";
+import { categorySchema } from "../models/ICategory";
 
 export const schema: yup.ObjectSchema<ITransactionFormData> = yup.object().shape({
   amount: yup.number().required("Amount is required").positive("Amount must be positive"),

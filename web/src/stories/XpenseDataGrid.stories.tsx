@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import DataGrid, { IDataGridHeader } from "../components/DataGrid/DataGrid";
 import { ActivityIcon, Settings } from "lucide-react";
-import { ITag } from "../typings/ITag";
+import { ITag } from "../typings/models/ITag";
 import { ReactNode } from "react";
 
 const meta = {

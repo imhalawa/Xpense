@@ -1,5 +1,5 @@
 import { Autocomplete, createFilterOptions, TextField } from "@mui/material";
-import { ITag } from "../../../../typings/ITag";
+import { ITag } from "../../../../typings/models/ITag";
 import { useEffect, useState } from "react";
 import { createTagFixture } from "../../../../fixtures";
 

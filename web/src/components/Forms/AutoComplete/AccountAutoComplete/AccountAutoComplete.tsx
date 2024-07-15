@@ -1,5 +1,5 @@
 import { Autocomplete, Grid, TextField, Typography } from "@mui/material";
-import { IAccount } from "../../../../typings/IAccount";
+import { IAccount } from "../../../../typings/models/IAccount";
 import { createAccountFixture } from "../../../../fixtures";
 import { useEffect, useState } from "react";
 

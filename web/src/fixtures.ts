@@ -1,10 +1,4 @@
-import { IAccount } from "./typings/IAccount.ts";
-import { ICategory, IPriority } from "./typings/ICategory.ts";
-import { IMerchant } from "./typings/IMerchant.ts";
-import { Currency } from "./typings/IMoney.ts";
-import { ITag } from "./typings/ITag.ts";
-import { ITransaction } from "./typings/ITransaction.ts";
-import { TransactionType } from "./typings/ITransactionType.ts";
+import { ICategory, IPriority, IAccount, ITag, IMerchant, ITransaction, TransactionType, Currency } from "./typings";
 import { ToUnixTimeStamp } from "./utils/DateUtils.ts";
 
 export const createCategoriesFixture = (): ICategory[] => {
@@ -93,7 +87,6 @@ export const createMerchantFixture = (): IMerchant[] => [
     create: false,
   },
 ];
-
 
 export const createTransactionFixture = (): ITransaction[] => [
   {

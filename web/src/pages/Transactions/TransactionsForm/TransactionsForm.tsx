@@ -34,6 +34,7 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
   const _ = watch("dateOfTransaction");
 
   useEffect(() => {
+    // TODO: date time is not updating anymore fix this!
     setValue("dateOfTransaction", selectedDate?.unix() ?? dayjs().unix());
   }, [selectedDate, setValue]);
 
@@ -101,7 +102,13 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
               name="merchant"
               control={control}
               render={({ field: { onChange, value }, fieldState: { error } }) => (
-                <MerchantAutoComplete label="Merchant" onChange={onChange} value={value} error={!!error} helperText={error?.message} />
+                <MerchantAutoComplete
+                  label="Merchant"
+                  onChange={onChange}
+                  value={value}
+                  error={!!error}
+                  helperText={error?.message}
+                />
               )}
             />
           </FormControl>
@@ -113,7 +120,13 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
               name="category"
               control={control}
               render={({ field: { onChange, value }, fieldState: { error } }) => (
-                <CategoryAutoComplete label="Category" onChange={onChange} value={value} error={!!error} helperText={error?.message} />
+                <CategoryAutoComplete
+                  label="Category"
+                  onChange={onChange}
+                  value={value}
+                  error={!!error}
+                  helperText={error?.message}
+                />
               )}
             />
           </FormControl>
@@ -216,7 +229,13 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
               name="tags"
               control={control}
               render={({ field: { onChange, value }, fieldState: { error } }) => (
-                <TagAutoComplete label="Tags" value={value} error={!!error} helperText={error?.message} onChange={onChange} />
+                <TagAutoComplete
+                  label="Tags"
+                  value={value}
+                  error={!!error}
+                  helperText={error?.message}
+                  onChange={onChange}
+                />
               )}
             />
           </FormControl>

@@ -1,4 +1,4 @@
-import { IAccount, ICategory, IMerchant, IMoney, ITag, TransactionType } from ".";
+import { IAccount, ICategory, IMerchant, IMoney, ITag, TransactionType } from "..";
 
 export interface ITransaction {
   id: number | undefined;

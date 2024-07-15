@@ -1,5 +1,5 @@
 import { Autocomplete, Grid, TextField, Typography } from "@mui/material";
-import { ICategory, IPriority } from "../../../../typings/ICategory";
+import { ICategory, IPriority } from "../../../../typings/models/ICategory";
 import { createCategoriesFixture } from "../../../../fixtures";
 import { useEffect, useState } from "react";
 

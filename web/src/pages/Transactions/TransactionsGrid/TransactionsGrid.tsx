@@ -1,4 +1,4 @@
-import { Alert, Box, Link, Typography } from "@mui/material";
+import { Alert, Link, Typography } from "@mui/material";
 import {
   Euro,
   DollarSign,
@@ -10,13 +10,9 @@ import {
   TagIcon,
 } from "lucide-react";
 import CategoryChip from "../../../components/Chips/CategoryChip/CategoryChip";
-import DataGrid, {
-  IDataGridHeader,
-} from "../../../components/DataGrid/DataGrid";
-import { ITransaction } from "../../../typings/ITransaction";
-import { TransactionType } from "../../../typings/ITransactionType";
+import DataGrid, { IDataGridHeader } from "../../../components/DataGrid/DataGrid";
 import { formatDate } from "../../../utils/DateUtils";
-import { Currency } from "../../../typings/IMoney";
+import { Currency, ITransaction, TransactionType } from "../../../typings";
 
 interface ITransactionsGridProps {
   transactions: ITransaction[];
@@ -34,20 +30,12 @@ const headers: IDataGridHeader<ITransaction>[] = [
         <>
           {row.type == TransactionType.CREDIT ? (
             <Typography variant="body2" color="green">
-              {row.amount.currency == Currency.EUR ? (
-                <Euro size={12} />
-              ) : (
-                <DollarSign size={12} />
-              )}
+              {row.amount.currency == Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
               {row.amount.value}
             </Typography>
           ) : (
             <Typography variant="body2" color="red">
-              {row.amount.currency == Currency.EUR ? (
-                <Euro size={12} />
-              ) : (
-                <DollarSign size={12} />
-              )}
+              {row.amount.currency == Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
               {row.amount.value}
             </Typography>
           )}
@@ -70,13 +58,7 @@ const headers: IDataGridHeader<ITransaction>[] = [
     order: 4,
     icon: <CircleAlertIcon />,
     render: (row: ITransaction) => {
-      return (
-        <CategoryChip
-          id={row.category.id}
-          name={row.category.label}
-          priority={row.category.priority}
-        />
-      );
+      return <CategoryChip id={row.category.id} name={row.category.label} priority={row.category.priority} />;
     },
   },
   {
