@@ -1,211 +1,233 @@
-import {
-  FormControl,
-  TextField,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
-  Grid,
-} from "@mui/material";
+import { FormControl, TextField, InputLabel, Select, MenuItem, Button, Grid, Box, FormHelperText } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs, { Dayjs } from "dayjs";
-import { Euro, DollarSign } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Euro, DollarSign, CalendarIcon, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import AccountAutoComplete from "../../../components/Forms/AutoComplete/AccountAutoComplete/AccountAutoComplete";
 import CategoryAutoComplete from "../../../components/Forms/AutoComplete/CategoryAutoComplete/CategoryAutoComplete";
 import TagAutoComplete from "../../../components/Forms/AutoComplete/TagAutoComplete/TagAutoComplete";
-import {
-  createCategoriesFixture,
-  createAccountFixture,
-  createTagFixture,
-} from "../../../fixtures";
-import {
-  TransactionType,
-  ICategory,
-  IAccount,
-  ITag,
-  Currency,
-} from "../../../typings";
-import buildTransaction, { ITransaction } from "../../../typings/ITransaction";
-
+import { TransactionType, Currency } from "../../../typings";
+import { Controller, useForm } from "react-hook-form";
+import MerchantAutoComplete from "../../../components/Forms/AutoComplete/MerchantAutoComplete/MerchantAutoComplete";
+import { useEffect } from "react";
+import { ITransactionFormData, schema } from "../../../typings/forms/ITransactionFormData";
+import { yupResolver } from "@hookform/resolvers/yup";
 export interface ITransactionFormProps {
-  onSubmit: (transaction: ITransaction) => void;
+  onSubmit: (transaction: ITransactionFormData) => void;
   selectedDate: Dayjs | null;
 }
 
-const TransactionsForm = ({
-  onSubmit,
-  selectedDate,
-}: ITransactionFormProps) => {
-  const categories = createCategoriesFixture();
-  const accounts = createAccountFixture();
-  const defaultAccount = accounts.find((a) => a.isMainAccount);
-  const defaultCategory = categories.find((c) => c.priority.weight === 2);
+const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => {
+  const { handleSubmit, reset, control, setValue, watch } = useForm<ITransactionFormData>({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      amount: 0,
+      currency: Currency.EUR,
+      type: TransactionType.DEBIT,
+      dateOfTransaction: selectedDate?.unix() ?? dayjs().unix(),
+      account: null,
+      category: null,
+      merchant: null,
+      tags: [],
+    },
+  });
 
-  const [amount, setAmount] = useState(0);
-  const [transactionType, setTransactionType] = useState(TransactionType.DEBIT);
-  const [currency, setCurrency] = useState(Currency.EUR);
-  const [transactionDateTime, setTransactionDateTime] = useState<Dayjs>(
-    selectedDate ?? dayjs()
-  );
-  const [categoryOptions, setCategoryOptions] = useState(categories);
-  const [category, setCategory] = useState<ICategory | null>(
-    defaultCategory || null
-  );
-  const [accountOptions, setAccountOptions] = useState(createAccountFixture());
-  const [account, setAccount] = useState<IAccount | null>(
-    defaultAccount || null
-  );
-
-  const [tagOptions, setTagOptions] = useState(createTagFixture());
-  const [tags, setTags] = useState<ITag[] | null>(null);
+  const _ = watch("dateOfTransaction");
 
   useEffect(() => {
-    setTransactionDateTime(selectedDate ?? dayjs());
-  }, [selectedDate]);
-
-  const handleSubmit = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-    e.preventDefault();
-
-    if (category === null) {
-      alert("Please select a category");
-      return;
-    }
-
-    if (account === null) {
-      alert("Please select an account");
-      return;
-    }
-
-    if ((selectedDate ?? dayjs()).isSame(dayjs(), "day")) {
-      setTransactionDateTime(dayjs());
-    }
-
-    const transaction: ITransaction = buildTransaction(
-      0,
-      {
-        currency: currency,
-        value: amount,
-      },
-      transactionDateTime.unix(),
-      category,
-      { id: 1, label: "Merchant X" },
-      account,
-      transactionType,
-      tags
-    );
-
-    onSubmit(transaction);
-  };
+    setValue("dateOfTransaction", selectedDate?.unix() ?? dayjs().unix());
+  }, [selectedDate, setValue]);
 
   return (
-    <>
+    <form onSubmit={handleSubmit(onSubmit)}>
       <Grid container spacing={1}>
+        {/* Amount */}
         <Grid item xs={8}>
           <FormControl fullWidth>
-            <TextField
-              id="outlined-number"
-              label="Amount"
-              type="number"
-              value={amount}
-              required
-              InputLabelProps={{
-                shrink: true,
-              }}
-              onChange={(e) => setAmount(Number(e.target.value))}
+            <Controller
+              name="amount"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <TextField
+                  id="outlined-number"
+                  label="Amount"
+                  type="number"
+                  value={value}
+                  InputLabelProps={{ shrink: true }}
+                  variant="standard"
+                  onChange={onChange}
+                  error={!!error}
+                  helperText={error?.message}
+                />
+              )}
             />
           </FormControl>
         </Grid>
 
+        {/* Currency */}
         <Grid item xs={4}>
           <FormControl fullWidth>
-            <InputLabel id="demo-simple-select-label">Currency</InputLabel>
-            <Select
-              labelId="demo-simple-select-label"
-              id="demo-simple-select"
-              value={currency}
-              required
-              label="Currency"
-              onChange={(e) => setCurrency(e.target.value as Currency)}
-            >
-              <MenuItem value={Currency.EUR}>
-                <Euro size={16} />
-              </MenuItem>
-              <MenuItem value={Currency.DOLLAR}>
-                <DollarSign size={16} />
-              </MenuItem>
-            </Select>
+            <Controller
+              name="currency"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <InputLabel id="lbl-select-currency">Currency</InputLabel>
+                  <Select
+                    labelId="lbl-select-currency"
+                    id="select-currency"
+                    value={value}
+                    label="Currency"
+                    variant="standard"
+                    onChange={onChange}
+                    error={!!error}
+                  >
+                    <FormHelperText>{error?.message}</FormHelperText>
+                    <MenuItem value={Currency.EUR}>
+                      <Euro size={16} />
+                    </MenuItem>
+                    <MenuItem value={Currency.DOLLAR}>
+                      <DollarSign size={16} />
+                    </MenuItem>
+                  </Select>
+                </>
+              )}
+            />
           </FormControl>
         </Grid>
+        {/* Merchant */}
         <Grid item xs={12}>
           <FormControl fullWidth>
-            <CategoryAutoComplete
-              defaultValue={category}
-              options={categoryOptions}
-              label="Category"
-              onChange={(category) => setCategory(category)}
+            <Controller
+              name="merchant"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <MerchantAutoComplete label="Merchant" onChange={onChange} value={value} error={!!error} helperText={error?.message} />
+              )}
+            />
+          </FormControl>
+        </Grid>
+        {/* Category */}
+        <Grid item xs={12}>
+          <FormControl fullWidth>
+            <Controller
+              name="category"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <CategoryAutoComplete label="Category" onChange={onChange} value={value} error={!!error} helperText={error?.message} />
+              )}
+            />
+          </FormControl>
+        </Grid>
+        {/* Date of Transaction */}
+        <Grid item xs={12}>
+          <FormControl fullWidth>
+            <Controller
+              name="dateOfTransaction"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <DatePicker
+                  value={dayjs.unix(value)}
+                  onChange={onChange}
+                  label="Date of Transaction"
+                  slots={{
+                    openPickerIcon: CalendarIcon,
+                  }}
+                  slotProps={{
+                    textField: {
+                      variant: "standard",
+                      error: !!error,
+                      helperText: error?.message,
+                    },
+                  }}
+                  disableFuture
+                />
+              )}
             />
           </FormControl>
         </Grid>
         <Grid item xs={12}>
           <FormControl fullWidth>
-            <DatePicker
-              value={transactionDateTime}
-              onChange={(e) => setTransactionDateTime(e as Dayjs)}
-              label="Date of Transaction"
-              disableFuture
+            <Controller
+              name="type"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <>
+                  <InputLabel id="lbl-select-transaction-type">Transaction Type</InputLabel>
+                  <Select
+                    id="lbl-select-transaction-type"
+                    labelId="lbl-select-transaction-type"
+                    value={value}
+                    label="Transaction Type"
+                    variant="standard"
+                    error={!!error}
+                    onChange={onChange}
+                  >
+                    <FormHelperText>{error?.message}</FormHelperText>
+                    <MenuItem value={TransactionType.CREDIT}>
+                      <Grid container>
+                        <Grid item xs={10}>
+                          Income
+                        </Grid>
+                        <Grid item xs={2}>
+                          <Box display="flex" justifyContent="right">
+                            <ArrowUpRight color="green" size={20} />
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </MenuItem>
+                    <MenuItem value={TransactionType.DEBIT}>
+                      <Grid container>
+                        <Grid item xs={10}>
+                          Expense
+                        </Grid>
+                        <Grid item xs={2}>
+                          <Box display="flex" justifyContent="right">
+                            <ArrowDownRight color="red" size={20} />
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </MenuItem>
+                  </Select>
+                </>
+              )}
             />
           </FormControl>
         </Grid>
         <Grid item xs={12}>
           <FormControl fullWidth>
-            <InputLabel id="demo-simple-select-label">
-              Transaction Type
-            </InputLabel>
-            <Select
-              labelId="demo-simple-select-label"
-              id="demo-simple-select"
-              value={transactionType}
-              label="Transaction Type"
-              onChange={(e) =>
-                setTransactionType(e.target.value as TransactionType)
-              }
-            >
-              <MenuItem value={TransactionType.CREDIT}>Income</MenuItem>
-              <MenuItem value={TransactionType.DEBIT}>Expense</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        <Grid item xs={12}>
-          <FormControl fullWidth>
-            <AccountAutoComplete
-              defaultValue={account}
-              options={accountOptions}
-              label="Account"
-              onChange={(account) => setAccount(account)}
+            <Controller
+              name="account"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <AccountAutoComplete
+                  label="Account"
+                  error={!!error}
+                  value={value}
+                  helperText={error?.message}
+                  onChange={onChange}
+                />
+              )}
             />
           </FormControl>
         </Grid>
         <Grid item xs={12}>
           <FormControl fullWidth>
-            <TagAutoComplete
-              options={tagOptions}
-              label="Tags"
-              onChange={(value) => setTags(value)}
+            <Controller
+              name="tags"
+              control={control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <TagAutoComplete label="Tags" value={value} error={!!error} helperText={error?.message} onChange={onChange} />
+              )}
             />
           </FormControl>
         </Grid>
         <Grid item xs={12}>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={(e) => handleSubmit(e)}
-          >
+          <Button variant="contained" fullWidth type="submit">
             Add Transaction
           </Button>
         </Grid>
       </Grid>
-    </>
+    </form>
   );
 };
 

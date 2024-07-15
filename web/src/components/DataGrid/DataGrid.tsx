@@ -5,13 +5,14 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
-import { Box, styled, Typography } from "@mui/material";
+import { Alert, Box, styled, Typography } from "@mui/material";
 import { ReactNode } from "react";
 
 export interface IDataGridProps<T> {
   headers: Array<IDataGridHeader<T>>;
   rows: Array<T>;
   dense?: boolean;
+  emptyAlert?: ReactNode;
 }
 
 export interface IDataGridHeader<T> {
@@ -40,9 +41,9 @@ const DataGrid = <T,>({
   headers,
   rows,
   dense,
+  emptyAlert,
 }: IDataGridProps<T>): JSX.Element => {
   const sortedHeaders = headers.sort((a, b) => a.order - b.order);
-
   return (
     <TableContainer component={Paper}>
       <Table
@@ -68,20 +69,32 @@ const DataGrid = <T,>({
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row, index) => (
-            <StyledTableRow
-              key={Math.random() + index}
-              sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-            >
-              {sortedHeaders.map((header, idx) => (
-                <TableCell key={Math.random() + idx}>
-                  {header.render != null
-                    ? header.render(row)
-                    : (row[header.field] as ReactNode)}
-                </TableCell>
-              ))}
-            </StyledTableRow>
-          ))}
+          {!rows || rows.length === 0 ? (
+            <TableCell colSpan={headers.length}>
+              {emptyAlert || (
+                <Alert severity="info">
+                  <Box display="flex" justifyContent="center">
+                    No data
+                  </Box>
+                </Alert>
+              )}
+            </TableCell>
+          ) : (
+            rows.map((row, index) => (
+              <StyledTableRow
+                key={Math.random() + index}
+                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
+              >
+                {sortedHeaders.map((header, idx) => (
+                  <TableCell key={Math.random() + idx}>
+                    {header.render != null
+                      ? header.render(row)
+                      : (row[header.field] as ReactNode)}
+                  </TableCell>
+                ))}
+              </StyledTableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </TableContainer>

@@ -1,14 +1,7 @@
-import {
-  IAccount,
-  ICategory,
-  IMerchant,
-  IMoney,
-  ITag,
-  TransactionType,
-} from ".";
+import { IAccount, ICategory, IMerchant, IMoney, ITag, TransactionType } from ".";
 
 export interface ITransaction {
-  id: number;
+  id: number | undefined;
   amount: IMoney;
   date: number;
   category: ICategory;

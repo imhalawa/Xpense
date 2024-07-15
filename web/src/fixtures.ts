@@ -1,5 +1,6 @@
 import { IAccount } from "./typings/IAccount.ts";
 import { ICategory, IPriority } from "./typings/ICategory.ts";
+import { IMerchant } from "./typings/IMerchant.ts";
 import { Currency } from "./typings/IMoney.ts";
 import { ITag } from "./typings/ITag.ts";
 import { ITransaction } from "./typings/ITransaction.ts";
@@ -51,24 +52,48 @@ export const createTagFixture = (): ITag[] => [
   {
     id: 1,
     label: "Tag 1",
+    create: false,
   },
   {
     id: 2,
     label: "Tag 2",
+    create: false,
   },
   {
     id: 3,
     label: "Tag 3",
+    create: false,
   },
   {
     id: 4,
     label: "Tag 4",
+    create: false,
   },
   {
     id: 5,
     label: "Tag 5",
+    create: false,
   },
 ];
+
+export const createMerchantFixture = (): IMerchant[] => [
+  {
+    id: 1,
+    label: "Merchant 1",
+    create: false,
+  },
+  {
+    id: 2,
+    label: "Merchant 2",
+    create: false,
+  },
+  {
+    id: 3,
+    label: "Merchant 3",
+    create: false,
+  },
+];
+
 
 export const createTransactionFixture = (): ITransaction[] => [
   {
@@ -102,22 +127,27 @@ export const createTransactionFixture = (): ITransaction[] => [
       {
         id: 1,
         label: "Tag 1",
+        create: false,
       },
       {
         id: 2,
         label: "Tag 2",
+        create: false,
       },
       {
         id: 3,
         label: "Tag 3",
+        create: false,
       },
       {
         id: 4,
         label: "Tag 4",
+        create: false,
       },
       {
         id: 5,
         label: "Tag 5",
+        create: false,
       },
     ],
     type: TransactionType.CREDIT,
@@ -153,10 +183,12 @@ export const createTransactionFixture = (): ITransaction[] => [
       {
         id: 1,
         label: "Tag 1",
+        create: false,
       },
       {
         id: 2,
         label: "Tag 2",
+        create: false,
       },
     ],
     type: TransactionType.DEBIT,
@@ -192,10 +224,12 @@ export const createTransactionFixture = (): ITransaction[] => [
       {
         id: 1,
         label: "Tag 1",
+        create: false,
       },
       {
         id: 2,
         label: "Tag 2",
+        create: false,
       },
     ],
     type: TransactionType.DEBIT,
@@ -231,10 +265,12 @@ export const createTransactionFixture = (): ITransaction[] => [
       {
         id: 1,
         label: "Tag 1",
+        create: false,
       },
       {
         id: 2,
         label: "Tag 2",
+        create: false,
       },
     ],
     type: TransactionType.CREDIT,

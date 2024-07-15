@@ -1,18 +1,20 @@
 import { Autocomplete, Grid, TextField, Typography } from "@mui/material";
 import { ICategory, IPriority } from "../../../../typings/ICategory";
+import { createCategoriesFixture } from "../../../../fixtures";
+import { useEffect, useState } from "react";
 
 interface ICategoryAutoCompleteProps {
-  options: ICategory[];
   label: string;
-  defaultValue: ICategory | null;
+  value: ICategory | null;
+  error?: boolean;
+  helperText?: string;
   onChange: (value: ICategory | null) => void;
 }
-const CategoryAutoComplete = ({
-  defaultValue,
-  options,
-  label,
-  onChange,
-}: ICategoryAutoCompleteProps) => {
+const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICategoryAutoCompleteProps) => {
+  const categories = createCategoriesFixture();
+  const defaultCategory = value || (categories.find((c) => c.priority.weight === 2) ?? null);
+  const [selected, setSelected] = useState<ICategory | null>(defaultCategory);
+
   // Later, give the user the option to pick a color for the priority
   const priorityColor = (priority: IPriority): string => {
     switch (priority.weight) {
@@ -27,17 +29,18 @@ const CategoryAutoComplete = ({
     }
   };
 
+  useEffect(() => {
+    onChange(selected);
+  }, [selected]);
+
   return (
     <Autocomplete
       id="category-autocomplete"
-      options={options}
+      options={categories}
       isOptionEqualToValue={(a, b) => a.id === b.id}
       autoHighlight
-      value={defaultValue}
-      onChange={(event: any, newValue: ICategory | null) => {
-        event.preventDefault();
-        onChange(newValue);
-      }}
+      value={defaultCategory}
+      onChange={(event: any, newValue: ICategory | null) => setSelected(newValue)}
       getOptionLabel={(option) => option.label}
       renderOption={(props, option) => {
         const { key, ...optionProps } = props;
@@ -47,10 +50,7 @@ const CategoryAutoComplete = ({
               <Typography variant="body2">{option.label}&nbsp;</Typography>
             </Grid>
             <Grid item xs={2}>
-              <Typography
-                variant="caption"
-                color={priorityColor(option.priority)}
-              >
+              <Typography variant="caption" color={priorityColor(option.priority)}>
                 {option.priority.name}
               </Typography>
             </Grid>
@@ -60,12 +60,16 @@ const CategoryAutoComplete = ({
       renderInput={(params) => (
         <TextField
           required
+          variant="standard"
           {...params}
           label={label}
           inputProps={{
             ...params.inputProps,
             autoComplete: "new-password", // disable autocomplete and autofill
           }}
+          value={selected}
+          error={error}
+          helperText={helperText}
         />
       )}
     />

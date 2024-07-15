@@ -1,4 +1,4 @@
-import { Link, Typography } from "@mui/material";
+import { Alert, Box, Link, Typography } from "@mui/material";
 import {
   Euro,
   DollarSign,
@@ -17,6 +17,11 @@ import { ITransaction } from "../../../typings/ITransaction";
 import { TransactionType } from "../../../typings/ITransactionType";
 import { formatDate } from "../../../utils/DateUtils";
 import { Currency } from "../../../typings/IMoney";
+
+interface ITransactionsGridProps {
+  transactions: ITransaction[];
+  dense?: boolean;
+}
 
 const headers: IDataGridHeader<ITransaction>[] = [
   {
@@ -122,15 +127,17 @@ const headers: IDataGridHeader<ITransaction>[] = [
   },
 ];
 
-interface ITransactionsGridProps {
-  transactions: ITransaction[];
-}
-
-const TransactionsGrid = ({ transactions }: ITransactionsGridProps) => {
+const TransactionsGrid = ({ transactions, dense }: ITransactionsGridProps) => {
   return (
     <DataGrid
       headers={headers}
       rows={transactions.sort((a, b) => b.date - a.date)}
+      dense={dense ?? false}
+      emptyAlert={
+        <Alert severity="info" sx={{ width: "100%" }}>
+          No transactions found
+        </Alert>
+      }
     />
   );
 };
