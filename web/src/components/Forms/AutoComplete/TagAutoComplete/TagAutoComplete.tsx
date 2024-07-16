@@ -3,7 +3,7 @@ import { ITag } from "../../../../typings/models/ITag";
 import { useEffect, useState } from "react";
 import { createTagFixture } from "../../../../fixtures";
 
-interface ITagAutoComplete {
+interface ITagAutoCompleteProps {
   label: string;
   value: ITag[] | null;
   error?: boolean;
@@ -13,7 +13,7 @@ interface ITagAutoComplete {
 
 const filter = createFilterOptions<ITag>();
 
-const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAutoComplete) => {
+const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAutoCompleteProps) => {
   const tags = createTagFixture();
   const [selectableTags, setSelectableTags] = useState<ITag[]>(tags);
   const [selected, setSelected] = useState<ITag[]>([]);
