@@ -5,5 +5,5 @@ export const ToUnixTimeStamp = (date: string) => {
 };
 
 export const formatDate = (date: number) => {
-  return dayjs.unix(date).format("DD MMM YYYY HH:mm:ss");
+  return dayjs.unix(date).format("DD MMM YYYY");
 };
