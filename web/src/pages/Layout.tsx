@@ -71,15 +71,15 @@ const LayoutContent = () => {
     <Container maxWidth={false} sx={{ padding: 0, margin: 0, height: "calc(100vh - 7rem)" }}>
       <Grid
         container
-        px={4}
+        px={2.5}
         width={"100%"}
         mx={-0.5}
         sx={{ backgroundColor: "#eef2f6", borderRadius: "1rem", height: "calc(100vh - 7rem)" }}
       >
         <Grid
           container
-          mx={-0.5}
-          my={3.2}
+          mx={0}
+          my={2.5}
           sx={{
             backgroundColor: "white",
             borderRadius: "1rem",

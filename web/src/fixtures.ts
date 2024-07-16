@@ -108,6 +108,7 @@ export const createTransactionFixture = (): ITransaction[] => [
     merchant: {
       id: 1,
       label: "Merchant 1",
+      create: false,
     },
     account: {
       id: 1,
@@ -164,6 +165,7 @@ export const createTransactionFixture = (): ITransaction[] => [
     merchant: {
       id: 2,
       label: "Merchant 2",
+      create: false,
     },
     account: {
       id: 2,
@@ -205,6 +207,7 @@ export const createTransactionFixture = (): ITransaction[] => [
     merchant: {
       id: 3,
       label: "Merchant 3",
+      create: false,
     },
     account: {
       id: 3,
@@ -246,6 +249,7 @@ export const createTransactionFixture = (): ITransaction[] => [
     merchant: {
       id: 4,
       label: "Merchant 4",
+      create: false,
     },
     account: {
       id: 4,
