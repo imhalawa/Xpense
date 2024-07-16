@@ -9,6 +9,7 @@ import TransactionsForm from "./TransactionsForm/TransactionsForm";
 import { useLoading } from "../../contexts/LoadingContext";
 import { useCalendar } from "../../contexts/CalendarContext";
 import { useTheme } from "@mui/material/styles";
+import Page from "../../components/Page/Page";
 
 const Transactions = () => {
   const theme = useTheme();
@@ -42,23 +43,16 @@ const Transactions = () => {
   }, [transactions, selectedDate]);
 
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12}>
-        <Typography variant="h4" my={2}>
-          Transactions
-        </Typography>
-        <hr />
-      </Grid>
+    <Page title="Transactions" headerColor={"primary.dark"} headerBackgroundColor={"white"}>
       <Grid item xs={12} sm={12} md={12} lg={3} xl={2}>
         <TransactionsForm onSubmit={onSubmit} selectedDate={selectedDate} />
       </Grid>
-
       <Grid item xs={12} sm={12} md={12} lg={9} xl={10} mt={matchMD ? 4 : 0}>
         <Box sx={{ height: "calc(100vh - 256px)", width: "100%" }}>
           <TransactionsGrid dense transactions={filteredTransactions} />
         </Box>
       </Grid>
-    </Grid>
+    </Page>
   );
 };
 

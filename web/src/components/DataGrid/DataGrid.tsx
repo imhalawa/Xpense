@@ -24,14 +24,10 @@ export interface IDataGridHeader<T> {
 }
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
-  //   "&:nth-of-type(odd)": {
-  //     backgroundColor: theme.palette.background.default,
-  //   },
   "&:hover": {
     backgroundColor: theme.palette.action.hover,
     cursor: "pointer",
   },
-  // hide last border
   "&:last-child td, &:last-child th": {
     border: 0,
   },
@@ -46,8 +42,8 @@ const DataGrid = <T,>({ headers, rows, dense, emptyAlert }: IDataGridProps<T>): 
         size={dense ? "small" : "medium"}
         aria-label={"simple table" + (dense ? "dense" : "")}
       >
-        <TableHead >
-          <TableRow sx={{ backgroundColor: "navajowhite" }}>
+        <TableHead>
+          <TableRow sx={{ backgroundColor: "#eef2f6" }}>
             {sortedHeaders.map((header) => (
               <TableCell key={header.headerName}>
                 <Box display="flex" flexDirection="row" alignItems="center" gap={1}>

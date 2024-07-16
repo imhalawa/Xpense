@@ -1,21 +1,11 @@
 import Box from "@mui/material/Box";
-import {
-  Button,
-  Divider,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  useMediaQuery,
-} from "@mui/material";
+import { Button, Divider, List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
 import { DateCalendar } from "@mui/x-date-pickers";
-import { Activity, ArrowLeftRight, ListCollapse, ListIcon, Settings } from "lucide-react";
+import { Activity, ArrowLeftRight, ListCollapse, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useCalendar } from "../../contexts/CalendarContext";
 
 interface SideMenuProps {
-  // TODO: need to rethink this piece of functionality as it requires the menu to be partially open
   onVisibilityChange: (visible: boolean) => void;
 }
 
@@ -37,7 +27,7 @@ const SideBar = ({ onVisibilityChange }: SideMenuProps) => {
   return (
     <Box
       position={"fixed"}
-      width={resizeSideBar()}
+      //   width={resizeSideBar()}
       display="flex"
       flexDirection={"column"}
       height="100%"
@@ -45,13 +35,11 @@ const SideBar = ({ onVisibilityChange }: SideMenuProps) => {
     >
       <Box display="flex" flexDirection={"column"} height="calc(100% - 64px)" justifyContent={"space-between"}>
         <List disablePadding>
-          <ListItem sx={{ margin: 0, padding: 0 }}>
-            <Box display={"flex"} justifyContent={"right"} sx={{ width: "100%" }}>
-              <Button onClick={() => onVisibilityChange(false)}>
-                <ListCollapse />
-              </Button>
-            </Box>
-          </ListItem>
+          <ListItemButton onClick={() => onVisibilityChange(false)}>
+            <ListItemIcon>
+              <ListCollapse size={24} />
+            </ListItemIcon>
+          </ListItemButton>
           <ListItemButton component={Link} to="/" sx={setActive("/")}>
             <ListItemIcon>
               <Activity size={24} />
@@ -69,7 +57,7 @@ const SideBar = ({ onVisibilityChange }: SideMenuProps) => {
           <Divider />
           <Box display="flex" flexDirection={"column"} justifyContent="center">
             <DateCalendar
-              sx={{ width: "100%" }}
+              sx={{ width: "90%" }}
               value={selectedDate}
               onChange={(date) => setSelectedDate(date)}
               disableFuture
@@ -91,23 +79,6 @@ const SideBar = ({ onVisibilityChange }: SideMenuProps) => {
       </Box>
     </Box>
   );
-};
-
-const resizeSideBar = () => {
-  const matchSM = useMediaQuery("(min-width: 600px)");
-  const matchMd = useMediaQuery("(min-width: 900px)");
-  const matchLg = useMediaQuery("(min-width: 1200px)");
-  const matchXL = useMediaQuery("(min-width: 2000px)");
-
-  if (matchXL) {
-    return "8.3%";
-  } else if (matchLg) {
-    return "16.6%";
-  } else if (matchMd) {
-    return "25%";
-  } else if (matchSM) {
-    return "33.3%";
-  }
 };
 
 export default SideBar;

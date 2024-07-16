@@ -24,30 +24,27 @@ const MiniSideBar = ({ onVisibilityChange }: MiniSideBarProps) => {
   };
 
   return (
-    <Box
-      position={"fixed"}
-      display="flex"
-      flexDirection={"column"}
-      height="100%"
-      sx={{ backgroundColor: "white" }}
-    >
+    <Box position={"fixed"} display="flex" flexDirection={"column"} height="100%" sx={{ backgroundColor: "white" }}>
       <Box display="flex" flexDirection={"column"} height="calc(100% - 64px)" justifyContent={"space-between"}>
         <List disablePadding>
-          <ListItem sx={{ margin: 0, padding: 0 }}>
-            <Button onClick={() => onVisibilityChange(true)}>
-              <ListCollapse />
-            </Button>
-          </ListItem>
+          <ListItemButton onClick={() => onVisibilityChange(true)}>
+            <ListItemIcon>
+              <ListCollapse size={24} />
+            </ListItemIcon>
+          </ListItemButton>
+          <Divider />
           <ListItemButton component={Link} to="/" sx={setActive("/")}>
             <ListItemIcon>
               <Activity size={24} />
             </ListItemIcon>
           </ListItemButton>
+          <Divider />
           <ListItemButton component={Link} to="/transactions" sx={setActive("/transactions")}>
             <ListItemIcon>
               <ArrowLeftRight size={24} />
             </ListItemIcon>
           </ListItemButton>
+          <Divider />
         </List>
         <List>
           <Divider />
@@ -60,23 +57,6 @@ const MiniSideBar = ({ onVisibilityChange }: MiniSideBarProps) => {
       </Box>
     </Box>
   );
-};
-
-const resizeSideBar = () => {
-  const matchSM = useMediaQuery("(min-width: 600px)");
-  const matchMd = useMediaQuery("(min-width: 900px)");
-  const matchLg = useMediaQuery("(min-width: 1200px)");
-  const matchXL = useMediaQuery("(min-width: 2000px)");
-
-  if (matchXL) {
-    return "8.3%";
-  } else if (matchLg) {
-    return "16.6%";
-  } else if (matchMd) {
-    return "25%";
-  } else if (matchSM) {
-    return "33.3%";
-  }
 };
 
 export default MiniSideBar;

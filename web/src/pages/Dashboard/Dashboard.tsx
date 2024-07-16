@@ -2,11 +2,10 @@ import { Grid } from "@mui/material";
 import Typography from "@mui/material/Typography";
 import XpensePieChart from "../../components/Charts/XpensePie/XpensePieChart.tsx";
 import Box from "@mui/material/Box";
-import XpenseAreaChart, {
-  XpenseAreaChartEntry,
-} from "../../components/Charts/XpenseLineCharts/XpenseLineCharts.tsx";
+import XpenseAreaChart, { XpenseAreaChartEntry } from "../../components/Charts/XpenseLineCharts/XpenseLineCharts.tsx";
 import TransactionsGrid from "../Transactions/TransactionsGrid/TransactionsGrid.tsx";
 import { createTransactionFixture } from "../../fixtures.ts";
+import Page from "../../components/Page/Page.tsx";
 
 const pieData = [
   { id: 0, value: 10, label: "Category A" },
@@ -46,63 +45,37 @@ const areaChartData: XpenseAreaChartEntry[] = [
 
 const Dashboard = () => {
   return (
-    <>
-      <Grid container mt={2}>
-        <Grid item xs={12}>
-          <Typography variant="h4" my={4}>
-            {" "}
-            Today's Transactions
-          </Typography>
-        </Grid>
-        <Grid item lg={3} md={12} xs={12}>
-          <Box display="flex" alignItems="center">
-            <XpensePieChart data={pieData} value={"500$"} />
-          </Box>
-        </Grid>
-        <Grid item lg={9} md={12} xs={12} my={2}>
-          <TransactionsGrid transactions={createTransactionFixture()} dense={true} />
-        </Grid>
+    <Page title="Dashboard" headerColor="primary.dark" headerBackgroundColor="white">
+      <Grid item lg={3} md={12} xs={12}>
+        <Box display="flex" alignItems="center">
+          <XpensePieChart data={pieData} value={"500$"} />
+        </Box>
       </Grid>
-
-      <Grid container>
-        <Grid item xs={12} sm={12} md={6} lg={4}>
-          <Typography variant="h4" my={1}>
-            {" "}
-            Weekly Transactions
-          </Typography>
-          <XpenseAreaChart
-            data={areaChartData}
-            height={400}
-            width={400}
-            hideLegend={true}
-          />
-        </Grid>
-        <Grid item xs={12} sm={12} md={6} lg={4}>
-          <Typography variant="h4" my={1}>
-            {" "}
-            Monthly Overview
-          </Typography>
-          <XpenseAreaChart
-            data={areaChartData}
-            height={400}
-            width={400}
-            hideLegend={true}
-          />
-        </Grid>
-        <Grid item xs={12} sm={12} md={6} lg={4}>
-          <Typography variant="h4" my={1}>
-            {" "}
-            Yearly Overview
-          </Typography>
-          <XpenseAreaChart
-            data={areaChartData}
-            height={400}
-            width={400}
-            hideLegend={true}
-          />
-        </Grid>
+      <Grid item lg={9} md={12} xs={12} my={2}>
+        <TransactionsGrid transactions={createTransactionFixture()} dense={true} />
       </Grid>
-    </>
+      <Grid item xs={12} sm={12} md={6} lg={4}>
+        <Typography variant="h4" my={1}>
+          {" "}
+          Weekly Transactions
+        </Typography>
+        <XpenseAreaChart data={areaChartData} height={400} width={400} hideLegend={true} />
+      </Grid>
+      <Grid item xs={12} sm={12} md={6} lg={4}>
+        <Typography variant="h4" my={1}>
+          {" "}
+          Monthly Overview
+        </Typography>
+        <XpenseAreaChart data={areaChartData} height={400} width={400} hideLegend={true} />
+      </Grid>
+      <Grid item xs={12} sm={12} md={6} lg={4}>
+        <Typography variant="h4" my={1}>
+          {" "}
+          Yearly Overview
+        </Typography>
+        <XpenseAreaChart data={areaChartData} height={400} width={400} hideLegend={true} />
+      </Grid>
+    </Page>
   );
 };
 
