@@ -16,6 +16,5 @@ namespace Xpense.Persistence.TypeConfiguration
             // Priority (1) - Category (M) 
             builder.HasMany(e => e.Categories).WithOne(e => e.Priority).HasForeignKey(e => e.PriorityId);
         }
-
     }
 }
