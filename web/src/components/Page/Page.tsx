@@ -5,7 +5,7 @@ interface IPageProps {
   title: string;
   headerBackgroundColor?: string;
   headerColor?: string;
-  children: ReactNode[];
+  children: ReactNode[] | ReactNode;
 }
 const Page = ({ title, children, headerBackgroundColor, headerColor }: IPageProps) => {
   return (

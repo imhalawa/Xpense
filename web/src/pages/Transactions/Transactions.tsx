@@ -1,4 +1,4 @@
-import { Box, Grid, Typography, useMediaQuery } from "@mui/material";
+import { Box, Grid, useMediaQuery } from "@mui/material";
 import TransactionsGrid from "./TransactionsGrid/TransactionsGrid";
 import { useEffect, useState } from "react";
 import { createTransactionFixture } from "../../fixtures";

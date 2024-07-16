@@ -39,30 +39,6 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
               create: details.option.create,
             },
           ]);
-          console.log("new");
-        } else if (reason === "removeOption") {
-          setSelected(
-            newValue.map((value) => {
-              if (typeof value === "string") {
-                return {
-                  id: null,
-                  label: value,
-                  create: true,
-                };
-              } else {
-                return value;
-              }
-            })
-          );
-          setSelectableTags(
-            tags.filter(
-              (tag) =>
-                !newValue.some((t) => {
-                  if (typeof t === "string") return t === tag.label;
-                  else return t.label == tag.label;
-                })
-            )
-          );
         } else {
           setSelected(
             newValue.map((value) => {
@@ -77,7 +53,6 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
               }
             })
           );
-          setSelectableTags(selectableTags.filter((tag) => !selected.includes(tag)));
         }
       }}
       filterSelectedOptions

@@ -182,6 +182,8 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
                   />
                 </FormControl>
               </Grid>
+
+              {/* Transaction Type */}
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <Controller
@@ -230,6 +232,8 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
                   />
                 </FormControl>
               </Grid>
+
+              {/* Account */}
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <Controller
@@ -247,6 +251,8 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
                   />
                 </FormControl>
               </Grid>
+
+              {/* Tags */}
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <Controller
