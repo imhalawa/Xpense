@@ -10,7 +10,7 @@ import TransactionsForm from "./TransactionsForm/TransactionsForm";
 import { useLoading } from "../../contexts/Loading";
 
 const Transactions = () => {
-  const {setLoading} =useLoading();
+  const { setLoading } = useLoading();
   const [transactions, setTransactions] = useState<ITransaction[]>(createTransactionFixture());
   const [filteredTransactions, setFilteredTransactions] = useState<ITransaction[]>(transactions);
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
@@ -18,7 +18,6 @@ const Transactions = () => {
   const onSubmit = (transaction: ITransactionFormData) => {
     setLoading(true);
     setTimeout(() => {
-      console.log(transaction);
       setTransactions([...transactions, mapToTransaction(transaction)]);
       setLoading(false);
     }, 1000);
@@ -39,15 +38,17 @@ const Transactions = () => {
   }, [transactions, selectedDate]);
 
   return (
-    <Grid container spacing={2} mt={2}>
+    <>
       <Grid item xs={12}>
-        <Typography variant="h4">Transactions</Typography>
+        <Typography variant="h4" my={2}>
+          Transactions
+        </Typography>
         <hr />
       </Grid>
-      <Grid item xs={12} md={2}>
+      <Grid item xs={12} md={4} lg={3} xl={2}>
         <TransactionsForm onSubmit={onSubmit} selectedDate={selectedDate} />
         <hr />
-        <FormControl fullWidth>
+        <Box display={"flex"} flexDirection={"column"} gap={2}>
           <DateCalendar
             value={selectedDate}
             sx={{ width: "100%" }}
@@ -55,14 +56,14 @@ const Transactions = () => {
             disableFuture
           />
           <Button onClick={() => setSelectedDate(null)}>Clear</Button>
-        </FormControl>
+        </Box>
       </Grid>
-      <Grid item xs={12} md={10}>
+      <Grid item xs={12} md={8} lg={9} xl={10}>
         <Box sx={{ height: "80vh", width: "100%" }}>
           <TransactionsGrid dense transactions={filteredTransactions} />
         </Box>
       </Grid>
-    </Grid>
+    </>
   );
 };
 

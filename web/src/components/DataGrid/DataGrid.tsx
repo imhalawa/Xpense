@@ -47,7 +47,7 @@ const DataGrid = <T,>({ headers, rows, dense, emptyAlert }: IDataGridProps<T>): 
         aria-label={"simple table" + (dense ? "dense" : "")}
       >
         <TableHead >
-          <TableRow sx={{ backgroundColor: "#4d94fd" }}>
+          <TableRow sx={{ backgroundColor: "navajowhite" }}>
             {sortedHeaders.map((header) => (
               <TableCell key={header.headerName}>
                 <Box display="flex" flexDirection="row" alignItems="center" gap={1}>

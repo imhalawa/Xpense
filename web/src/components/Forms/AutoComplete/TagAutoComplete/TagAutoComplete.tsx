@@ -15,6 +15,7 @@ const filter = createFilterOptions<ITag>();
 
 const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAutoComplete) => {
   const tags = createTagFixture();
+  const [selectableTags, setSelectableTags] = useState<ITag[]>(tags);
   const [selected, setSelected] = useState<ITag[]>([]);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       freeSolo
       id="tags-Create"
       size="small"
-      options={tags}
+      options={selectableTags}
       onChange={(event, newValue, reason, details) => {
         if (details?.option.create && reason !== "removeOption") {
           setSelected([
@@ -38,6 +39,30 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
               create: details.option.create,
             },
           ]);
+          console.log("new");
+        } else if (reason === "removeOption") {
+          setSelected(
+            newValue.map((value) => {
+              if (typeof value === "string") {
+                return {
+                  id: null,
+                  label: value,
+                  create: true,
+                };
+              } else {
+                return value;
+              }
+            })
+          );
+          setSelectableTags(
+            tags.filter(
+              (tag) =>
+                !newValue.some((t) => {
+                  if (typeof t === "string") return t === tag.label;
+                  else return t.label == tag.label;
+                })
+            )
+          );
         } else {
           setSelected(
             newValue.map((value) => {
@@ -52,6 +77,7 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
               }
             })
           );
+          setSelectableTags(selectableTags.filter((tag) => !selected.includes(tag)));
         }
       }}
       filterSelectedOptions
@@ -76,16 +102,20 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       getOptionLabel={(option) => {
         // Value selected with enter, right from the input
         if (typeof option === "string") {
-          return `Add "${option}"`;
+          return option;
         }
         // Add "xxx" option created dynamically
         if (option.create) {
-          return `Add "${option.label}"`;
+          return option.label;
         }
         // Regular option
         return option.label;
       }}
-      renderOption={(props, option) => <li {...props}>{option.label}</li>}
+      renderOption={(props, option) => (
+        <li {...props} key={option.id}>
+          {option.label}
+        </li>
+      )}
       renderInput={(params) => (
         <TextField
           {...params}

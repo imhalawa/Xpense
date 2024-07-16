@@ -249,7 +249,12 @@ const TransactionsForm = ({ onSubmit, selectedDate }: ITransactionFormProps) => 
           </FormControl>
         </Grid>
         <Grid item xs={12}>
-          <Button variant="contained" fullWidth type="submit">
+          <Button
+            variant="contained"
+            fullWidth
+            type="submit"
+           
+          >
             Add Transaction
           </Button>
         </Grid>

@@ -1,7 +1,6 @@
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
-import MenuLinks from "./MenuLinks/MenuLinks.tsx";
 import MenuLinksDrawer from "./MenuLinksDrawer/MenuLinksDrawer.tsx";
 import { LinearProgress, useMediaQuery } from "@mui/material";
 import { useLoading } from "../../contexts/Loading.tsx";
@@ -11,12 +10,11 @@ const NavigationBar = () => {
   const { loading } = useLoading();
   return (
     <>
-      <AppBar position="static" color="default">
-        <Toolbar>
+      <AppBar position="fixed"  sx={{ boxShadow: "none", backgroundColor: "white" }}>
+        <Toolbar color="black" sx={{ height: "100%" }}>
           <Typography variant="h6" component="div" color="black" sx={{ flexGrow: 1 }}>
             Xpense
           </Typography>
-          {matchMd && <MenuLinks />}
           {!matchMd && <MenuLinksDrawer />}
         </Toolbar>
         {loading && <LinearProgress color="primary" sx={{ mt: 0 }} />}
