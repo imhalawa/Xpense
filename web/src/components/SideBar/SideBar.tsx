@@ -33,7 +33,6 @@ const SideBar = ({ visible, onVisibilityChange }: MiniSideBarProps) => {
       height="calc(100vh - 4rem)"
       justifyContent={"space-between"}
       sx={{
-        borderRight: "1px solid gray",
         backgroundColor: "primary.dark",
         color: "white",
       }}
