@@ -11,6 +11,9 @@ import Layout from "./pages/Layout.tsx";
 import { createTheme, CssBaseline, ThemeProvider } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LoadingContextProvider } from "./contexts/LoadingContext.tsx";
+import { CalendarContextProvider } from "./contexts/CalendarContext.tsx";
+import { TransactionUtilitiesContextProvider } from "./contexts/TransactionUtilitiesContext.tsx";
 
 function App() {
   const theme = createTheme({
@@ -36,13 +39,19 @@ function App() {
       <CssBaseline />
       <ThemeProvider theme={theme}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-          </Routes>
+          <LoadingContextProvider>
+            <CalendarContextProvider>
+              <TransactionUtilitiesContextProvider>
+                <Routes>
+                  <Route path="/" element={<Layout />}>
+                    <Route index element={<Dashboard />} />
+                    <Route path="/transactions" element={<Transactions />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Route>
+                </Routes>
+              </TransactionUtilitiesContextProvider>
+            </CalendarContextProvider>
+          </LoadingContextProvider>
         </LocalizationProvider>
       </ThemeProvider>
     </>

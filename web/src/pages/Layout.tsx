@@ -1,9 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { Box, Container, Grid, useMediaQuery, useTheme } from "@mui/material";
 import NavigationBar from "../components/NavigationBar/NavigationBar.tsx";
-import { LoadingContextProvider } from "../contexts/LoadingContext.tsx";
 import UtilitiesBar from "../components/UtilitiesBar/UtilitiesBar.tsx";
-import { CalendarContextProvider } from "../contexts/CalendarContext.tsx";
 import { useState } from "react";
 import SideBar from "../components/SideBar/SideBar.tsx";
 
@@ -13,17 +11,13 @@ const Layout = () => {
 
   return (
     <>
-      <LoadingContextProvider>
-        <CalendarContextProvider>
-          <Grid container>
-            <Grid item xs={12} height={"4rem"}>
-              <NavigationBar />
-            </Grid>
-            {matchMD && <MediumScreensContent />}
-            {!matchMD && <SmallScreensContent />}
-          </Grid>
-        </CalendarContextProvider>
-      </LoadingContextProvider>
+      <Grid container>
+        <Grid item xs={12} height={"4rem"}>
+          <NavigationBar />
+        </Grid>
+        {matchMD && <MediumScreensContent />}
+        {!matchMD && <SmallScreensContent />}
+      </Grid>
     </>
   );
 };

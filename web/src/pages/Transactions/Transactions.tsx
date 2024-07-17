@@ -1,32 +1,33 @@
-import { Box, Grid, useMediaQuery } from "@mui/material";
+import { Box, Grid } from "@mui/material";
 import TransactionsGrid from "./TransactionsGrid/TransactionsGrid";
 import { useEffect, useState } from "react";
 import { createTransactionFixture } from "../../fixtures";
 import { ITransaction } from "../../typings";
 import dayjs, { Dayjs } from "dayjs";
-import { ITransactionFormData, mapToTransaction } from "../../typings/forms/ITransactionFormData";
-import TransactionsForm from "./TransactionsForm/TransactionsForm";
 import { useLoading } from "../../contexts/LoadingContext";
 import { useCalendar } from "../../contexts/CalendarContext";
-import { useTheme } from "@mui/material/styles";
 import Page from "../../components/Page/Page";
+import { useTransctionUtilities } from "../../contexts/TransactionUtilitiesContext";
 
 const Transactions = () => {
-  const theme = useTheme();
-  const matchMD = useMediaQuery(theme.breakpoints.down("md"));
+  const { submittedTransaction } = useTransctionUtilities();
 
   const { setLoading } = useLoading();
   const [transactions, setTransactions] = useState<ITransaction[]>(createTransactionFixture());
   const [filteredTransactions, setFilteredTransactions] = useState<ITransaction[]>(transactions);
   const { selectedDate, setSelectedDate } = useCalendar();
 
-  const onSubmit = (transaction: ITransactionFormData) => {
+  useEffect(() => {
+    console.log("received submitted transaction");
+
     setLoading(true);
     setTimeout(() => {
-      setTransactions([...transactions, mapToTransaction(transaction)]);
+      if (submittedTransaction != null) {
+        setTransactions([...transactions, submittedTransaction]);
+      }
       setLoading(false);
     }, 1000);
-  };
+  }, [submittedTransaction]);
 
   const filterTransactionsByDate = (date: Dayjs | null) => {
     if (date) {
