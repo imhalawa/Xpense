@@ -10,11 +10,11 @@ const NavigationBar = () => {
   const { loading } = useLoading();
   return (
     <>
-      <AppBar position="fixed"  sx={{ boxShadow: "none", backgroundColor: "white" }}>
+      <AppBar position="fixed" sx={{ backgroundColor: "white" }}>
         <Toolbar color="black" sx={{ height: "100%" }}>
           <Typography variant="h6" component="div" color="black" sx={{ flexGrow: 1 }}>
             Xpense
-          </Typography> 
+          </Typography>
           {!matchMd && <MenuLinksDrawer />}
         </Toolbar>
         {loading && <LinearProgress color="primary" sx={{ mt: 0 }} />}

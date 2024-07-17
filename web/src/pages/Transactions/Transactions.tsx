@@ -44,10 +44,7 @@ const Transactions = () => {
 
   return (
     <Page title="Transactions" headerColor={"primary.dark"} headerBackgroundColor={"white"}>
-      <Grid item xs={12} sm={12} md={12} lg={3} xl={2}>
-        <TransactionsForm onSubmit={onSubmit} selectedDate={selectedDate} />
-      </Grid>
-      <Grid item xs={12} sm={12} md={12} lg={9} xl={10} mt={matchMD ? 4 : 0}>
+      <Grid item xs={12}>
         <Box sx={{ height: "calc(100vh - 256px)", width: "100%" }}>
           <TransactionsGrid dense transactions={filteredTransactions} />
         </Box>

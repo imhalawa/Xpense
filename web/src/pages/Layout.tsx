@@ -1,11 +1,11 @@
 import { Outlet } from "react-router-dom";
-import { Box, Container, Grid, Slide, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Container, Grid, useMediaQuery, useTheme } from "@mui/material";
 import NavigationBar from "../components/NavigationBar/NavigationBar.tsx";
 import { LoadingContextProvider } from "../contexts/LoadingContext.tsx";
-import SideBar from "../components/SideBar/SideBar.tsx";
+import UtilitiesBar from "../components/UtilitiesBar/UtilitiesBar.tsx";
 import { CalendarContextProvider } from "../contexts/CalendarContext.tsx";
 import { useState } from "react";
-import MiniSideBar from "../components/SideBar/MiniSideBar/MiniSideBar.tsx";
+import SideBar from "../components/SideBar/SideBar.tsx";
 
 const Layout = () => {
   const theme = useTheme();
@@ -16,7 +16,7 @@ const Layout = () => {
       <LoadingContextProvider>
         <CalendarContextProvider>
           <Grid container>
-            <Grid item xs={12} height={"64px"}>
+            <Grid item xs={12} height={"4rem"}>
               <NavigationBar />
             </Grid>
             {matchMD && <MediumScreensContent />}
@@ -30,36 +30,26 @@ const Layout = () => {
 
 const SmallScreensContent = () => {
   return (
-    <>
-      <Grid item xs={12} height={"calc(100vh - 4rem)"} width={"100%"}>
-        <LayoutContent />
-      </Grid>
-    </>
+    <Grid item xs={12} height={"calc(100vh - 4rem)"} width={"100%"}>
+      <LayoutContent />
+    </Grid>
   );
 };
 
 const MediumScreensContent = () => {
-  const [sideBarVisibility, setSideBarVisibility] = useState(true);
+  const [showUtilitiesBar, setSideBarVisibility] = useState(true);
 
   const handleHideSideBar = (visible: boolean) => {
     setSideBarVisibility(visible);
   };
+
   return (
     <Box display="flex" justifyContent={"space-between"}>
-      {sideBarVisibility && (
-        <Box height={"calc(100vh - 4rem)"} width={"8.28rem"}>
-          <SideBar onVisibilityChange={handleHideSideBar} />
-        </Box>
-      )}
-      {!sideBarVisibility && (
-        <Box height={"calc(100vh - 4rem)"} width={"1.25rem"}>
-          <MiniSideBar onVisibilityChange={handleHideSideBar} />
-        </Box>
-      )}
+      {showUtilitiesBar && <UtilitiesBar visible={showUtilitiesBar} onVisibilityChange={handleHideSideBar} />}
+      {!showUtilitiesBar && <SideBar visible={!showUtilitiesBar} onVisibilityChange={handleHideSideBar} />}
       <Box
-        width={sideBarVisibility ? "calc(100vw - 17rem)" : "calc(100vw - 4.5rem)"}
-        height={"calc(100vh - 4rem)"}
-        marginLeft={sideBarVisibility ? "8rem" : "3rem"}
+        width={showUtilitiesBar ? "calc(100vw - 26rem)" : "calc(100vw - 4rem)"}
+        marginLeft={showUtilitiesBar ? "26rem" : "4rem"}
       >
         <LayoutContent />
       </Box>
@@ -68,22 +58,16 @@ const MediumScreensContent = () => {
 };
 const LayoutContent = () => {
   return (
-    <Container maxWidth={false} sx={{ padding: 0, margin: 0, height: "calc(100vh - 7rem)" }}>
-      <Grid
-        container
-        px={2.5}
-        width={"100%"}
-        mx={-0.5}
-        sx={{ backgroundColor: "#eef2f6", borderRadius: "1rem", height: "calc(100vh - 7rem)" }}
-      >
+    <Container maxWidth={false} sx={{ backgroundColor: "#eef2f6" }}>
+      <Grid container px={2} sx={{ backgroundColor: "#eef2f6", height: "100%" }}>
         <Grid
           container
-          mx={0}
-          my={2.5}
+          my={2}
           sx={{
+            padding: 0,
             backgroundColor: "white",
             borderRadius: "1rem",
-            height: "calc(100vh - 9.5rem)",
+            height: "calc(100vh - 6rem)",
             overflowY: "scroll",
           }}
         >
