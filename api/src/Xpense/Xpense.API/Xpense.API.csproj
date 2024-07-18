@@ -10,9 +10,17 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Content Remove="Seeds\PrioritySeeds.json" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <AdditionalFiles Include="..\Dependencies\DependencyValidation1.layerdiagram" Link="DependencyValidation1.layerdiagram">
 	    <Visible>False</Visible>
 	  </AdditionalFiles>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="Seeds\PrioritySeeds.json" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -30,21 +38,6 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\Xpense.Persistence\Xpense.Persistence.csproj" />
 	  <ProjectReference Include="..\Xpense.Services\Xpense.Services.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Compile Update="Resources\Defaults.Designer.cs">
-			<DesignTime>True</DesignTime>
-			<AutoGen>True</AutoGen>
-			<DependentUpon>Defaults.resx</DependentUpon>
-		</Compile>
-	</ItemGroup>
-
-	<ItemGroup>
-		<EmbeddedResource Update="Resources\Defaults.resx">
-			<Generator>ResXFileCodeGenerator</Generator>
-			<LastGenOutput>Defaults.Designer.cs</LastGenOutput>
-		</EmbeddedResource>
 	</ItemGroup>
 
 </Project>

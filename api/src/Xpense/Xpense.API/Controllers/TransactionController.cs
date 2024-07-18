@@ -1,7 +1,8 @@
-using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Xpense.API.Helpers;
 using Xpense.API.Models.Requests;
 using Xpense.API.Models.Responses;
@@ -16,28 +17,35 @@ namespace Xpense.API.Controllers;
 public class TransactionController(
     DepositTransactionUseCase depositTransactionUseCase,
     WithdrawTransactionUseCase withdrawTransactionUseCase,
+    GetAllTransactionsUseCase getAllTransactionsUse,
     ILogger logger)
     : XpenseController
 {
     [HttpPost("deposit")]
+    [ProducesResponseType(typeof(TransactionResponse), 200)]
     public async Task<IActionResult> Income([FromBody] DepositTransactionRequest request)
     {
         try
         {
             var transaction = await depositTransactionUseCase.Handle(request.ToCommand());
-            return Ok(DepositTransactionResponse.Of(transaction).ToString());
+            return Ok(TransactionResponse.Of(transaction));
         }
         catch (AccountNotFoundException exception)
         {
             logger.Warning(exception, exception.Message);
-            return NotFound(exception.Message);
+            return BadRequest(exception.Message);
+        }
+        catch (DefaultAccountNotFoundException exception)
+        {
+            logger.Warning(exception, exception.Message);
+            return BadRequest(exception.Message);
         }
         catch (CategoryNotFoundException exception)
         {
             logger.Warning(exception, exception.Message);
-            return NotFound(exception.Message);
+            return BadRequest(exception.Message);
         }
-        catch (DefaultAccountNotFoundException exception)
+        catch (MerchantNotFoundException exception)
         {
             logger.Warning(exception, exception.Message);
             return BadRequest(exception.Message);
@@ -50,12 +58,13 @@ public class TransactionController(
     }
 
     [HttpPost("withdraw")]
+    [ProducesResponseType(typeof(TransactionResponse), 200)]
     public async Task<IActionResult> Withdraw([FromBody] WithdrawTransactionRequest request)
     {
         try
         {
-            await withdrawTransactionUseCase.Handle(request.ToCommand());
-            return Ok($"The account with number {request.FromAccount} has been debited with {request.Amount}");
+            var transaction = await withdrawTransactionUseCase.Handle(request.ToCommand());
+            return Ok(TransactionResponse.Of(transaction));
         }
         catch (AccountNotFoundException exception)
         {
@@ -76,6 +85,21 @@ public class TransactionController(
         {
             logger.Error(exception, exception.Message);
             return Problem(exception.Message);
+        }
+    }
+
+    [HttpGet("{accountNumber}", Name = "Get All Transactions for account")]
+    public async Task<IActionResult> GetAll(string accountNumber)
+    {
+        try
+        {
+            var transactions = await getAllTransactionsUse.Execute(accountNumber);
+            return Ok(transactions.Select(TransactionResponse.Of));
+        }
+        catch (AccountNotFoundException exception)
+        {
+            logger.Warning(exception, exception.Message);
+            return NotFound(exception.Message);
         }
     }
 

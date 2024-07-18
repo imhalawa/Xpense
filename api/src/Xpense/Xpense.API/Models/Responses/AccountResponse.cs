@@ -5,28 +5,36 @@ namespace Xpense.API.Models.Responses;
 public class AccountResponse(
     int id,
     string accountNumber,
-    string name,
+    string label,
     decimal balance,
     bool isDefault,
-    DateTime createdAt,
-    DateTime? lastModifiedOn)
+    long? createdOn, long? lastUpdated)
 {
     public int Id { get; set; } = id;
     public string AccountNumber { get; set; } = accountNumber;
-    public string Name { get; set; } = name;
+    public string Label { get; set; } = label;
     public decimal Balance { get; set; } = balance;
     public bool IsDefault { get; set; } = isDefault;
-    public DateTime CreatedAt { get; set; } = createdAt;
-    public DateTime? LastModifiedOn { get; set; } = lastModifiedOn;
+    public long? CreatedOn { get; set; } = createdOn;
+    public long? LastUpdated { get; set; } = lastUpdated;
 
-    public static AccountResponse Of(Services.Entities.Account account) => new
-    (
-        account.Id,
-        account.AccountNumber,
-        account.Name,
-        account.Balance,
-        account.IsDefaultAccount,
-        account.CreatedOn,
-        account.LastUpdated
-    );
+
+    public static AccountResponse Of(Services.Entities.Account account)
+    {
+        var createdOn = new DateTimeOffset(account.CreatedOn).ToUnixTimeSeconds();
+        long? lastUpdated = account.LastUpdated.HasValue
+            ? new DateTimeOffset(account.LastUpdated.Value).ToUnixTimeSeconds()
+            : null;
+
+        return new
+        (
+            account.Id,
+            account.AccountNumber,
+            account.Name,
+            account.Balance,
+            account.IsDefaultAccount,
+            createdOn,
+            lastUpdated
+        );
+    }
 }

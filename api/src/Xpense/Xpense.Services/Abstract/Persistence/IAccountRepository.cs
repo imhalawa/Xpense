@@ -2,7 +2,7 @@
 
 namespace Xpense.Services.Abstract.Persistence;
 
-public interface IAccountRepository: IRepository<Account>
+public interface IAccountRepository : IRepository<Account>
 {
     string GetNextAccountNumber();
     bool HasDefaultAccount();

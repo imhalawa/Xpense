@@ -4,6 +4,7 @@ using Xpense.Services.Entities;
 using Xpense.Services.Enums;
 using Xpense.Services.Exceptions;
 using Xpense.Services.Features.Transactions.Commands;
+using Xpense.Services.Helpers;
 
 namespace Xpense.Services.Features.Transactions.UseCases;
 
@@ -11,42 +12,48 @@ public class WithdrawTransactionUseCase(
     IAccountRepository accountRepository,
     ICategoryRepository categoryRepository,
     ITagRepository tagRepository,
-    ITransactionRepository transactionRepository
+    ITransactionRepository transactionRepository,
+        IMerchantRepository merchantRepository
 ) : ICommandResultHandler<WithdrawTransactionCommand, Transaction>
 {
     public async Task<Transaction> Handle(WithdrawTransactionCommand command)
     {
-        // Could be enhanced by de-duplicating the queries of Account & Category
-        if (!string.IsNullOrWhiteSpace(command.FromAccount) && !await accountRepository.Exists(command.FromAccount))
-            throw new AccountNotFoundException(command.FromAccount);
+        if (!string.IsNullOrWhiteSpace(command.AccountNumber) && !await accountRepository.Exists(command.AccountNumber))
+            throw new AccountNotFoundException(command.AccountNumber);
 
-        if (!await categoryRepository.Exists(command.Category))
-            throw new CategoryNotFoundException(command.Category);
+        var category = await categoryRepository.GetWithById(command.CategoryId, s => s.Priority) ?? throw new CategoryNotFoundException(command.CategoryId);
 
-        var tags = command.Tags == null ? null : await tagRepository.GetAll(command.Tags);
-        var account = string.IsNullOrWhiteSpace(command.FromAccount)
+        var account = string.IsNullOrWhiteSpace(command.AccountNumber)
             ? await accountRepository.GetDefaultAccount()
-            : await accountRepository.GetAccountByNumber(command.FromAccount);
-        var category = await categoryRepository.GetById(command.Category);
+            : await accountRepository.GetAccountByNumber(command.AccountNumber);
 
-        // DomainEvents would be a good option here
-        account.Withdraw(command.Amount);
+        account.Withdraw(command.Amount.ToSingle());
+
+        var merchant = await merchantRepository.GetOrCreateIfMissing(command.Merchant) ?? throw new MerchantNotFoundException(command.Merchant.Label);
+
+        var tags = command.Tags != null
+            ? await command.Tags.ToAsyncEnumerable()
+                .SelectAwait(async t => await tagRepository.GetOrCreateIfMissing(t))
+                .Where(t => t != null).ToListAsync()
+            : null;
 
         var transaction = new Transaction
         {
-            Amount = command.Amount,
-            Reason = command.Reason,
+            Amount = command.Amount.Cents,
+            Currency = command.Amount.Currency,
             Category = category,
-            ToAccount = account,
+            Account = account,
+            CreatedOn = command.CreatedOn.ToDateTime() ?? DateTime.Now,
             Tags = tags,
-            TransactionType = TransactionType.Withdraw
+            Merchant = merchant,
+            TransactionType = TransactionType.Debit
         };
 
         transactionRepository.Create(transaction);
         var result = await transactionRepository.SaveChanges();
 
         if (result < 1)
-            throw new WithdrawCreationFailedException(command.Amount, command.FromAccount);
+            throw new WithdrawCreationFailedException(command.Amount.ToSingle(), command.AccountNumber);
 
         return transaction;
     }

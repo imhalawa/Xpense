@@ -1,17 +1,23 @@
 using System;
 using Xpense.Services.Entities;
-using Xpense.Services.Enums;
 
 namespace Xpense.API.Models.Responses;
 
-public class CategoryResponse(int id, string name, Priority priority, DateTime createdAt, DateTime? lastModifiedOn)
+public class CategoryResponse(int id, string label, PriorityResponse priority, long? createdOn, long? lastUpdated)
 {
     public int Id { get; set; } = id;
-    public string Name { get; set; } = name;
-    public Priority Priority { get; set; } = priority;
-    public DateTime CreatedAt { get; set; } = createdAt;
-    public DateTime? LastModifiedOn { get; set; } = lastModifiedOn;
+    public string Label { get; set; } = label;
+    public PriorityResponse Priority { get; set; } = priority;
+    public long? CreatedOn { get; set; } = createdOn;
+    public long? LastUpdated { get; set; } = lastUpdated;
 
-    public static CategoryResponse Of(Category category) => new(category.Id, category.Name, category.Priority,
-        category.CreatedOn, category.LastUpdated);
+    public static CategoryResponse Of(Category category)
+    {
+        var priority = PriorityResponse.Of(category.Priority);
+        var createdOn = new DateTimeOffset(category.CreatedOn).ToUnixTimeSeconds();
+        long? lastUpdated = category.LastUpdated.HasValue
+            ? new DateTimeOffset(category.LastUpdated.Value).ToUnixTimeSeconds()
+            : null;
+        return new CategoryResponse(category.Id, category.Label, priority, createdOn, lastUpdated);
+    }
 }

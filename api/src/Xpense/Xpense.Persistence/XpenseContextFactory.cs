@@ -7,9 +7,9 @@ public class XpenseContextFactory : IDesignTimeDbContextFactory<XpenseDbContext>
 {
     public XpenseDbContext CreateDbContext(string[] args)
     {
-  var optionsBuilder = new DbContextOptionsBuilder<XpenseDbContext>();
-        optionsBuilder.UseSqlServer("Server=atom;Database=Xpense;User Id=sa;Password=P@ssw0rd;TrustServerCertificate=true");
+        var optionsBuilder = new DbContextOptionsBuilder<XpenseDbContext>();
+        optionsBuilder.UseSqlServer("Server=.;Database=Xpense;Integrated Security=True;TrustServerCertificate=true");
 
-        return new XpenseDbContext(optionsBuilder.Options);    
-        }
+        return new XpenseDbContext(optionsBuilder.Options);
+    }
 }

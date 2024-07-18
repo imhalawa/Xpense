@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Xpense.API.Data;
+using Xpense.Persistence;
 
 #nullable disable
 
@@ -17,7 +17,7 @@ namespace Xpense.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.11")
+                .HasAnnotation("ProductVersion", "8.0.6")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -37,7 +37,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("TransactionTags", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.API.Data.Models.Account", b =>
+            modelBuilder.Entity("Xpense.Services.Entities.Account", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -56,9 +56,7 @@ namespace Xpense.Persistence.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedOn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsDefaultAccount")
                         .HasColumnType("bit");
@@ -82,7 +80,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Accounts", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.API.Data.Models.Category", b =>
+            modelBuilder.Entity("Xpense.Services.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -91,30 +89,138 @@ namespace Xpense.Persistence.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedOn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
+                    b.Property<string>("Label")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("Priority")
+                    b.Property<DateTime?>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PriorityId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Label")
+                        .IsUnique();
+
+                    b.HasIndex("PriorityId");
+
                     b.ToTable("Categories", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.API.Data.Models.Tag", b =>
+            modelBuilder.Entity("Xpense.Services.Entities.Merchant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Label")
+                        .IsUnique();
+
+                    b.ToTable("Merchants", "Xpense");
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.Priority", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double>("Weight")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Label")
+                        .IsUnique();
+
+                    b.ToTable("Priorities", "Xpense");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
+                            Label = "Extreme",
+                            Weight = 1.0
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
+                            Label = "High",
+                            Weight = 2.0
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
+                            Label = "Medium",
+                            Weight = 3.0
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
+                            Label = "Low",
+                            Weight = 4.0
+                        },
+                        new
+                        {
+                            Id = 5,
+                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
+                            Label = "None",
+                            Weight = 0.0
+                        });
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.Tag", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -128,9 +234,7 @@ namespace Xpense.Persistence.Migrations
                         .IsFixedLength();
 
                     b.Property<DateTime>("CreatedOn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("FgColorHex")
                         .HasMaxLength(6)
@@ -140,22 +244,23 @@ namespace Xpense.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
+                    b.Property<string>("Label")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime?>("LastUpdated")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Name");
+                    b.HasIndex("Label")
+                        .IsUnique();
 
                     b.ToTable("Tags", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.API.Data.Models.Transaction", b =>
+            modelBuilder.Entity("Xpense.Services.Entities.Transaction", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -163,19 +268,19 @@ namespace Xpense.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<int?>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedOn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
-                    b.Property<int?>("FromAccountId")
+                    b.Property<int>("Currency")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsDeleted")
@@ -184,10 +289,7 @@ namespace Xpense.Persistence.Migrations
                     b.Property<DateTime?>("LastUpdated")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Reason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ToAccountId")
+                    b.Property<int>("MerchantId")
                         .HasColumnType("int");
 
                     b.Property<int>("TransactionType")
@@ -195,66 +297,85 @@ namespace Xpense.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AccountId");
+
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("FromAccountId");
-
-                    b.HasIndex("ToAccountId");
+                    b.HasIndex("MerchantId");
 
                     b.ToTable("Transactions", "Xpense");
                 });
 
             modelBuilder.Entity("TransactionTags", b =>
                 {
-                    b.HasOne("Xpense.API.Data.Models.Tag", null)
+                    b.HasOne("Xpense.Services.Entities.Tag", null)
                         .WithMany()
                         .HasForeignKey("TagId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Xpense.API.Data.Models.Transaction", null)
+                    b.HasOne("Xpense.Services.Entities.Transaction", null)
                         .WithMany()
                         .HasForeignKey("TransactionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Xpense.API.Data.Models.Transaction", b =>
+            modelBuilder.Entity("Xpense.Services.Entities.Category", b =>
                 {
-                    b.HasOne("Xpense.API.Data.Models.Category", "Category")
+                    b.HasOne("Xpense.Services.Entities.Priority", "Priority")
+                        .WithMany("Categories")
+                        .HasForeignKey("PriorityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Priority");
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.Transaction", b =>
+                {
+                    b.HasOne("Xpense.Services.Entities.Account", "Account")
+                        .WithMany("Transactions")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Xpense.Services.Entities.Category", "Category")
                         .WithMany("Transactions")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Xpense.API.Data.Models.Account", "FromAccount")
-                        .WithMany("WithdrawTransactions")
-                        .HasForeignKey("FromAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Xpense.API.Data.Models.Account", "ToAccount")
-                        .WithMany("DepositTransactions")
-                        .HasForeignKey("ToAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                    b.HasOne("Xpense.Services.Entities.Merchant", "Merchant")
+                        .WithMany("Transactions")
+                        .HasForeignKey("MerchantId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Account");
 
                     b.Navigation("Category");
 
-                    b.Navigation("FromAccount");
-
-                    b.Navigation("ToAccount");
+                    b.Navigation("Merchant");
                 });
 
-            modelBuilder.Entity("Xpense.API.Data.Models.Account", b =>
-                {
-                    b.Navigation("DepositTransactions");
-
-                    b.Navigation("WithdrawTransactions");
-                });
-
-            modelBuilder.Entity("Xpense.API.Data.Models.Category", b =>
+            modelBuilder.Entity("Xpense.Services.Entities.Account", b =>
                 {
                     b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.Category", b =>
+                {
+                    b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.Merchant", b =>
+                {
+                    b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.Priority", b =>
+                {
+                    b.Navigation("Categories");
                 });
 #pragma warning restore 612, 618
         }

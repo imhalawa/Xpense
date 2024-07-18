@@ -11,7 +11,7 @@ public class UpdateTagUseCase(ITagRepository repository) : ICommandResultHandler
     public async Task<Tag> Handle(UpdateTagCommand command)
     {
         var entity = await repository.GetById(command.Id);
-        entity.Name = command.Name;
+        entity.Label = command.Name;
         entity.BgColorHex = command.BgColorHex;
         entity.FgColorHex = command.FgColorHex;
         repository.Update(entity);

@@ -7,11 +7,11 @@ namespace Xpense.Services.Features.Categories.UseCases;
 
 public class GetCategoryByIdUseCase(ICategoryRepository repository) : IQueryParamHandler<int, Category>
 {
-    public async Task<Category> Execute(int id, CancellationToken cancellationToken = default)
+    public async Task<Category> Execute(int accountNumber, CancellationToken cancellationToken = default)
     {
-        var category = await repository.GetById(id);
+        var category = await repository.GetById(accountNumber);
         if (category == null)
-            throw new CategoryNotFoundException(id);
+            throw new CategoryNotFoundException(accountNumber);
         return category;
     }
 }

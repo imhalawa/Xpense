@@ -14,7 +14,7 @@ public class CreateTagUseCase(ITagRepository repository) : ICommandResultHandler
         repository.Create(tag);
         var result = await repository.SaveChanges();
         if (result < 1)
-            throw new TagCreationFailedException(tag.Name);
+            throw new TagCreationFailedException(tag.Label);
         return tag;
     }
 }

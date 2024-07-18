@@ -1,12 +1,11 @@
-using Xpense.Services.Enums;
 using Xpense.Services.Features.Categories.Commands;
 
 namespace Xpense.API.Models.Requests;
 
-public class CreateCategoryRequest(string name, Priority priority)
+public class CreateCategoryRequest(string name, int priorityId)
 {
     public string Name { get; } = name;
-    public Priority Priority { get; } = priority;
+    public int Priority { get; } = priorityId;
 
-    public CreateCategoryCommand ToCommand() => new(Name, Priority);
+    public CreateCategoryCommand ToCommand() => new(Name, priorityId);
 }

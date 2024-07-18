@@ -1,10 +1,9 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using System.Linq;
+using System.Threading.Tasks;
 using Xpense.API.Helpers;
-using Xpense.API.Models;
 using Xpense.API.Models.Requests;
 using Xpense.API.Models.Responses;
 using Xpense.Services.Exceptions;
@@ -25,21 +24,19 @@ namespace Xpense.API.Controllers
         ILogger logger) : XpenseController
     {
         [HttpGet(
-            "{number:minlength(10):maxlength(10)}",
+            "{accountNumber:minlength(10):maxlength(10)}",
             Name = "Get Account By (Account Number)"
         )]
         [ProducesResponseType<AccountResponse>(StatusCodes.Status200OK, "application/json")]
-        public async Task<IActionResult> GetByAccountNumber(string number)
+        public async Task<IActionResult> GetByAccountNumber(string accountNumber)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(number) || number.Length != 10)
-                    return ValidationProblem($"Please provide a valid account number");
+                if (string.IsNullOrWhiteSpace(accountNumber) || accountNumber.Length != 10)
+                    return ValidationProblem($"Please provide a valid account accountNumber");
 
-                var account = await getAccountByNumberUseCase.Execute(number);
-                var result = AccountResponse.Of(account);
-
-                return Ok(result);
+                var account = await getAccountByNumberUseCase.Execute(accountNumber);
+                return Ok(AccountResponse.Of(account));
             }
             catch (AccountNotFoundException ex)
             {
@@ -51,18 +48,16 @@ namespace Xpense.API.Controllers
         public async Task<IActionResult> Get()
         {
             var accounts = await getAllAccountsAccounts.Execute();
-            var result = accounts.Select(AccountResponse.Of);
-            return Ok(result);
+            return Ok(accounts.Select(AccountResponse.Of));
         }
 
         [HttpPost("", Name = "Create Account", Order = 1)]
-        public async Task<ActionResult<Response<CreateAccountResponse>>> Create([FromBody] CreateAccountRequest request)
+        public async Task<IActionResult> Create([FromBody] CreateAccountRequest request)
         {
             try
             {
                 var createdAccount = await createAccount.Handle(request.ToCommand());
-                var result = CreateAccountResponse.Of(createdAccount);
-                return Ok(result);
+                return Ok(AccountResponse.Of(createdAccount));
             }
             catch (AccountCreationFailedException exception)
             {
@@ -72,7 +67,7 @@ namespace Xpense.API.Controllers
         }
 
         [HttpDelete(
-            "{number:minlength(10):maxlength(10)}",
+            "{accountNumber:minlength(10):maxlength(10)}",
             Name = "Delete Account By Number"
         )]
         public async Task<IActionResult> Delete(string number)
@@ -80,7 +75,7 @@ namespace Xpense.API.Controllers
             try
             {
                 if (string.IsNullOrWhiteSpace(number) || number.Length != 10)
-                    return ValidationProblem($"Please provide a valid account number");
+                    return ValidationProblem($"Please provide a valid account accountNumber");
 
                 await deleteAccountUseCase.Handle(number);
                 return Ok("Account Deleted Successfully");
@@ -105,7 +100,7 @@ namespace Xpense.API.Controllers
                 if (request == null || !ModelState.IsValid)
                     return ValidationProblem($"Invalid Patch Request: {ModelState}");
                 var result = await updateAccountUseCase.Handle(request.ToCommand());
-                return Ok(result);
+                return Ok(AccountResponse.Of(result));
             }
             catch (AccountNotFoundException exception)
             {

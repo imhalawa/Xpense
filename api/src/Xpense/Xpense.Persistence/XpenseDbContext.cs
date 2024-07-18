@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.Extensions.Configuration;
 using System.Linq.Expressions;
 using System.Reflection;
+using Xpense.Services.Abstract.Entities;
 using Xpense.Services.Entities;
 
 namespace Xpense.Persistence
@@ -17,10 +17,12 @@ namespace Xpense.Persistence
         {
             this.options = options;
         }
-        
+
         public virtual DbSet<Account> Accounts { get; set; }
+        public virtual DbSet<Merchant> Merchants { get; set; }
         public virtual DbSet<Transaction> Transactions { get; set; }
         public virtual DbSet<Category> Categories { get; set; }
+        public virtual DbSet<Priority> Priorities { get; set; }
         public virtual DbSet<Tag> Tags { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -50,9 +52,9 @@ namespace Xpense.Persistence
             }
         }
 
-        private void ApplyGlobalQueryFilter (ModelBuilder builder, Expression<Func<BaseEntity, bool>> predicate)
+        private void ApplyGlobalQueryFilter(ModelBuilder builder, Expression<Func<BaseEntity, bool>> predicate)
         {
-           foreach(var mutableEntityType in builder.Model.GetEntityTypes())
+            foreach (var mutableEntityType in builder.Model.GetEntityTypes())
             {
                 if (mutableEntityType.ClrType.IsAssignableTo(typeof(BaseEntity)))
                 {

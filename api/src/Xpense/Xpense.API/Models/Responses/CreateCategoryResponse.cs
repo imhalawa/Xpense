@@ -9,5 +9,5 @@ public class CreateCategoryResponse(int id, string name, Priority priority)
     public string Name { get; set; } = name;
     public Priority Priority { get; set; } = priority;
 
-    public static CreateCategoryResponse Of(Category category) => new(category.Id, category.Name, category.Priority);
+    public static CreateCategoryResponse Of(Category category) => new(category.Id, category.Label, category.Priority);
 }

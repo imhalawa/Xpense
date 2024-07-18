@@ -1,4 +1,6 @@
-﻿namespace Xpense.Services.Entities
+﻿using Xpense.Services.Abstract.Entities;
+
+namespace Xpense.Services.Entities
 {
     /// <summary>Account Entity</summary>
     public class Account : BaseEntity
@@ -27,8 +29,7 @@
         /// </value>
         public bool IsDefaultAccount { get; set; }
 
-        public virtual ICollection<Transaction> DepositTransactions { get; set; }
-        public virtual ICollection<Transaction> WithdrawTransactions { get; set; }
+        public virtual ICollection<Transaction> Transactions { get; set; }
 
         public override bool Equals(object other)
         {

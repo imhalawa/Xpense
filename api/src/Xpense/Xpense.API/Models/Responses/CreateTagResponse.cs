@@ -9,5 +9,5 @@ public class CreateTagResponse(int id, string name, string bgColorHex, string fg
     public string BgColorHex { get; set; } = bgColorHex;
     public string FgColorHex { get; set; } = fgColorHex;
 
-    public static CreateTagResponse Of(Tag tag) => new(tag.Id, tag.Name, tag.BgColorHex, tag.FgColorHex);
+    public static CreateTagResponse Of(Tag tag) => new(tag.Id, tag.Label, tag.BgColorHex, tag.FgColorHex);
 }

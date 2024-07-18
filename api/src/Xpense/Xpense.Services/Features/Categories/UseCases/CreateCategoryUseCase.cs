@@ -6,15 +6,22 @@ using Xpense.Services.Features.Categories.Commands;
 
 namespace Xpense.Services.Features.Categories.UseCases;
 
-public class CreateCategoryUseCase(ICategoryRepository repository)
+public class CreateCategoryUseCase(
+        ICategoryRepository repository,
+        IPriorityRepository priorityRepository)
     : ICommandResultHandler<CreateCategoryCommand, Category>
 {
     public async Task<Category> Handle(CreateCategoryCommand command)
     {
+        var priority = await priorityRepository.GetById(command.PriorityId);
+
+        if (priority == null)
+            throw new PriorityNotFoundException(command.PriorityId);
+
         var category = new Category()
         {
-            Name = command.Name,
-            Priority = command.Priority
+            Label = command.Name,
+            Priority = priority
         };
 
         repository.Create(category);

@@ -1,16 +1,15 @@
-﻿using System;
-using System.IO;
-using System.Reflection;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
+using System;
+using System.IO;
+using System.Reflection;
 using Xpense.Persistence;
 using Xpense.Persistence.Repositories;
 using Xpense.Services.Abstract.Persistence;
-using Xpense.Services.Entities;
 using Xpense.Services.Features.Accounts.Usecases;
 using Xpense.Services.Features.Categories.UseCases;
 using Xpense.Services.Features.Tags.UseCases;
@@ -27,7 +26,7 @@ namespace Xpense.API.Extensions.cs
         {
             services.AddDbContext<XpenseDbContext>(optionsBuilder =>
             {
-                optionsBuilder.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
+                optionsBuilder.UseSqlServer(configuration.GetConnectionString("DefaultConnection"), x => x.MigrationsAssembly("Xpense.Persistence"));
             });
         }
 
@@ -66,7 +65,7 @@ namespace Xpense.API.Extensions.cs
                 options.DefaultApiVersion = new ApiVersion(1, 0);
                 options.AssumeDefaultVersionWhenUnspecified = true;
                 options.ReportApiVersions = true;
-                options.ApiVersionReader = new HeaderApiVersionReader("x-xpns-version");
+                options.ApiVersionReader = new HeaderApiVersionReader("x-api-version");
             });
         }
 
@@ -76,9 +75,12 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<ITagRepository, TagRepository>();
             services.AddScoped<ITransactionRepository, TransactionRepository>();
+            services.AddScoped<IMerchantRepository, MerchantRepository>();
+            services.AddScoped<IPriorityRepository, PriorityRepository>();
         }
 
-        public static void AddUseCases(this IServiceCollection services) {
+        public static void AddUseCases(this IServiceCollection services)
+        {
             services.AddScoped<GetAccountByNumberUseCase>();
             services.AddScoped<GetAllAccountsUseCase>();
             services.AddScoped<CreateAccountUseCase>();
@@ -96,9 +98,10 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<GetTagByIdUseCase>();
             services.AddScoped<GetAllTagsUseCase>();
             services.AddScoped<UpdateTagUseCase>();
-            
+
             services.AddScoped<DepositTransactionUseCase>();
             services.AddScoped<WithdrawTransactionUseCase>();
+            services.AddScoped<GetAllTransactionsUseCase>();
         }
     }
 }

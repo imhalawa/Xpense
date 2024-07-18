@@ -11,11 +11,8 @@ public class TransactionEntityTypeConfiguration : BaseEntityTypeConfiguration<Tr
         base.Configure(builder);
         builder.Metadata.SetSchema(XpenseSchema);
 
-        // Transaction (M) - Account(1) [Deposit Transactions]
-        builder.HasOne(e => e.ToAccount).WithMany(e => e.DepositTransactions).HasForeignKey(e => e.ToAccountId).OnDelete(DeleteBehavior.Restrict);
-
-        // Transaction (M) - Account(1) [Withdraw Transactions]
-        builder.HasOne(e => e.FromAccount).WithMany(e => e.WithdrawTransactions).HasForeignKey(e => e.FromAccountId).OnDelete(DeleteBehavior.Restrict);
+        // Transaction (M) - Account(1)
+        builder.HasOne(e => e.Account).WithMany(e => e.Transactions).HasForeignKey(e => e.AccountId).OnDelete(DeleteBehavior.Restrict);
 
         // Transaction (M) - Category(1)
         builder.HasOne(e => e.Category).WithMany(e => e.Transactions).HasForeignKey(e => e.CategoryId);
@@ -29,5 +26,8 @@ public class TransactionEntityTypeConfiguration : BaseEntityTypeConfiguration<Tr
                r => r.HasOne(typeof(Transaction)).WithMany().HasForeignKey("TransactionId").HasPrincipalKey(nameof(Transaction.Id)),
                j => j.HasKey("TransactionId", "TagId")
             );
+
+        // Transaction (1) - Merchant (M)
+        builder.HasOne(e => e.Merchant).WithMany(e => e.Transactions).HasForeignKey(e => e.MerchantId);
     }
 }

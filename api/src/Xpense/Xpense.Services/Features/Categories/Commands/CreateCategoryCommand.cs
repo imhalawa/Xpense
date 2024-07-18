@@ -1,9 +1,7 @@
-using Xpense.Services.Enums;
-
 namespace Xpense.Services.Features.Categories.Commands;
 
-public class CreateCategoryCommand(string name, Priority priority)
+public class CreateCategoryCommand(string name, int priorityId)
 {
     public string Name { get; set; } = name;
-    public Priority Priority { get; set; } = priority;
+    public int PriorityId { get; set; } = priorityId;
 }

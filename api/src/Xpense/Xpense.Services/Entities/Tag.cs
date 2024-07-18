@@ -1,10 +1,12 @@
-﻿namespace Xpense.Services.Entities;
+﻿using Xpense.Services.Abstract.Entities;
 
-public class Tag : BaseEntity
+namespace Xpense.Services.Entities;
+
+public class Tag : BaseEntity, IOptionEntity
 {
-    public required string Name { get; set; }
-    public required string BgColorHex { get; set; }
-    public required string FgColorHex { get; set; }
+    public required string Label { get; set; }
+    public string? BgColorHex { get; set; }
+    public string? FgColorHex { get; set; }
 
     public virtual ICollection<Transaction> Transactions { get; set; }
 }
