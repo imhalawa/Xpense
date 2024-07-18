@@ -176,48 +176,6 @@ namespace Xpense.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Priorities", "Xpense");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsDeleted = false,
-                            Label = "Extreme",
-                            Weight = 1.0
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsDeleted = false,
-                            Label = "High",
-                            Weight = 2.0
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsDeleted = false,
-                            Label = "Medium",
-                            Weight = 3.0
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsDeleted = false,
-                            Label = "Low",
-                            Weight = 4.0
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CreatedOn = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsDeleted = false,
-                            Label = "None",
-                            Weight = 0.0
-                        });
                 });
 
             modelBuilder.Entity("Xpense.Services.Entities.Tag", b =>

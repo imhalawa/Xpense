@@ -1,27 +1,22 @@
 {
   "priorities": [
     {
-      "Id": 1,
       "Label": "Extreme",
       "Weight": 1
     },
     {
-      "Id": 2,
       "Label": "High",
       "Weight": 2
     },
     {
-      "Id": 3,
       "Label": "Medium",
       "Weight": 3
     },
     {
-      "Id": 4,
       "Label": "Low",
       "Weight": 4
     },
     {
-      "Id": 5,
       "Label": "None",
       "Weight": 0
     }

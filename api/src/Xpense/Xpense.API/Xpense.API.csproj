@@ -10,7 +10,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Content Remove="Seeds\PrioritySeeds.json" />
+	  <Content Remove="Seeds\Priorities.json" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -20,7 +20,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <EmbeddedResource Include="Seeds\PrioritySeeds.json" />
+	  <EmbeddedResource Include="Seeds\Priorities.json" />
 	</ItemGroup>
 
 	<ItemGroup>
