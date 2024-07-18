@@ -48,9 +48,10 @@ export const mapToTransaction = (data: ITransactionFormData) => {
     0,
     {
       currency: data.currency,
-      value: data.amount,
+      cents: data.amount,
     },
     data.dateOfTransaction,
+    null,
     data.category!,
     data.merchant!,
     data.account!,

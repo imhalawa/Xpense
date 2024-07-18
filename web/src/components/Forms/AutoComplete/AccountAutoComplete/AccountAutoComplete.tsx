@@ -13,7 +13,7 @@ interface IAccountAutoCompleteProps {
 
 const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAccountAutoCompleteProps) => {
   const accounts = createAccountFixture();
-  const defaultAccount = value || (accounts.find((a) => a.isMainAccount) ?? null);
+  const defaultAccount = value || (accounts.find((a) => a.isDefault) ?? null);
 
   const [selected, setSelected] = useState<IAccount | null>(defaultAccount);
 
@@ -38,7 +38,7 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
               <Typography variant="body2">{option.label}&nbsp;</Typography>
             </Grid>
             <Grid item xs={2}>
-              {option.isMainAccount && (
+              {option.isDefault && (
                 <Typography variant="body2" color="green">
                   Main
                 </Typography>

@@ -2,16 +2,17 @@ import { IOption } from "..";
 import * as yup from "yup";
 
 export interface IAccount extends IOption {
-  id: number;
   accountNumber: string;
   balance: number;
-  isMainAccount: boolean;
+  isDefault: boolean;
 }
 
 export const accountSchema: yup.ObjectSchema<IAccount> = yup.object().shape({
-  id: yup.number().required(),
+  id: yup.number().required().nullable(),
+  createdOn: yup.number().required().nullable(),
+  lastUpdated: yup.number().required().nullable(),
   label: yup.string().required(),
   accountNumber: yup.string().required(),
   balance: yup.number().required().positive("Account balance must be positive"),
-  isMainAccount: yup.boolean().required(),
+  isDefault: yup.boolean().required(),
 });

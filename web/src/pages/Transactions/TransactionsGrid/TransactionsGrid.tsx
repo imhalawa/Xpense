@@ -31,12 +31,12 @@ const headers: IDataGridHeader<ITransaction>[] = [
           {row.type == TransactionType.CREDIT ? (
             <Typography variant="body2" color="green">
               {row.amount.currency == Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
-              {row.amount.value}
+              {row.amount.cents}
             </Typography>
           ) : (
             <Typography variant="body2" color="red">
               {row.amount.currency == Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
-              {row.amount.value}
+              {row.amount.cents}
             </Typography>
           )}
         </>
@@ -45,11 +45,11 @@ const headers: IDataGridHeader<ITransaction>[] = [
   },
   {
     headerName: "Date",
-    field: "date",
+    field: "createdOn",
     order: 3,
     icon: <CalendarDaysIcon />,
     render: (row: ITransaction) => {
-      return <>{formatDate(row.date)}</>;
+      return <>{formatDate(row.createdOn!)}</>;
     },
   },
   {
@@ -58,7 +58,7 @@ const headers: IDataGridHeader<ITransaction>[] = [
     order: 4,
     icon: <CircleAlertIcon />,
     render: (row: ITransaction) => {
-      return <CategoryChip id={row.category.id} name={row.category.label} priority={row.category.priority} />;
+      return <CategoryChip id={row.category.id!} name={row.category.label} priority={row.category.priority} />;
     },
   },
   {
@@ -113,7 +113,7 @@ const TransactionsGrid = ({ transactions, dense }: ITransactionsGridProps) => {
   return (
     <DataGrid
       headers={headers}
-      rows={transactions.sort((a, b) => b.date - a.date)}
+      rows={transactions.sort((a, b) => b.createdOn! - a.createdOn!)}
       dense={dense ?? false}
       emptyAlert={
         <Alert severity="info" sx={{ width: "100%" }}>

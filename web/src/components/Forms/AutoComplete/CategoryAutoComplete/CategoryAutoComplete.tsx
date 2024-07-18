@@ -51,7 +51,7 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
             </Grid>
             <Grid item xs={2}>
               <Typography variant="caption" color={priorityColor(option.priority)}>
-                {option.priority.name}
+                {option.priority.label}
               </Typography>
             </Grid>
           </Grid>

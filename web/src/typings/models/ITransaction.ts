@@ -1,9 +1,7 @@
-import { IAccount, ICategory, IMerchant, IMoney, ITag, TransactionType } from "..";
+import { IAccount, IBaseEntity, ICategory, IMerchant, IMoney, ITag, TransactionType } from "..";
 
-export interface ITransaction {
-  id: number | undefined;
+export interface ITransaction extends IBaseEntity {
   amount: IMoney;
-  date: number;
   category: ICategory;
   merchant: IMerchant;
   account: IAccount;
@@ -12,9 +10,10 @@ export interface ITransaction {
 }
 
 const buildTransaction = (
-  id: number,
+  id: number | null,
   amount: IMoney,
-  date: number,
+  createdAt: number | null,
+  lastModifiedOn: number | null,
   category: ICategory,
   merchant: IMerchant,
   account: IAccount,
@@ -22,7 +21,8 @@ const buildTransaction = (
   tags: ITag[] | null
 ): ITransaction => ({
   id,
-  date,
+  createdOn: createdAt,
+  lastUpdated: lastModifiedOn,
   merchant,
   category,
   amount,

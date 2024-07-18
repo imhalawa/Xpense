@@ -1,7 +1,7 @@
 import { Currency } from "..";
 
 export interface IMoney {
-  value: number;
+  cents: number;
   currency: Currency;
 }
 

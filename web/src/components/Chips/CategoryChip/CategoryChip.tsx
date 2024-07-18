@@ -1,8 +1,8 @@
 import { Chip } from "@mui/material";
-import { IPriority } from "../../../typings/models/ICategory.ts";
+import { IPriority } from "../../../typings";
 
 interface CategoryChipProps {
-  id: number;
+  id: number | null;
   name: string;
   priority: IPriority;
   onClick?: () => void;
@@ -12,12 +12,7 @@ interface CategoryChipProps {
 const CategoryChip = ({ id, name, onClick, onDelete }: CategoryChipProps) => {
   return (
     <>
-      <Chip
-        key={id}
-        label={name}
-        onClick={onClick}
-        onDelete={onDelete ?? undefined}
-      />
+      <Chip key={id} label={name} onClick={onClick} onDelete={onDelete ?? undefined} />
     </>
   );
 };
