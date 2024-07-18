@@ -7,7 +7,7 @@ namespace Xpense.Persistence.Repositories;
 public class TransactionRepository(XpenseDbContext dbContext)
     : Repository<Transaction>(dbContext), ITransactionRepository
 {
-    public async Task<IEnumerable<Transaction>> GetAllTransactions(string accountNumber)
+    public async Task<IEnumerable<Transaction>> GetAllTransactions(Account account)
     {
         var baseQuery = DbSet
             .Include(t => t.Category)
@@ -16,7 +16,7 @@ public class TransactionRepository(XpenseDbContext dbContext)
             .Include(t => t.Tags)
             .Include(t => t.Account);
 
-        var transactions = await baseQuery.OrderByDescending(t => t.CreatedOn).ToListAsync();
+        var transactions = await baseQuery.Where(t => t.Account == account).OrderByDescending(t => t.CreatedOn).ToListAsync();
 
         return transactions;
     }

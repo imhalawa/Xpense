@@ -18,14 +18,14 @@ public class DepositTransactionUseCase(
 {
     public async Task<Transaction> Handle(DepositTransactionCommand command)
     {
-        if (!string.IsNullOrWhiteSpace(command.ToAccountNumber) && !await accountRepository.Exists(command.ToAccountNumber))
-            throw new AccountNotFoundException(command.ToAccountNumber);
+        if (!string.IsNullOrWhiteSpace(command.AccountNumber) && !await accountRepository.Exists(command.AccountNumber))
+            throw new AccountNotFoundException(command.AccountNumber);
 
         var category = await categoryRepository.GetWithById(command.CategoryId, s => s.Priority) ?? throw new CategoryNotFoundException(command.CategoryId);
 
-        var account = string.IsNullOrWhiteSpace(command.ToAccountNumber)
+        var account = string.IsNullOrWhiteSpace(command.AccountNumber)
                            ? await accountRepository.GetDefaultAccount()
-                           : await accountRepository.GetAccountByNumber(command.ToAccountNumber);
+                           : await accountRepository.GetAccountByNumber(command.AccountNumber);
 
         account.Deposit(command.Amount.ToSingle());
 
@@ -53,7 +53,7 @@ public class DepositTransactionUseCase(
         var result = await transactionRepository.SaveChanges();
 
         if (result < 1)
-            throw new DepositCreationFailedException(command.Amount.ToSingle(), command.ToAccountNumber);
+            throw new DepositCreationFailedException(command.Amount.ToSingle(), command.AccountNumber);
 
         return transaction;
     }

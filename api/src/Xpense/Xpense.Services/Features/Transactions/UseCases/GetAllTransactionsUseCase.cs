@@ -14,8 +14,8 @@ namespace Xpense.Services.Features.Transactions.UseCases
         {
             if (!string.IsNullOrWhiteSpace(accountNumber) && !await accountRepository.Exists(accountNumber))
                 throw new AccountNotFoundException(accountNumber);
-
-            return await repository.GetAllTransactions(accountNumber);
+            var account = await accountRepository.GetAccountByNumber(accountNumber);
+            return await repository.GetAllTransactions(account);
         }
     }
 }

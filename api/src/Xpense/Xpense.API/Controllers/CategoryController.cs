@@ -48,7 +48,7 @@ namespace Xpense.API.Controllers
             try
             {
                 await deleteCategoryByIdUseCase.Handle(id);
-                return Ok("Category Deleted Successfully!");
+                return Ok("CategoryId Deleted Successfully!");
             }
             catch (CategoryDeletionFailedException exception)
             {

@@ -36,7 +36,7 @@ public class TransactionResponse(
             : null;
         var merchant = MerchantResponse.Of(transaction.Merchant);
         var tags = transaction.Tags?.Select(TagResponse.Of);
-        var account = transaction.Account;
+        var account = AccountResponse.Of(transaction.Account);
         var category = CategoryResponse.Of(transaction.Category);
 
         return new TransactionResponse(
@@ -44,7 +44,7 @@ public class TransactionResponse(
             amount,
             createdOn,
             lastUpdated,
-            AccountResponse.Of(account),
+            account,
             transaction.TransactionType,
             category,
             merchant,

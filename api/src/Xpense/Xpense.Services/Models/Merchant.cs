@@ -12,7 +12,8 @@ namespace Xpense.Services.Models
         {
             return new Entities.Merchant
             {
-                Label = this.Label
+                Label = this.Label,
+                CreatedOn = DateTime.Now
             };
         }
     }

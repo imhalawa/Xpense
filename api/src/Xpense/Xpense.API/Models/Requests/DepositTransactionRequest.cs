@@ -8,10 +8,10 @@ public class DepositTransactionRequest
 {
     public Money Amount { get; set; }
     public long? CreatedOn { get; set; }
-    public string ToAccountNumber { get; set; }
-    public int Category { get; set; }
+    public string AccountNumber { get; set; }
+    public int CategoryId { get; set; }
     public Merchant Merchant { get; set; }
     public Tag[]? Tags { get; set; }
 
-    public DepositTransactionCommand ToCommand() => new(Amount, ToAccountNumber, Category, Merchant, Tags, CreatedOn);
+    public DepositTransactionCommand ToCommand() => new(Amount, AccountNumber, CategoryId, Merchant, Tags, CreatedOn);
 }

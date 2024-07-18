@@ -3,7 +3,7 @@
 namespace Xpense.Services.Entities
 {
     /// <summary>Account Entity</summary>
-    public class Account : BaseEntity
+    public class Account : BaseEntity, IEquatable<Account>
     {
         /// <summary>
         ///   <para>
@@ -30,6 +30,12 @@ namespace Xpense.Services.Entities
         public bool IsDefaultAccount { get; set; }
 
         public virtual ICollection<Transaction> Transactions { get; set; }
+
+        public bool Equals(Account? other)
+        {
+            if (other == null) return false;
+            return AccountNumber == other.AccountNumber;
+        }
 
         public override bool Equals(object other)
         {

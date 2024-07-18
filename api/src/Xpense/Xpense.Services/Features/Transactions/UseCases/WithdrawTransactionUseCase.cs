@@ -53,7 +53,7 @@ public class WithdrawTransactionUseCase(
         var result = await transactionRepository.SaveChanges();
 
         if (result < 1)
-            throw new WithdrawCreationFailedException(command.Amount.ToSingle(), command.AccountNumber);
+            throw new DepositCreationFailedException(command.Amount.ToSingle(), command.AccountNumber);
 
         return transaction;
     }

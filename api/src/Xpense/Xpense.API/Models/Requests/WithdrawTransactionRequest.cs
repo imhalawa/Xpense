@@ -8,10 +8,10 @@ public class WithdrawTransactionRequest
 {
     public Money Amount { get; set; }
     public long? CreatedOn { get; set; }
-    public string FromAccountNumber { get; set; }
-    public int Category { get; set; }
+    public string AccountNumber { get; set; }
+    public int CategoryId { get; set; }
     public Merchant Merchant { get; set; }
     public Tag[]? Tags { get; set; }
 
-    public WithdrawTransactionCommand ToCommand() => new(Amount, FromAccountNumber, Category, Merchant, Tags, CreatedOn);
+    public WithdrawTransactionCommand ToCommand() => new(Amount, AccountNumber, CategoryId, Merchant, Tags, CreatedOn);
 }
