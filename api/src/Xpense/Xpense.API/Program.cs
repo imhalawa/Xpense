@@ -29,17 +29,24 @@ builder.Services.ConfigureApiVersioning();
 
 var app = builder.Build();
 
+// TODO: Move this somewhere else
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<XpenseDbContext>();
     context.Database.EnsureCreated();
-
     Seeder.Seed<Priority>(context, "Priorities.json");
 }
 
 app.UseStaticFiles("/static");
 app.UseRouting();
+app.UseCors(policy =>
+{
+    // TODO: later you need to find out how to distinguish between Local/Dev/Test/Production
+    policy.WithOrigins("http://localhost:5173");
+    policy.AllowAnyHeader();
+    policy.AllowAnyMethod();
+});
 app.MapControllers();
 app.UseGlobalExceptionHandler();
 
