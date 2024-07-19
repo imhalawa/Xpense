@@ -36,9 +36,9 @@ namespace Xpense.Persistence.Repositories
             {
                 case true when !model.Id.HasValue && !string.IsNullOrWhiteSpace(model.Label):
                     {
-                        var existingMerchant = await GetByLabel(model.Label);
-                        if (existingMerchant != null)
-                            result = existingMerchant;
+                        var existingEntity = await GetByLabel(model.Label);
+                        if (existingEntity != null)
+                            result = existingEntity;
 
                         if (TryRestore(model.Label, out var restored))
                         {
@@ -49,9 +49,14 @@ namespace Xpense.Persistence.Repositories
                     }
                 case false when model.Id.HasValue:
                     {
-                        var existingMerchant = await GetById(model.Id.Value);
-                        if (existingMerchant != null)
-                            result = existingMerchant;
+                        var existingEntityById = await GetById(model.Id.Value);
+                        if (existingEntityById != null)
+                            result = existingEntityById;
+
+                        // TODO: Should revisit this, basically it ignores the Id sent by client and attempt to retrieve any tag using the same name
+                        var existingEntityByLabel = await GetByLabel(model.Label);
+                        if (existingEntityByLabel != null)
+                            result = existingEntityByLabel;
 
                         if (TryRestore(model.Id.Value, out var restored))
                         {
