@@ -17,7 +17,8 @@ namespace Xpense.API.Controllers;
 public class TransactionController(
     DepositTransactionUseCase depositTransactionUseCase,
     WithdrawTransactionUseCase withdrawTransactionUseCase,
-    GetAllTransactionsUseCase getAllTransactionsUse,
+    GetAllTransactionsUseCase getAllTransactionsUseCase,
+    GetAllTransactionsForAccountNumberUseCase getAllTransactionsForAccountNumberUseCase,
     ILogger logger)
     : XpenseController
 {
@@ -93,7 +94,7 @@ public class TransactionController(
     {
         try
         {
-            var transactions = await getAllTransactionsUse.Execute(accountNumber);
+            var transactions = await getAllTransactionsForAccountNumberUseCase.Execute(accountNumber);
             return Ok(transactions.Select(TransactionResponse.Of));
         }
         catch (AccountNotFoundException exception)
@@ -101,6 +102,14 @@ public class TransactionController(
             logger.Warning(exception, exception.Message);
             return NotFound(exception.Message);
         }
+    }
+
+    [HttpGet("", Name = "Get All Transactions for user")]
+    public async Task<IActionResult> GetAll()
+    {
+
+        var transactions = await getAllTransactionsUseCase.Execute();
+        return Ok(transactions.Select(TransactionResponse.Of));
     }
 
     [HttpPost("transfer")]

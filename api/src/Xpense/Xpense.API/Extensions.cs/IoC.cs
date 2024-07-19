@@ -104,6 +104,7 @@ namespace Xpense.API.Extensions.cs
 
             services.AddScoped<DepositTransactionUseCase>();
             services.AddScoped<WithdrawTransactionUseCase>();
+            services.AddScoped<GetAllTransactionsForAccountNumberUseCase>();
             services.AddScoped<GetAllTransactionsUseCase>();
         }
     }
