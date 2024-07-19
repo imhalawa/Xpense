@@ -3,10 +3,10 @@ using Xpense.Services.Entities;
 
 namespace Xpense.API.Models.Responses
 {
-    public class PriorityResponse(int id, string name, double weight, long? createdOn, long? lastUpdated)
+    public class PriorityResponse(int id, string label, double weight, long? createdOn, long? lastUpdated)
     {
         public int Id { get; set; } = id;
-        public string Name { get; set; } = name;
+        public string Label { get; set; } = label;
         public double Weight { get; set; } = weight;
         public long? CreatedOn { get; set; } = createdOn;
         public long? LastUpdated { get; set; } = lastUpdated;
