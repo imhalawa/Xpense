@@ -12,6 +12,7 @@ using Xpense.Persistence.Repositories;
 using Xpense.Services.Abstract.Persistence;
 using Xpense.Services.Features.Accounts.Usecases;
 using Xpense.Services.Features.Categories.UseCases;
+using Xpense.Services.Features.Merchants.UseCases;
 using Xpense.Services.Features.Tags.UseCases;
 using Xpense.Services.Features.Transactions.UseCases;
 
@@ -98,6 +99,8 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<GetTagByIdUseCase>();
             services.AddScoped<GetAllTagsUseCase>();
             services.AddScoped<UpdateTagUseCase>();
+
+            services.AddScoped<GetAllMerchantsUseCase>();
 
             services.AddScoped<DepositTransactionUseCase>();
             services.AddScoped<WithdrawTransactionUseCase>();
