@@ -1,7 +1,9 @@
 import { Autocomplete, Grid, TextField, Typography } from "@mui/material";
 import { IAccount } from "../../../../typings/models/IAccount";
-import { createAccountFixture } from "../../../../fixtures";
 import { useEffect, useState } from "react";
+import axios from "axios";
+import { IResponse } from "../../../../clients/types/IResponse";
+import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface IAccountAutoCompleteProps {
   label: string;
@@ -12,10 +14,27 @@ interface IAccountAutoCompleteProps {
 }
 
 const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAccountAutoCompleteProps) => {
-  const accounts = createAccountFixture();
-  const defaultAccount = value || (accounts.find((a) => a.isDefault) ?? null);
+  const { setLoading } = useLoading();
 
-  const [selected, setSelected] = useState<IAccount | null>(defaultAccount);
+  const [accountOptions, setAccountOptions] = useState<IAccount[]>([]);
+  const [selected, setSelected] = useState<IAccount | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    // TODO: need to clean up this later
+    axios.defaults.baseURL = "http://localhost:4000/";
+    axios
+      .get<IResponse<IAccount[]>>("/api/account")
+      .then((response) => {
+        setAccountOptions(response.data.data);
+        setSelected(value || (response.data.data.find((a) => a.isDefault) ?? null));
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     onChange(selected);
@@ -24,10 +43,10 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
   return (
     <Autocomplete
       id="account-autocomplete"
-      options={accounts}
+      options={accountOptions}
       isOptionEqualToValue={(a, b) => a.id === b.id}
       autoHighlight
-      value={defaultAccount}
+      value={selected}
       onChange={(event: any, newValue: IAccount | null) => setSelected(newValue)}
       getOptionLabel={(option) => option.label}
       renderOption={(props, option) => {
@@ -50,6 +69,7 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
       renderInput={(params) => (
         <TextField
           {...params}
+          required
           label={label}
           variant="standard"
           value={selected}

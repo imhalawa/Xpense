@@ -1,7 +1,9 @@
 import { Autocomplete, createFilterOptions, TextField } from "@mui/material";
 import { ITag } from "../../../../typings/models/ITag";
 import { useEffect, useState } from "react";
-import { createTagFixture } from "../../../../fixtures";
+import axios from "axios";
+import { IResponse } from "../../../../clients/types/IResponse";
+import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface ITagAutoCompleteProps {
   label: string;
@@ -14,13 +16,29 @@ interface ITagAutoCompleteProps {
 const filter = createFilterOptions<ITag>();
 
 const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAutoCompleteProps) => {
-  const tags = createTagFixture();
-  const [selectableTags, setSelectableTags] = useState<ITag[]>(tags);
+  const { setLoading } = useLoading();
+
+  const [tagOptions, setTagOptions] = useState<ITag[]>([]);
   const [selected, setSelected] = useState<ITag[]>([]);
 
   useEffect(() => {
     onChange(selected);
-  }, [selected, onChange]);
+  }, [selected]);
+
+  useEffect(() => {
+    setLoading(true);
+    axios.defaults.baseURL = "http://localhost:4000/";
+    axios
+      .get<IResponse<ITag[]>>("/api/tag")
+      .then((response) => {
+        setTagOptions(response.data.data);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <Autocomplete
@@ -28,7 +46,7 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       freeSolo
       id="tags-Create"
       size="small"
-      options={selectableTags}
+      options={tagOptions}
       onChange={(event, newValue, reason, details) => {
         if (details?.option.create && reason !== "removeOption") {
           setSelected([
@@ -37,6 +55,10 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
               id: null,
               label: details.option.label,
               create: details.option.create,
+              createdOn: details.option.createdOn,
+              lastUpdated: details.option.lastUpdated,
+              fgColorHex: details.option.fgColorHex,
+              bgColorHex: details.option.bgColorHex,
             },
           ]);
         } else {
@@ -47,6 +69,10 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
                   id: null,
                   label: value,
                   create: true,
+                  createdOn: 0,
+                  lastUpdated: 0,
+                  fgColorHex: "",
+                  bgColorHex: "",
                 };
               } else {
                 return value;
@@ -67,6 +93,10 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
             id: null,
             label: inputValue,
             create: true,
+            createdOn: 0,
+            lastUpdated: 0,
+            fgColorHex: "",
+            bgColorHex: "",
           });
         }
         return filtered;

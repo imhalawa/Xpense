@@ -18,19 +18,25 @@ import { Euro, DollarSign, CalendarIcon, ArrowUpRight, ArrowDownRight } from "lu
 import AccountAutoComplete from "../../../components/Forms/AutoComplete/AccountAutoComplete/AccountAutoComplete";
 import CategoryAutoComplete from "../../../components/Forms/AutoComplete/CategoryAutoComplete/CategoryAutoComplete";
 import TagAutoComplete from "../../../components/Forms/AutoComplete/TagAutoComplete/TagAutoComplete";
-import { TransactionType, Currency } from "../../../typings";
+import { TransactionType, Currency, ITransaction } from "../../../typings";
 import { Controller, useForm } from "react-hook-form";
 import MerchantAutoComplete from "../../../components/Forms/AutoComplete/MerchantAutoComplete/MerchantAutoComplete";
 import { useEffect } from "react";
-import { ITransactionFormData, mapToTransaction, schema } from "../../../typings/forms/ITransactionFormData";
+import { ITransactionFormData, schema } from "../../../typings/forms/ITransactionFormData";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
+import axios from "axios";
+import { useLoading } from "../../../contexts/LoadingContext";
+import { IResponse } from "../../../clients/types/IResponse";
+import { fromTransactionFormData } from "../../../clients/types/ITransactionRequest";
 export interface ITransactionFormProps {
   selectedDate: Dayjs | null;
 }
 
 const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
   const { setSubmittedTransaction } = useTransctionUtilities();
+  const { setLoading } = useLoading();
+
   const { handleSubmit, control, setValue, watch } = useForm<ITransactionFormData>({
     resolver: yupResolver(schema),
     defaultValues: {
@@ -48,16 +54,29 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
   watch("dateOfTransaction");
 
   const submit = (data: ITransactionFormData) => {
+    setLoading(true);
+
     if (dayjs.unix(data.dateOfTransaction).isSame(dayjs(), "day")) {
       setValue("dateOfTransaction", dayjs().unix());
     }
-    console.log('submitting transaction');
-    setSubmittedTransaction(mapToTransaction(data));
+
+    axios.defaults.baseURL = "http://localhost:4000";
+    axios
+      .post<IResponse<ITransaction>>("/api/transaction/deposit", fromTransactionFormData(data))
+      .then((response) => {
+        if (response.status == 200) {
+          setSubmittedTransaction(response.data.data);
+          setLoading(false);
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   };
 
   useEffect(() => {
     setValue("dateOfTransaction", selectedDate?.unix() ?? dayjs().unix());
-  }, [selectedDate, setValue]);
+  }, [selectedDate]);
 
   return (
     <form onSubmit={handleSubmit(submit)}>

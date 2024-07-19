@@ -1,7 +1,9 @@
 import { Autocomplete, Grid, TextField, Typography } from "@mui/material";
-import { ICategory, IPriority } from "../../../../typings/models/ICategory";
-import { createCategoriesFixture } from "../../../../fixtures";
 import { useEffect, useState } from "react";
+import { ICategory, IPriority } from "../../../../typings";
+import { IResponse } from "../../../../clients/types/IResponse";
+import axios from "axios";
+import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface ICategoryAutoCompleteProps {
   label: string;
@@ -11,11 +13,11 @@ interface ICategoryAutoCompleteProps {
   onChange: (value: ICategory | null) => void;
 }
 const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICategoryAutoCompleteProps) => {
-  const categories = createCategoriesFixture();
-  const defaultCategory = value || (categories.find((c) => c.priority.weight === 2) ?? null);
-  const [selected, setSelected] = useState<ICategory | null>(defaultCategory);
+  const { setLoading } = useLoading();
+  const [categoryOptions, setCategoryOptions] = useState<ICategory[]>([]);
+  const [selected, setSelected] = useState<ICategory | null>(null);
 
-  // Later, give the user the option to pick a color for the priority
+  //TODO: Later, give the user the option to pick a color for the priority
   const priorityColor = (priority: IPriority): string => {
     switch (priority.weight) {
       case 1:
@@ -25,21 +27,39 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
       case 3:
         return "red";
       default:
-        throw new Error(`Invalid priority value: ${priority.weight}`);
+        return "Mauve";
     }
   };
 
   useEffect(() => {
+    setLoading(true);
+    axios.defaults.baseURL = "http://localhost:4000/";
+    axios
+      .get<IResponse<ICategory[]>>("/api/category")
+      .then((response) => response.data)
+      .then((response) => {
+        setCategoryOptions(response.data);
+        setSelected(value || (response.data.sort((a, b) => b.priority.weight - a.priority.weight)[0] ?? null));
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    console.log(selected);
     onChange(selected);
   }, [selected]);
 
   return (
     <Autocomplete
       id="category-autocomplete"
-      options={categories}
+      options={categoryOptions}
       isOptionEqualToValue={(a, b) => a.id === b.id}
       autoHighlight
-      value={defaultCategory}
+      value={selected}
       onChange={(event: any, newValue: ICategory | null) => setSelected(newValue)}
       getOptionLabel={(option) => option.label}
       renderOption={(props, option) => {

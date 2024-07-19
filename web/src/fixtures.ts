@@ -7,7 +7,7 @@ export const createCategoriesFixture = (): ICategory[] => {
     { id: 2, label: "Online Shopping", priority: priorities[1], createdOn: 0, lastUpdated: 0 },
     { id: 3, label: "Luxury", priority: priorities[2], createdOn: 0, lastUpdated: 0 },
     { id: 4, label: "Restaurants", priority: priorities[1], createdOn: 0, lastUpdated: 0 },
-    { id: 5, label: "Cafe", priority: priorities[2], createdOn: 0, lastUpdated: 0 },
+    { id: 5, label: "Cafe", priority: priorities[3], createdOn: 0, lastUpdated: 0 },
   ];
 };
 
@@ -15,12 +15,13 @@ export const createPriorityFixture = (): IPriority[] => [
   { id: 1, label: "High", weight: 1, createdOn: 0, lastUpdated: 0 },
   { id: 2, label: "Medium", weight: 2, createdOn: 0, lastUpdated: 0 },
   { id: 3, label: "Low", weight: 3, createdOn: 0, lastUpdated: 0 },
+  { id: 6, label: "Extreme", weight: 1, createdOn: 0, lastUpdated: 0 },
 ];
 
 export const createAccountFixture = (): IAccount[] => [
   {
     id: 1,
-    accountNumber: "123456789",
+    accountNumber: "1000000001",
     balance: 1000,
     isDefault: true,
     label: "Main Account",
@@ -29,19 +30,10 @@ export const createAccountFixture = (): IAccount[] => [
   },
   {
     id: 2,
-    accountNumber: "433456789",
+    accountNumber: "1000000002",
     balance: 1000,
     isDefault: false,
     label: "Saving Account",
-    createdOn: 0,
-    lastUpdated: 0,
-  },
-  {
-    id: 3,
-    accountNumber: "545456789",
-    balance: 1000,
-    isDefault: false,
-    label: "Extra Saving Account",
     createdOn: 0,
     lastUpdated: 0,
   },
@@ -97,7 +89,7 @@ export const createTagFixture = (): ITag[] => [
 
 export const createMerchantFixture = (): IMerchant[] => [
   {
-    id: 1,
+    id: 3,
     label: "Merchant 1",
     create: false,
     createdOn: 0,
@@ -126,7 +118,7 @@ export const createTransactionFixture = (): ITransaction[] => [
     lastUpdated: null,
     amount: {
       currency: Currency.DOLLAR,
-      cents: 1000,
+      cents: 30,
     },
     category: {
       id: 1,

@@ -1,7 +1,9 @@
 import { Autocomplete, createFilterOptions, TextField } from "@mui/material";
-import { useState } from "react";
-import { createMerchantFixture } from "../../../../fixtures";
+import { useEffect, useState } from "react";
 import { IMerchant } from "../../../../typings";
+import { IResponse } from "../../../../clients/types/IResponse";
+import axios from "axios";
+import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface IMerchantAutoCompleteProps {
   label: string;
@@ -14,7 +16,29 @@ interface IMerchantAutoCompleteProps {
 const filter = createFilterOptions<IMerchant>();
 
 const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMerchantAutoCompleteProps) => {
-  const [merchantOptions, setMerchantOptions] = useState<IMerchant[]>(createMerchantFixture());
+  const { setLoading } = useLoading();
+
+  const [merchantOptions, setMerchantOptions] = useState<IMerchant[]>([]);
+  const [selected, setSelected] = useState<IMerchant | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    axios.defaults.baseURL = "http://localhost:4000/";
+    axios
+      .get<IResponse<IMerchant[]>>("/api/merchant")
+      .then((response) => {
+        setMerchantOptions(response.data.data);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    onChange(selected);
+  }, [selected]);
 
   return (
     <Autocomplete
@@ -24,20 +48,20 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
       options={merchantOptions}
       onChange={(event, newValue, reason, details) => {
         if (typeof newValue === "string") {
-          onChange({
+          setSelected({
             id: null,
             label: newValue,
             create: true,
           });
         } else if (newValue && newValue.create) {
           // Create a new value from the user input
-          onChange({
+          setSelected({
             id: null,
             label: newValue.label,
             create: true,
           });
         } else {
-          onChange(newValue);
+          setSelected(newValue);
         }
       }}
       filterSelectedOptions
@@ -75,6 +99,7 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
       )}
       renderInput={(params) => (
         <TextField
+          required
           {...params}
           label={label}
           value={value}

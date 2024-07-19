@@ -12,6 +12,7 @@ import {
 } from "..";
 import buildTransaction from "../models/ITransaction";
 import { categorySchema } from "../models/ICategory";
+import { createMoney } from "../models/IMoney";
 
 export const schema: yup.ObjectSchema<ITransactionFormData> = yup.object().shape({
   amount: yup.number().required("Amount is required").positive("Amount must be positive"),
@@ -42,20 +43,3 @@ export interface ITransactionFormData {
   merchant: IMerchant | null;
   tags: ITag[] | null;
 }
-
-export const mapToTransaction = (data: ITransactionFormData) => {
-  return buildTransaction(
-    0,
-    {
-      currency: data.currency,
-      cents: data.amount,
-    },
-    data.dateOfTransaction,
-    null,
-    data.category!,
-    data.merchant!,
-    data.account!,
-    data.type,
-    data.tags
-  );
-};

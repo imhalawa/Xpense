@@ -5,14 +5,14 @@ export const tagSchema: yup.ObjectSchema<ITag> = yup.object().shape({
   id: yup.number().required().nullable(),
   label: yup.string().nonNullable().required(),
   create: yup.boolean().required(),
-  createdOn: yup.number().required().nullable(),
-  lastUpdated: yup.number().required().nullable(),
-  bgColorHex: yup.string().required().nullable(),
-  fgColorHex: yup.string().required().nullable(),
+  createdOn: yup.number().nullable(),
+  lastUpdated: yup.number().nullable(),
+  bgColorHex: yup.string().nullable(),
+  fgColorHex: yup.string().nullable(),
 });
 
 export interface ITag extends IOption {
   create: boolean | null;
-  bgColorHex: string | null;
-  fgColorHex: string | null;
+  bgColorHex?: string | null;
+  fgColorHex?: string | null;
 }

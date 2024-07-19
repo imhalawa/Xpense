@@ -8,9 +8,11 @@ import { useLoading } from "../../contexts/LoadingContext";
 import { useCalendar } from "../../contexts/CalendarContext";
 import Page from "../../components/Page/Page";
 import { useTransctionUtilities } from "../../contexts/TransactionUtilitiesContext";
+import axios from "axios";
+import { IResponse } from "../../clients/types/IResponse";
 
 const Transactions = () => {
-  const { submittedTransaction } = useTransctionUtilities();
+  const { submittedTransaction, setSubmittedTransaction } = useTransctionUtilities();
 
   const { setLoading } = useLoading();
   const [transactions, setTransactions] = useState<ITransaction[]>(createTransactionFixture());
@@ -18,21 +20,28 @@ const Transactions = () => {
   const { selectedDate, setSelectedDate } = useCalendar();
 
   useEffect(() => {
-    console.log("received submitted transaction");
-
-    setLoading(true);
-    setTimeout(() => {
-      if (submittedTransaction != null) {
-        setTransactions([...transactions, submittedTransaction]);
-      }
+    if (submittedTransaction != null) {
+      setLoading(true);
+      setTransactions([...transactions, submittedTransaction]);
+      setSubmittedTransaction(null);
       setLoading(false);
-    }, 1000);
+    }
   }, [submittedTransaction]);
+
+  useEffect(() => {
+    axios.defaults.baseURL = "http://localhost:4000/";
+    axios.get<IResponse<ITransaction[]>>("/api/transaction").then((response) => {
+      setTransactions(response.data.data);
+      setFilteredTransactions(response.data.data);
+    });
+  }, [transactions]);
 
   const filterTransactionsByDate = (date: Dayjs | null) => {
     if (date) {
       setSelectedDate(date);
-      setFilteredTransactions(transactions.filter((transaction) => dayjs.unix(transaction.date).isSame(date, "day")));
+      setFilteredTransactions(
+        transactions.filter((transaction) => dayjs.unix(transaction.createdOn!).isSame(date, "day"))
+      );
     } else {
       setSelectedDate(null);
       setFilteredTransactions(transactions);

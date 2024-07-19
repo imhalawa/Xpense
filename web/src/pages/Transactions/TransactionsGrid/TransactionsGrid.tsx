@@ -13,6 +13,7 @@ import CategoryChip from "../../../components/Chips/CategoryChip/CategoryChip";
 import DataGrid, { IDataGridHeader } from "../../../components/DataGrid/DataGrid";
 import { formatDate } from "../../../utils/DateUtils";
 import { Currency, ITransaction, TransactionType } from "../../../typings";
+import { toSingle } from "../../../typings/models/IMoney";
 
 interface ITransactionsGridProps {
   transactions: ITransaction[];
@@ -31,7 +32,7 @@ const headers: IDataGridHeader<ITransaction>[] = [
           {row.type == TransactionType.CREDIT ? (
             <Typography variant="body2" color="green">
               {row.amount.currency == Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
-              {row.amount.cents}
+              {toSingle(row.amount)}
             </Typography>
           ) : (
             <Typography variant="body2" color="red">
