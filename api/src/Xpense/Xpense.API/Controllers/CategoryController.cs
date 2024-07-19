@@ -1,6 +1,7 @@
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using System.Linq;
+using System.Threading.Tasks;
 using Xpense.API.Helpers;
 using Xpense.API.Models.Requests;
 using Xpense.API.Models.Responses;
@@ -24,7 +25,7 @@ namespace Xpense.API.Controllers
         public async Task<IActionResult> Get()
         {
             var categories = await getAllCategoriesUseCase.Execute();
-            return Ok(categories);
+            return Ok(categories.Select(CategoryResponse.Of));
         }
 
         [HttpGet("{id:int}")]

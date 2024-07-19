@@ -25,14 +25,14 @@ namespace Xpense.Persistence.Repositories
             entity.Touch();
         }
 
+        public async Task<IEnumerable<T>> GetAll<TK>(Expression<Func<T, TK>> includeExpr)
+        {
+            return await DbSet.Include(includeExpr).ToListAsync();
+        }
+
         public async Task<IEnumerable<T>> GetAll()
         {
             return await DbSet.ToListAsync();
-        }
-
-        public async Task<ICollection<T>> GetAll(int[] ids)
-        {
-            return await DbSet.Where(e => ids.Contains(e.Id)).ToListAsync();
         }
 
         public async Task<T?> GetById(int id)

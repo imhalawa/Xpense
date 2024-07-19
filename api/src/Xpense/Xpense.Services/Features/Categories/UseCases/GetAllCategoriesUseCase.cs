@@ -8,7 +8,7 @@ public class GetAllCategoriesUseCase(ICategoryRepository repository) : IQueryHan
 {
     public async Task<IEnumerable<Category>> Execute()
     {
-        var categories = await repository.GetAll();
+        var categories = await repository.GetAll(c => c.Priority);
         return categories;
     }
 }
