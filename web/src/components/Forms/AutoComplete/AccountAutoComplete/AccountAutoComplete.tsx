@@ -22,7 +22,6 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
   useEffect(() => {
     setLoading(true);
     // TODO: need to clean up this later
-    axios.defaults.baseURL = "http://localhost:4000/";
     axios
       .get<IResponse<IAccount[]>>("/api/account")
       .then((response) => {

@@ -18,17 +18,16 @@ import { Euro, DollarSign, CalendarIcon, ArrowUpRight, ArrowDownRight } from "lu
 import AccountAutoComplete from "../../../components/Forms/AutoComplete/AccountAutoComplete/AccountAutoComplete";
 import CategoryAutoComplete from "../../../components/Forms/AutoComplete/CategoryAutoComplete/CategoryAutoComplete";
 import TagAutoComplete from "../../../components/Forms/AutoComplete/TagAutoComplete/TagAutoComplete";
-import { TransactionType, Currency, ITransaction } from "../../../typings";
+import { TransactionType, Currency } from "../../../typings";
 import { Controller, useForm } from "react-hook-form";
 import MerchantAutoComplete from "../../../components/Forms/AutoComplete/MerchantAutoComplete/MerchantAutoComplete";
 import { useEffect } from "react";
 import { ITransactionFormData, schema } from "../../../typings/forms/ITransactionFormData";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
-import axios from "axios";
 import { useLoading } from "../../../contexts/LoadingContext";
-import { IResponse } from "../../../clients/types/IResponse";
 import { fromTransactionFormData } from "../../../clients/types/ITransactionRequest";
+import { deposit, withdraw } from "../../../clients/transactions";
 export interface ITransactionFormProps {
   selectedDate: Dayjs | null;
 }
@@ -60,12 +59,11 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
       setValue("dateOfTransaction", dayjs().unix());
     }
 
-    axios.defaults.baseURL = "http://localhost:4000";
-    axios
-      .post<IResponse<ITransaction>>("/api/transaction/deposit", fromTransactionFormData(data))
+    const commit = data.type === TransactionType.CREDIT ? deposit : withdraw;
+    commit(fromTransactionFormData(data))
       .then((response) => {
-        if (response.status == 200) {
-          setSubmittedTransaction(response.data.data);
+        if (response.statusCode == 200) {
+          setSubmittedTransaction(response.data);
           setLoading(false);
         }
       })

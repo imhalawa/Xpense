@@ -8,8 +8,7 @@ import { useLoading } from "../../contexts/LoadingContext";
 import { useCalendar } from "../../contexts/CalendarContext";
 import Page from "../../components/Page/Page";
 import { useTransctionUtilities } from "../../contexts/TransactionUtilitiesContext";
-import axios from "axios";
-import { IResponse } from "../../clients/types/IResponse";
+import { getAllTransactions } from "../../clients/transactions";
 
 const Transactions = () => {
   const { submittedTransaction, setSubmittedTransaction } = useTransctionUtilities();
@@ -21,20 +20,29 @@ const Transactions = () => {
 
   useEffect(() => {
     if (submittedTransaction != null) {
-      setLoading(true);
       setTransactions([...transactions, submittedTransaction]);
       setSubmittedTransaction(null);
-      setLoading(false);
     }
   }, [submittedTransaction]);
 
   useEffect(() => {
-    axios.defaults.baseURL = "http://localhost:4000/";
-    axios.get<IResponse<ITransaction[]>>("/api/transaction").then((response) => {
-      setTransactions(response.data.data);
-      setFilteredTransactions(response.data.data);
-    });
-  }, [transactions]);
+    const fetchTransactions = async () => {
+      const response = await getAllTransactions();
+      setTransactions(response.data);
+      setFilteredTransactions(response.data);
+    };
+
+    setLoading(true);
+    fetchTransactions()
+      .then(() => {
+        console.log("Transactions fetched");
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setLoading(false);
+      });
+  }, []);
 
   const filterTransactionsByDate = (date: Dayjs | null) => {
     if (date) {

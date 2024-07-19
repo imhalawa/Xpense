@@ -14,8 +14,11 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LoadingContextProvider } from "./contexts/LoadingContext.tsx";
 import { CalendarContextProvider } from "./contexts/CalendarContext.tsx";
 import { TransactionUtilitiesContextProvider } from "./contexts/TransactionUtilitiesContext.tsx";
+import axios from "axios";
 
 function App() {
+  axios.defaults.baseURL = "http://localhost:4000/";
+
   const theme = createTheme({
     typography: {
       fontFamily: `"Lato","Roboto", "Helvetica", "Arial", sans-serif`,

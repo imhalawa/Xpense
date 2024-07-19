@@ -27,7 +27,6 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
 
   useEffect(() => {
     setLoading(true);
-    axios.defaults.baseURL = "http://localhost:4000/";
     axios
       .get<IResponse<ITag[]>>("/api/tag")
       .then((response) => {

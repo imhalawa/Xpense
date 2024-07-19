@@ -33,7 +33,6 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
 
   useEffect(() => {
     setLoading(true);
-    axios.defaults.baseURL = "http://localhost:4000/";
     axios
       .get<IResponse<ICategory[]>>("/api/category")
       .then((response) => response.data)

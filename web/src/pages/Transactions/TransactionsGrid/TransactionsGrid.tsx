@@ -37,7 +37,7 @@ const headers: IDataGridHeader<ITransaction>[] = [
           ) : (
             <Typography variant="body2" color="red">
               {row.amount.currency == Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
-              {row.amount.cents}
+              {toSingle(row.amount)}
             </Typography>
           )}
         </>

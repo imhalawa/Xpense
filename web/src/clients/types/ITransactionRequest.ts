@@ -9,6 +9,7 @@ export interface ITransactionRequest {
   categoryId: number;
   merchant: IMerchant;
   tags: ITag[];
+  createdOn?: number | null;
 }
 
 export const fromTransactionFormData = (transaction: ITransactionFormData): ITransactionRequest => {
@@ -19,5 +20,6 @@ export const fromTransactionFormData = (transaction: ITransactionFormData): ITra
     categoryId: transaction.category!.id!,
     merchant: transaction.merchant!,
     tags: transaction.tags!,
+    createdOn: transaction.dateOfTransaction,
   };
 };

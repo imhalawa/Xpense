@@ -23,7 +23,6 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
 
   useEffect(() => {
     setLoading(true);
-    axios.defaults.baseURL = "http://localhost:4000/";
     axios
       .get<IResponse<IMerchant[]>>("/api/merchant")
       .then((response) => {
@@ -46,7 +45,7 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
       id="tags-Create"
       size="small"
       options={merchantOptions}
-      onChange={(event, newValue, reason, details) => {
+      onChange={(_event, newValue, _reason, _details) => {
         if (typeof newValue === "string") {
           setSelected({
             id: null,

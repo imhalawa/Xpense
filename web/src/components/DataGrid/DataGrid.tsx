@@ -67,9 +67,9 @@ const DataGrid = <T,>({ headers, rows, dense, emptyAlert }: IDataGridProps<T>): 
             </TableCell>
           ) : (
             rows.map((row, index) => (
-              <StyledTableRow key={Math.random() + index} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
+              <StyledTableRow key={index} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
                 {sortedHeaders.map((header, idx) => (
-                  <TableCell key={Math.random() + idx}>
+                  <TableCell key={idx}>
                     {header.render != null ? header.render(row) : (row[header.field] as ReactNode)}
                   </TableCell>
                 ))}
