@@ -1,11 +1,13 @@
 ﻿using System.Linq.Expressions;
+using Xpense.Services.Abstract.Entities;
 
 namespace Xpense.Services.Abstract.Persistence
 {
-    public interface IRepository<T> where T : class
+    public interface IRepository<T> where T : BaseEntity
     {
         Task<IEnumerable<T>> GetAll<TK>(Expression<Func<T, TK>> includeExpr);
         Task<IEnumerable<T>> GetAll();
+        // TODO: Later extend to accept filters
         Task<T?> GetById(int id);
         Task<T?> GetWithById<TK>(int id, Expression<Func<T, TK>> includeExpr);
         void Create(T entity);

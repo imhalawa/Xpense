@@ -3,7 +3,7 @@ namespace Xpense.API.Models;
 
 public class Response<T>
 {
-    private Response(int statusCode, T data)
+    protected Response(int statusCode, T data)
     {
         StatusCode = statusCode;
         Data = data;
@@ -32,7 +32,7 @@ public class Response<T>
     {
         return new Response<T>(500, data);
     }
-    
+
     public static Response<T> Of(int statusCode, T data)
     {
         return new Response<T>(statusCode, data);

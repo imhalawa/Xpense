@@ -8,6 +8,7 @@ using Xpense.API.Models.Requests;
 using Xpense.API.Models.Responses;
 using Xpense.Services.Exceptions;
 using Xpense.Services.Features.Transactions.UseCases;
+using Xpense.Services.Models;
 
 namespace Xpense.API.Controllers;
 
@@ -19,6 +20,7 @@ public class TransactionController(
     WithdrawTransactionUseCase withdrawTransactionUseCase,
     GetAllTransactionsUseCase getAllTransactionsUseCase,
     GetAllTransactionsForAccountNumberUseCase getAllTransactionsForAccountNumberUseCase,
+    FilterTransactionsUseCase filterTransactionsUseCase,
     ILogger logger)
     : XpenseController
 {
@@ -104,12 +106,21 @@ public class TransactionController(
         }
     }
 
-    [HttpGet("", Name = "Get All Transactions for user")]
+    [HttpGet("", Name = "Get All Transactions")]
     public async Task<IActionResult> GetAll()
     {
 
         var transactions = await getAllTransactionsUseCase.Execute();
         return Ok(transactions.Select(TransactionResponse.Of));
+    }
+
+    [HttpGet("filter", Name = "Filter transactions")]
+    public async Task<IActionResult> Filter([FromQuery] int page, [FromQuery] int size)
+    {
+
+
+        var result = await filterTransactionsUseCase.Execute(FilterQuery.Of(page, size));
+        return Ok(result, TransactionResponse.Of);
     }
 
     [HttpPost("transfer")]
