@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Xpense.Services.Abstract.Persistence;
 using Xpense.Services.Entities;
+using Xpense.Services.Helpers;
 using Xpense.Services.Models;
 
 namespace Xpense.Persistence.Repositories;
@@ -20,18 +21,20 @@ public class TransactionRepository(XpenseDbContext dbContext)
         return transactions;
     }
 
-
-    public async Task<PaginatedResult<Transaction>> Filter(int page, int pageSize)
+    public async Task<PaginatedResult<Transaction>> Filter(int page, int pageSize, long? date = null)
     {
         if (page <= 0 || pageSize <= 0)
             return PaginatedResult<Transaction>.FromResult(0, 0, 0, Enumerable.Empty<Transaction>());
 
-        var pages = DbSet.Count() / pageSize;
-        var result = await GetBaseQuery()
-            .Skip(pageSize * (page - 1))
-            .Take(pageSize)
-            .OrderByDescending(s => s.CreatedOn)
-            .ToListAsync();
+        var query = GetBaseQuery();
+        if (date.HasValue)
+        {
+            var dateTime = date.ToDateTime();
+            query = query.Where(t => t.CreatedOn.Date == dateTime!.Value.Date); // TODO: match the date only
+        }
+        var pages = query.Count() / pageSize + (query.Count() % pageSize > 0 ? 1 : 0);
+        var result = await query.OrderByDescending(s => s.CreatedOn).Skip(pageSize * (page - 1))
+            .Take(pageSize).ToListAsync();
 
         return PaginatedResult<Transaction>.FromResult(page, pageSize, pages, result);
     }

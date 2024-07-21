@@ -115,11 +115,9 @@ public class TransactionController(
     }
 
     [HttpGet("filter", Name = "Filter transactions")]
-    public async Task<IActionResult> Filter([FromQuery] int page, [FromQuery] int size)
+    public async Task<IActionResult> Filter([FromQuery] int page, [FromQuery] int size, [FromQuery] long? date = null)
     {
-
-
-        var result = await filterTransactionsUseCase.Execute(FilterQuery.Of(page, size));
+        var result = await filterTransactionsUseCase.Execute(FilterQuery.Of(page, size, date));
         return Ok(result, TransactionResponse.Of);
     }
 

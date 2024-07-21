@@ -13,7 +13,7 @@ namespace Xpense.Services.Features.Transactions.UseCases
             if (!query.IsValid())
                 throw new InvalidFilteredResultParams(query);
 
-            var result = await repository.Filter(query.Page, query.Size);
+            var result = await repository.Filter(query.Page, query.Size, query.date);
             return result;
         }
     }
