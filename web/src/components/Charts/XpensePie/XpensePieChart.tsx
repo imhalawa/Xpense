@@ -4,8 +4,8 @@ import {styled} from "@mui/material";
 import {PieValueType, useDrawingArea} from "@mui/x-charts";
 
 interface XpensePieProps {
-    data: PieValueType[],
-    value: string,
+    data: PieValueType[] | null,
+    value: string | null,
     hideLegend?: boolean
     height?: number,
     width?: number,
@@ -35,7 +35,7 @@ const XpensePieChart = ({data, value, height, width, innerRadius, outerRadius, h
         height={height?? 300}
         series={[
             {
-                data: data,
+                data: data ?? [],
                 innerRadius: innerRadius ?? 100,
                 outerRadius: outerRadius ?? 120,
                 paddingAngle: 2,

@@ -14,7 +14,6 @@ export interface ITransactionRequest {
 
 export const fromTransactionFormData = (transaction: ITransactionFormData): ITransactionRequest => {
   return {
-    // TODO: Represent in a better way, the idea here is to convert to cents (/100)
     amount: toCents(createMoney(transaction.amount, transaction.currency)),
     accountNumber: transaction.account!.accountNumber,
     categoryId: transaction.category!.id!,

@@ -23,6 +23,7 @@ import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesCo
 interface ITransactionsGridProps {
   size?: number;
   dense?: boolean;
+  date?: number;
   hidePagination?: boolean;
 }
 
@@ -116,7 +117,7 @@ const headers: IDataGridHeader<ITransaction>[] = [
   },
 ];
 
-const TransactionsGrid = ({ size, hidePagination, dense }: ITransactionsGridProps) => {
+const TransactionsGrid = ({ size, hidePagination, dense, date }: ITransactionsGridProps) => {
   const { setLoading } = useLoading();
   const { selectedDate } = useCalendar();
   const [transactions, setTransactions] = useState<ITransaction[]>([]);
@@ -135,15 +136,13 @@ const TransactionsGrid = ({ size, hidePagination, dense }: ITransactionsGridProp
       setPages(response.pages);
     };
 
-    console.log(selectedDate?.unix());
-
     setLoading(true);
-    fetchTransactions(page, pageSize, selectedDate?.unix())
+    fetchTransactions(page, pageSize, date || selectedDate?.unix())
       .then(() => {
-        console.log("Transactions fetched");
         setLoading(false);
       })
       .catch((error) => {
+        // TODO: Introduce a new Context that connects to Backend logger
         console.error(error);
         setLoading(false);
       });
