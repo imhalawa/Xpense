@@ -4,7 +4,6 @@ import XpensePieChart from "../../components/Charts/XpensePie/XpensePieChart.tsx
 import Box from "@mui/material/Box";
 import XpenseAreaChart, { XpenseAreaChartEntry } from "../../components/Charts/XpenseLineCharts/XpenseLineCharts.tsx";
 import TransactionsGrid from "../Transactions/TransactionsGrid/TransactionsGrid.tsx";
-import { createTransactionFixture } from "../../fixtures.ts";
 import Page from "../../components/Page/Page.tsx";
 
 const pieData = [
