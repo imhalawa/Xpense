@@ -2,9 +2,20 @@ import axios from "axios";
 import { ITransaction } from "../typings";
 import { IResponse } from "./types/IResponse";
 import { ITransactionRequest } from "./types/ITransactionRequest";
+import { IPaginatedResponse } from "./types/IPaginatedResponse";
 
-export const getAllTransactions = async (): Promise<IResponse<ITransaction[]>> => {
-  var response = await axios.get<IResponse<ITransaction[]>>("/api/transaction");
+export const getAllTransactions = async (
+  page: number,
+  size: number,
+  date?: number
+): Promise<IPaginatedResponse<ITransaction>> => {
+  var response = await axios.get<IPaginatedResponse<ITransaction>>("/api/transaction/filter", {
+    params: {
+      page: page,
+      size: size,
+      date: date,
+    },
+  });
   return response.data;
 };
 

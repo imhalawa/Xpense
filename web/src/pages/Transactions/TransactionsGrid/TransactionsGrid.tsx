@@ -14,10 +14,17 @@ import DataGrid, { IDataGridHeader } from "../../../components/DataGrid/DataGrid
 import { formatDate } from "../../../utils/DateUtils";
 import { Currency, ITransaction, TransactionType } from "../../../typings";
 import { toSingle } from "../../../typings/models/IMoney";
+import { useLoading } from "../../../contexts/LoadingContext";
+import dayjs, { Dayjs } from "dayjs";
+import { useCalendar } from "../../../contexts/CalendarContext";
+import { useEffect, useState } from "react";
+import { getAllTransactions } from "../../../clients/transactions";
+import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
 
 interface ITransactionsGridProps {
-  transactions: ITransaction[];
+  size?: number;
   dense?: boolean;
+  hidePagination?: boolean;
 }
 
 const headers: IDataGridHeader<ITransaction>[] = [
@@ -110,12 +117,59 @@ const headers: IDataGridHeader<ITransaction>[] = [
   },
 ];
 
-const TransactionsGrid = ({ transactions, dense }: ITransactionsGridProps) => {
+const TransactionsGrid = ({ size, hidePagination, dense }: ITransactionsGridProps) => {
+  const { setLoading } = useLoading();
+  const { selectedDate } = useCalendar();
+  const [transactions, setTransactions] = useState<ITransaction[]>([]);
+  const [pageSize, setPageSize] = useState<number>(size ?? 10);
+  const [page, setPage] = useState<number>(1);
+  const [pages, setPages] = useState<number>(0);
+
+  const { submittedTransaction, setSubmittedTransaction } = useTransctionUtilities();
+
+  useEffect(() => {
+    const fetchTransactions = async (page: number, size: number, date?: number) => {
+      const response = await getAllTransactions(page, size, date);
+      setTransactions(response.data);
+      setPageSize(response.size);
+      setPage(response.page);
+      setPages(response.pages);
+    };
+
+    console.log(selectedDate?.unix());
+
+    setLoading(true);
+    fetchTransactions(page, pageSize, selectedDate?.unix())
+      .then(() => {
+        console.log("Transactions fetched");
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setLoading(false);
+      });
+  }, [page, pageSize, selectedDate]);
+
+  useEffect(() => {
+    if (submittedTransaction != null) {
+      setTransactions([...transactions, submittedTransaction]);
+      setSubmittedTransaction(null);
+    }
+  }, [submittedTransaction]);
+
+  const onPageChange = (page: number) => {
+    setPage(page);
+  };
+
   return (
     <DataGrid
       headers={headers}
-      rows={transactions.sort((a, b) => b.createdOn! - a.createdOn!)}
+      rows={transactions}
+      paginated={!hidePagination && true}
       dense={dense ?? false}
+      activePage={page}
+      onPageChange={onPageChange}
+      count={pages}
       emptyAlert={
         <Alert severity="info" sx={{ width: "100%" }}>
           No transactions found

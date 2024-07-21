@@ -52,7 +52,7 @@ const Dashboard = () => {
         </Box>
       </Grid>
       <Grid item lg={9} md={12} xs={12} my={2}>
-        <TransactionsGrid transactions={createTransactionFixture()} dense={true} />
+        <TransactionsGrid size={6} dense hidePagination />
       </Grid>
       <Grid item xs={12} sm={12} md={6} lg={4}>
         <Typography variant="h4" my={1}>

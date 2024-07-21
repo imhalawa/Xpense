@@ -25,7 +25,7 @@ const Page = ({ title, children, headerBackgroundColor, headerColor }: IPageProp
         </Typography>
         <hr style={{ margin: 0, backgroundColor: headerBackgroundColor }} />
       </Grid>
-      <Grid container spacing={2} px={4} py={4}>
+      <Grid container spacing={2} px={4} pb={4} pt={0}>
         {children}
       </Grid>
     </>
