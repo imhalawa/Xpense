@@ -17,7 +17,7 @@ import { toSingle } from "../../../typings/models/IMoney";
 import { useLoading } from "../../../contexts/LoadingContext";
 import { useCalendar } from "../../../contexts/CalendarContext";
 import { useEffect, useState } from "react";
-import { getAllTransactions } from "../../../clients/transactions";
+import { filter } from "../../../clients/transactions";
 import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
 
 interface ITransactionsGridProps {
@@ -128,7 +128,7 @@ const TransactionsGrid = ({ size, hidePagination, dense }: ITransactionsGridProp
 
   useEffect(() => {
     const fetchTransactions = async (page: number, size: number, date?: number) => {
-      const response = await getAllTransactions(page, size, date);
+      const response = await filter(page, size, date);
       setTransactions(response.data);
       setPageSize(response.size);
       setPage(response.page);

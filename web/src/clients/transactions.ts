@@ -4,7 +4,7 @@ import { IResponse } from "./types/IResponse";
 import { ITransactionRequest } from "./types/ITransactionRequest";
 import { IPaginatedResponse } from "./types/IPaginatedResponse";
 
-export const getAllTransactions = async (
+export const filter = async (
   page: number,
   size: number,
   date?: number
