@@ -15,7 +15,6 @@ import { formatDate } from "../../../utils/DateUtils";
 import { Currency, ITransaction, TransactionType } from "../../../typings";
 import { toSingle } from "../../../typings/models/IMoney";
 import { useLoading } from "../../../contexts/LoadingContext";
-import dayjs, { Dayjs } from "dayjs";
 import { useCalendar } from "../../../contexts/CalendarContext";
 import { useEffect, useState } from "react";
 import { getAllTransactions } from "../../../clients/transactions";
