@@ -15,9 +15,16 @@ public class TransactionRepository(XpenseDbContext dbContext)
         return transactions;
     }
 
-    public async Task<IEnumerable<Transaction>> GetAllTransactions()
+    public async Task<IReadOnlyCollection<Transaction>> GetAllTransactions(long? date = null)
     {
-        var transactions = await GetBaseQuery().OrderByDescending(t => t.CreatedOn).ToListAsync();
+        var query = GetBaseQuery();
+        if (date.HasValue)
+        {
+            var dateTime = date.ToDateTime();
+            query = query.Where(t => t.CreatedOn.Date == dateTime!.Value.Date); // TODO: match the date only
+        }
+
+        var transactions = await query.OrderByDescending(t => t.CreatedOn).ToListAsync();
         return transactions;
     }
 

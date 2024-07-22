@@ -7,6 +7,6 @@ namespace Xpense.Services.Abstract.Persistence;
 public interface ITransactionRepository : IRepository<Transaction>
 {
     Task<IEnumerable<Transaction>> GetAllTransactions(Account account);
-    Task<IEnumerable<Transaction>> GetAllTransactions();
+    Task<IReadOnlyCollection<Transaction>> GetAllTransactions(long? date = null);
     Task<PaginatedResult<Transaction>> Filter(int page, int pageSize, long? date = null);
 }

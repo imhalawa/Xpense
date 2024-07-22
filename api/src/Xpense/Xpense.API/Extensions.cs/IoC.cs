@@ -11,6 +11,7 @@ using Xpense.Persistence;
 using Xpense.Persistence.Repositories;
 using Xpense.Services.Abstract.Persistence;
 using Xpense.Services.Features.Accounts.Usecases;
+using Xpense.Services.Features.Analytics.UseCases;
 using Xpense.Services.Features.Categories.UseCases;
 using Xpense.Services.Features.Merchants.UseCases;
 using Xpense.Services.Features.Tags.UseCases;
@@ -107,6 +108,8 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<GetAllTransactionsForAccountNumberUseCase>();
             services.AddScoped<GetAllTransactionsUseCase>();
             services.AddScoped<FilterTransactionsUseCase>();
+
+            services.AddScoped<GetExpensesByCategoryUseCase>();
         }
     }
 }
