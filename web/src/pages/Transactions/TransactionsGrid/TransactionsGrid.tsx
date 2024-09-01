@@ -137,12 +137,15 @@ const TransactionsGrid = ({ size, hidePagination, dense, date }: ITransactionsGr
     };
 
     setLoading(true);
+
+    // TODO: Move this into it's own client && handle errors there
     fetchTransactions(page, pageSize, date || selectedDate?.unix())
       .then(() => {
         setLoading(false);
       })
       .catch((error) => {
         // TODO: Introduce a new Context that connects to Backend logger
+        // Basically this shouldn't call the backend instead show a Piece of UI that indicates an error
         console.error(error);
         setLoading(false);
       });

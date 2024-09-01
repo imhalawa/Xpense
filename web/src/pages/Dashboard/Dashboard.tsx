@@ -13,15 +13,6 @@ import { PieValueType } from "@mui/x-charts";
 import { toSingle } from "../../typings/models/IMoney.ts";
 import dayjs from "dayjs";
 
-const pieData = [
-  { id: 0, value: 10, label: "Category A" },
-  { id: 1, value: 15, label: "Category B" },
-  { id: 2, value: 20, label: "Category C" },
-  { id: 3, value: 20, label: "Category D" },
-  { id: 4, value: 20, label: "Category F" },
-  { id: 5, value: 20, label: "Category E" },
-];
-
 const areaChartData: XpenseAreaChartEntry[] = [
   {
     date: new Date("2024-07-1"),
@@ -67,8 +58,6 @@ const Dashboard = () => {
       var pieData = data.data.expenses.map(
         (e) => ({ id: e.id, value: toSingle(e.amount), label: e.category.label }) as PieValueType
       );
-
-      console.log("pieData", pieData);
       setTodayExpensesByCategory({
         data: pieData,
         value: toSingle(data.data.total).toString(),
@@ -79,12 +68,12 @@ const Dashboard = () => {
   return (
     <Page title="Dashboard" headerColor="primary.dark" headerBackgroundColor="white">
       <Grid item lg={3} md={12} xs={12}>
-        <Box display="flex" alignItems="center">
+        <Box display="flex" flexDirection={"column"} alignItems="center" justifyItems={"center"} >
           <XpensePieChart data={todayExpensesByCategory?.data} value={todayExpensesByCategory?.value} />
         </Box>
       </Grid>
       <Grid item lg={9} md={12} xs={12} my={2}>
-        <TransactionsGrid size={6} dense hidePagination date={dayjs().unix()}  />
+        <TransactionsGrid size={6} dense hidePagination date={dayjs().unix()} />
       </Grid>
       <Grid item xs={12} sm={12} md={6} lg={4}>
         <Typography variant="h4" my={1}>
