@@ -62,6 +62,33 @@
 - [ ] Add the separate `POST /api/v1/transfers` contract only when its use case is implemented; otherwise return no transfer route in this slice.
 - [ ] Verify tests pass and commit the transaction slice.
 
+### Task 3a: Financial correctness and transaction read model
+
+**Files:**
+- Modify: `src/Xpense/Xpense.Services/ValueObjects/Money.cs`
+- Modify: transaction repository, abstraction, and use-case files needed for transaction lookup and pagination totals
+- Test: `src/Xpense/Xpense.Tests/Unit/MoneyTests.cs`
+- Test: `src/Xpense/Xpense.Tests/Integration/V1TransactionReadTests.cs`
+
+- [ ] Write a failing unit test that `Money.OfCents(1234).ToSingle()` is `12.34m`.
+- [ ] Fix the calculation to divide by `100m` and verify the test passes.
+- [ ] Write failing integration tests for `GET /api/v1/transactions/{id}` and paged results with `totalItems`.
+- [ ] Add the repository/use-case/controller support needed to make a created transaction retrievable and paging totals truthful.
+- [ ] Verify the focused tests pass and commit this prerequisite slice.
+
+### Task 3b: Atomic transfer domain model
+
+**Files:**
+- Modify: service commands, entities, persistence mappings, repositories, use cases, and DI registration needed for transfers
+- Test: `src/Xpense/Xpense.Tests/Unit/TransferTransactionUseCaseTests.cs`
+- Test: `src/Xpense/Xpense.Tests/Integration/V1TransferEndpointTests.cs`
+
+- [ ] Write failing unit tests that a transfer debits one account, credits another, rejects identical accounts, and persists correlated legs atomically.
+- [ ] Verify the tests fail because no transfer use case exists.
+- [ ] Implement the smallest explicit transfer aggregate/leg model and transactional use case; do not expose a route until those tests pass.
+- [ ] Add `POST /api/v1/transfers` integration tests for the successful and rejected cases.
+- [ ] Verify the focused tests pass and commit the transfer slice.
+
 ### Task 4: Analytics, error normalization, and full regression
 
 **Files:**
