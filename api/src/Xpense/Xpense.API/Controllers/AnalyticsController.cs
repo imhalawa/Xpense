@@ -17,7 +17,7 @@ namespace Xpense.API.Controllers
         public async Task<IActionResult> GetExpensesByCategory()
         {
             var result = await getExpensesByCategoryUseCase.Execute();
-            return Ok(TodayExpensesByCategoryResponse.Of(result));
+            return new OkObjectResult(TodayExpensesByCategoryResponse.Of(result));
         }
     }
 }
