@@ -20,6 +20,7 @@ public class TransactionController(
     WithdrawTransactionUseCase withdrawTransactionUseCase,
     GetAllTransactionsUseCase getAllTransactionsUseCase,
     GetAllTransactionsForAccountNumberUseCase getAllTransactionsForAccountNumberUseCase,
+    GetTransactionByIdUseCase getTransactionByIdUseCase,
     FilterTransactionsUseCase filterTransactionsUseCase,
     ILogger logger)
     : XpenseController
@@ -119,6 +120,22 @@ public class TransactionController(
     {
         var result = await filterTransactionsUseCase.Execute(FilterQuery.Of(page, size, date));
         return Ok(result, TransactionResponse.Of);
+    }
+
+    [HttpGet("/api/v1/transactions/{id:int}", Name = "Get V1 Transaction By Id")]
+    public async Task<IActionResult> GetV1ById(int id)
+    {
+        var transaction = await getTransactionByIdUseCase.Execute(id);
+        return transaction is null
+            ? new NotFoundResult()
+            : new OkObjectResult(V1TransactionResponse.From(transaction));
+    }
+
+    [HttpGet("/api/v1/transactions", Name = "Get V1 Transactions")]
+    public async Task<IActionResult> GetV1Page([FromQuery] int page, [FromQuery] int pageSize)
+    {
+        var result = await filterTransactionsUseCase.Execute(FilterQuery.Of(page, pageSize));
+        return new OkObjectResult(V1TransactionPageResponse.From(result));
     }
 
     [HttpPost("transfer")]

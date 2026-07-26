@@ -28,10 +28,15 @@ public class TransactionRepository(XpenseDbContext dbContext)
         return transactions;
     }
 
+    public async Task<Transaction?> GetByIdWithDetails(int id)
+    {
+        return await GetBaseQuery().SingleOrDefaultAsync(transaction => transaction.Id == id);
+    }
+
     public async Task<PaginatedResult<Transaction>> Filter(int page, int pageSize, long? date = null)
     {
         if (page <= 0 || pageSize <= 0)
-            return PaginatedResult<Transaction>.FromResult(0, 0, 0, Enumerable.Empty<Transaction>());
+            return PaginatedResult<Transaction>.FromResult(0, 0, 0, 0, Enumerable.Empty<Transaction>());
 
         var query = GetBaseQuery();
         if (date.HasValue)
@@ -39,11 +44,12 @@ public class TransactionRepository(XpenseDbContext dbContext)
             var dateTime = date.ToDateTime();
             query = query.Where(t => t.CreatedOn.Date == dateTime!.Value.Date); // TODO: match the date only
         }
-        var pages = query.Count() / pageSize + (query.Count() % pageSize > 0 ? 1 : 0);
+        var totalItems = await query.CountAsync();
+        var pages = totalItems / pageSize + (totalItems % pageSize > 0 ? 1 : 0);
         var result = await query.OrderByDescending(s => s.CreatedOn).Skip(pageSize * (page - 1))
             .Take(pageSize).ToListAsync();
 
-        return PaginatedResult<Transaction>.FromResult(page, pageSize, pages, result);
+        return PaginatedResult<Transaction>.FromResult(page, pageSize, pages, totalItems, result);
     }
 
     private IQueryable<Transaction> GetBaseQuery()
