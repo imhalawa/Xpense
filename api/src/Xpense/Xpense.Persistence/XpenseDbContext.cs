@@ -21,6 +21,8 @@ namespace Xpense.Persistence
         public virtual DbSet<Account> Accounts { get; set; }
         public virtual DbSet<Merchant> Merchants { get; set; }
         public virtual DbSet<Transaction> Transactions { get; set; }
+        public virtual DbSet<Transfer> Transfers { get; set; }
+        public virtual DbSet<TransferLeg> TransferLegs { get; set; }
         public virtual DbSet<Category> Categories { get; set; }
         public virtual DbSet<Priority> Priorities { get; set; }
         public virtual DbSet<Tag> Tags { get; set; }
