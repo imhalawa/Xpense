@@ -10,7 +10,7 @@ using Xpense.Services.Features.Categories.UseCases;
 
 namespace Xpense.API.Controllers
 {
-    [Route("api/category")]
+    [Route("api/v1/categories")]
     [ApiController]
     public class CategoryController(
         CreateCategoryUseCase createCategory,
@@ -25,7 +25,7 @@ namespace Xpense.API.Controllers
         public async Task<IActionResult> Get()
         {
             var categories = await getAllCategoriesUseCase.Execute();
-            return Ok(categories.Select(CategoryResponse.Of));
+            return new OkObjectResult(categories.Select(CategoryResponse.Of));
         }
 
         [HttpGet("{id:int}")]
@@ -34,7 +34,7 @@ namespace Xpense.API.Controllers
             try
             {
                 var result = await getCategoryByIdUseCase.Execute(id);
-                return Ok(result);
+                return new OkObjectResult(CategoryResponse.Of(result));
             }
             catch (CategoryNotFoundException exception)
             {
@@ -49,7 +49,7 @@ namespace Xpense.API.Controllers
             try
             {
                 await deleteCategoryByIdUseCase.Handle(id);
-                return Ok("CategoryId Deleted Successfully!");
+                return NoContent();
             }
             catch (CategoryDeletionFailedException exception)
             {
@@ -64,7 +64,7 @@ namespace Xpense.API.Controllers
             try
             {
                 var category = await createCategory.Handle(request.ToCommand());
-                return Ok(CreateCategoryResponse.Of(category));
+                return CreatedAtAction(nameof(GetById), new { id = category.Id }, CategoryResponse.Of(category));
             }
             catch (CategoryCreationFailedException exception)
             {
@@ -73,13 +73,14 @@ namespace Xpense.API.Controllers
             }
         }
 
-        [HttpPut]
-        public async Task<IActionResult> Update([FromBody] UpdateCategoryRequest request)
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateCategoryRequest request)
         {
             try
             {
+                request.Id = id;
                 var category = await updateCategoryUseCase.Handle(request.ToCommand());
-                return Ok(CategoryResponse.Of(category));
+                return new OkObjectResult(CategoryResponse.Of(category));
             }
             catch (CategoryNotFoundException exception)
             {
