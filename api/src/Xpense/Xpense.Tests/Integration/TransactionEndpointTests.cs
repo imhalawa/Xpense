@@ -127,7 +127,6 @@ public class TransactionEndpointTests
     [TestCase("/api/transaction/deposit")]
     [TestCase("/api/transaction/withdraw")]
     [TestCase("/api/transaction/transfer")]
-    [TestCase("/api/v1/transfers")]
     public async Task Removed_or_unimplemented_transaction_routes_return_not_found(string path)
     {
         using var factory = new WebApiTestFactory();

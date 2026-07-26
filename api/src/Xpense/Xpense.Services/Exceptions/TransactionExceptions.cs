@@ -23,3 +23,8 @@ public class UnsupportedCurrencyException(string? currency, Exception? innerExce
     : XpenseException(
         $"Currency '{currency}' is not supported.",
         innerException);
+
+public class InvalidTransferException(string message) : XpenseException(message);
+
+public class InsufficientFundsForTransferException(int accountId, decimal balance, decimal amount)
+    : XpenseException($"Account {accountId} has balance {balance} but transfer requires {amount}.");
