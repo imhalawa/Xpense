@@ -84,6 +84,7 @@ namespace Xpense.API.Extensions.cs
         public static void AddUseCases(this IServiceCollection services)
         {
             services.AddScoped<GetAccountByNumberUseCase>();
+            services.AddScoped<GetAccountByIdUseCase>();
             services.AddScoped<GetAllAccountsUseCase>();
             services.AddScoped<CreateAccountUseCase>();
             services.AddScoped<DeleteAccountUseCase>();
@@ -107,6 +108,7 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<WithdrawTransactionUseCase>();
             services.AddScoped<GetAllTransactionsForAccountNumberUseCase>();
             services.AddScoped<GetAllTransactionsUseCase>();
+            services.AddScoped<GetTransactionByIdUseCase>();
             services.AddScoped<FilterTransactionsUseCase>();
 
             services.AddScoped<GetExpensesByCategoryUseCase>();

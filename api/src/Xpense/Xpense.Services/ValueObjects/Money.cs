@@ -17,7 +17,7 @@ namespace Xpense.Services.ValueObjects
 
         public decimal ToSingle()
         {
-            return this.Cents / 100;
+            return this.Cents / 100m;
         }
 
         public static Money operator +(Money lhs, Money rhs)
