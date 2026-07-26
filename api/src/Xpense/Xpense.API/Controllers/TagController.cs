@@ -30,7 +30,7 @@ public class TagController(
     }
 
     [HttpGet("{id:int}")]
-    public async Task<IActionResult> Get([FromRoute] int id)
+    public async Task<IActionResult> GetById([FromRoute] int id)
     {
         try
         {
@@ -73,7 +73,7 @@ public class TagController(
             request.FgColorHex = TrimHashSign(request.FgColorHex);
 
             var tag = await createTagUseCase.Handle(request.ToCommand());
-            return CreatedAtAction(nameof(Get), new { id = tag.Id }, TagResponse.Of(tag));
+            return CreatedAtAction(nameof(GetById), new { id = tag.Id }, TagResponse.Of(tag));
         }
         catch (TagCreationFailedException exception)
         {

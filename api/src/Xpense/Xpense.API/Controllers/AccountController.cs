@@ -18,6 +18,7 @@ namespace Xpense.API.Controllers
     public class AccountController(
         CreateAccountUseCase createAccount,
         GetAllAccountsUseCase getAllAccountsAccounts,
+        GetAccountByIdUseCase getAccountByIdUseCase,
         DeleteAccountUseCase deleteAccountUseCase,
         UpdateAccountUseCase updateAccountUseCase,
         ILogger logger) : XpenseController
@@ -31,7 +32,7 @@ namespace Xpense.API.Controllers
         {
             try
             {
-                var account = await FindById(id);
+                var account = await getAccountByIdUseCase.Execute(id);
                 return new OkObjectResult(AccountResponse.Of(account));
             }
             catch (AccountNotFoundException ex)
@@ -70,8 +71,7 @@ namespace Xpense.API.Controllers
         {
             try
             {
-                var account = await FindById(id);
-                await deleteAccountUseCase.Handle(account.AccountNumber);
+                await deleteAccountUseCase.Handle(id);
                 return NoContent();
             }
             catch (AccountNotFoundException exception)
@@ -94,9 +94,7 @@ namespace Xpense.API.Controllers
                 if (request == null || !ModelState.IsValid)
                     return ValidationProblem($"Invalid Patch Request: {ModelState}");
 
-                var account = await FindById(id);
-                request.Number = account.AccountNumber;
-                var result = await updateAccountUseCase.Handle(request.ToCommand());
+                var result = await updateAccountUseCase.Handle(request.ToCommand(id));
                 return new OkObjectResult(AccountResponse.Of(result));
             }
             catch (AccountNotFoundException exception)
@@ -109,12 +107,6 @@ namespace Xpense.API.Controllers
                 logger.Warning(exception.Message);
                 return Problem(exception.Message);
             }
-        }
-
-        private async Task<Xpense.Services.Entities.Account> FindById(int id)
-        {
-            var account = (await getAllAccountsAccounts.Execute()).SingleOrDefault(account => account.Id == id);
-            return account ?? throw new AccountNotFoundException(id.ToString());
         }
     }
 }

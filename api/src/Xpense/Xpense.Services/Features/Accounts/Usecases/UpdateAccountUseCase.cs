@@ -11,13 +11,16 @@ public class UpdateAccountUseCase(IAccountRepository repository)
 {
     public async Task<Account> Handle(UpdateAccountCommand command)
     {
-        var account = await repository.GetAccountByNumber(command.Number);
+        var account = await repository.GetById(command.Id);
+        if (account == null)
+            throw new AccountNotFoundException(command.Id);
+
         account.Name = command.Name;
         account.IsDefaultAccount = command.IsDefault;
         repository.Update(account);
         var result = await repository.SaveChanges();
         if (result < 1)
-            throw new AccountUpdateFailedException(command.Number);
+            throw new AccountUpdateFailedException(command.Id.ToString());
         return account;
     }
 }
