@@ -19,24 +19,20 @@ namespace Xpense.API.Controllers
         CreateAccountUseCase createAccount,
         GetAllAccountsUseCase getAllAccountsAccounts,
         DeleteAccountUseCase deleteAccountUseCase,
-        GetAccountByNumberUseCase getAccountByNumberUseCase,
         UpdateAccountUseCase updateAccountUseCase,
         ILogger logger) : XpenseController
     {
         [HttpGet(
-            "{accountNumber:minlength(10):maxlength(10)}",
-            Name = "Get Account By (Account Number)"
+            "{id:int}",
+            Name = "Get Account By Id"
         )]
         [ProducesResponseType<AccountResponse>(StatusCodes.Status200OK, "application/json")]
-        public async Task<IActionResult> GetByAccountNumber(string accountNumber)
+        public async Task<IActionResult> GetById(int id)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(accountNumber) || accountNumber.Length != 10)
-                    return ValidationProblem($"Please provide a valid account accountNumber");
-
-                var account = await getAccountByNumberUseCase.Execute(accountNumber);
-                return Ok(AccountResponse.Of(account));
+                var account = await FindById(id);
+                return new OkObjectResult(AccountResponse.Of(account));
             }
             catch (AccountNotFoundException ex)
             {
@@ -48,7 +44,7 @@ namespace Xpense.API.Controllers
         public async Task<IActionResult> Get()
         {
             var accounts = await getAllAccountsAccounts.Execute();
-            return Ok(accounts.Select(AccountResponse.Of));
+            return new OkObjectResult(accounts.Select(AccountResponse.Of));
         }
 
         [HttpPost("", Name = "Create Account", Order = 1)]
@@ -57,7 +53,7 @@ namespace Xpense.API.Controllers
             try
             {
                 var createdAccount = await createAccount.Handle(request.ToCommand());
-                return Ok(AccountResponse.Of(createdAccount));
+                return CreatedAtAction(nameof(GetById), new { id = createdAccount.Id }, AccountResponse.Of(createdAccount));
             }
             catch (AccountCreationFailedException exception)
             {
@@ -67,18 +63,16 @@ namespace Xpense.API.Controllers
         }
 
         [HttpDelete(
-            "{accountNumber:minlength(10):maxlength(10)}",
-            Name = "Delete Account By Number"
+            "{id:int}",
+            Name = "Delete Account By Id"
         )]
-        public async Task<IActionResult> Delete(string number)
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(number) || number.Length != 10)
-                    return ValidationProblem($"Please provide a valid account accountNumber");
-
-                await deleteAccountUseCase.Handle(number);
-                return Ok("Account Deleted Successfully");
+                var account = await FindById(id);
+                await deleteAccountUseCase.Handle(account.AccountNumber);
+                return NoContent();
             }
             catch (AccountNotFoundException exception)
             {
@@ -92,15 +86,18 @@ namespace Xpense.API.Controllers
             }
         }
 
-        [HttpPut(Name = "Update account")]
-        public async Task<IActionResult> Update([FromBody] UpdateAccountRequest request)
+        [HttpPut("{id:int}", Name = "Update account")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateAccountRequest request)
         {
             try
             {
                 if (request == null || !ModelState.IsValid)
                     return ValidationProblem($"Invalid Patch Request: {ModelState}");
+
+                var account = await FindById(id);
+                request.Number = account.AccountNumber;
                 var result = await updateAccountUseCase.Handle(request.ToCommand());
-                return Ok(AccountResponse.Of(result));
+                return new OkObjectResult(AccountResponse.Of(result));
             }
             catch (AccountNotFoundException exception)
             {
@@ -112,6 +109,12 @@ namespace Xpense.API.Controllers
                 logger.Warning(exception.Message);
                 return Problem(exception.Message);
             }
+        }
+
+        private async Task<Xpense.Services.Entities.Account> FindById(int id)
+        {
+            var account = (await getAllAccountsAccounts.Execute()).SingleOrDefault(account => account.Id == id);
+            return account ?? throw new AccountNotFoundException(id.ToString());
         }
     }
 }
