@@ -1,4 +1,4 @@
-﻿namespace Xpense.Domain.Abstract.Entities
+﻿namespace Xpense.Domain.Entities
 {
     public interface IOptionEntity
     {

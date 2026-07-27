@@ -3,6 +3,9 @@ namespace Xpense.Domain.Exceptions;
 public class TransactionNotFoundException(int id, Exception? innerException = null)
     : NotFoundException($"Transaction with id:[{id}] was not found", innerException);
 
+public class TransferNotFoundException(int id, Exception? innerException = null)
+    : NotFoundException($"Transfer with id:[{id}] was not found", innerException);
+
 public class DepositCreationFailedException(decimal amount, string accountNumber, Exception? innerException = null)
     : PersistenceFailedException($"Failed Attempt to deposit amount {amount} to account {accountNumber}", innerException);
 

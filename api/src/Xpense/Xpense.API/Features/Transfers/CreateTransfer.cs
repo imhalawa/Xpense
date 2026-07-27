@@ -50,7 +50,7 @@ public sealed class CreateTransfer : IEndpoint
                     .GreaterThan(0).WithMessage("The amount in cents must be positive.");
 
                 RuleFor(request => request.Amount.Currency)
-                    .Must(currency => TryParseCurrency(currency, out _))
+                    .Must(currency => CurrencyParser.TryParse(currency, out _))
                     .WithMessage("The currency must be a supported currency name.");
             });
 
@@ -61,14 +61,13 @@ public sealed class CreateTransfer : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapPost("/api/v1/transfers", Handle).WithName(nameof(CreateTransfer)).Validated();
 
-    // ponytail: 201 without a Location header -- there is no GET /api/v1/transfers/{id} to
-    // point at yet. Switch to a resource URI when that endpoint lands.
-    private static async Task<IResult> Handle(
+    private static async Task<Created<TransferResponse>> Handle(
         Request request,
         XpenseDbContext db,
+        HttpContext http,
         CancellationToken ct)
     {
-        TryParseCurrency(request.Amount.Currency, out var currency);
+        CurrencyParser.TryParse(request.Amount.Currency, out var currency);
 
         // Both balance changes and both audit legs commit together or not at all.
         await using var scope = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
@@ -91,7 +90,9 @@ public sealed class CreateTransfer : IEndpoint
             await db.SaveChangesAsync(ct);
             await scope.CommitAsync(ct);
 
-            return TypedResults.Created((string)null, TransferResponse.Of(transfer));
+            return TypedResults.Created(
+                http.ResourceUri($"/api/v1/transfers/{transfer.Id}"),
+                TransferResponse.Of(transfer));
         }
         catch
         {
@@ -100,11 +101,4 @@ public sealed class CreateTransfer : IEndpoint
         }
     }
 
-    private static bool TryParseCurrency(string currency, out Currency parsed)
-    {
-        parsed = default;
-        return !string.IsNullOrWhiteSpace(currency)
-               && Enum.GetNames<Currency>().Any(name => string.Equals(name, currency, StringComparison.OrdinalIgnoreCase))
-               && Enum.TryParse(currency, ignoreCase: true, out parsed);
-    }
 }

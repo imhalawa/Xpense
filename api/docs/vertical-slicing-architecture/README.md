@@ -37,9 +37,11 @@ None of that is abstraction. It is indirection with an abstraction's file count.
 
 This is **not** "no architecture". Slices are a statement about *where code lives*, not about whether design matters. Three rules keep it from degrading:
 
-1. **A slice owns its endpoint, not the domain.** Money movement, invariants and anything with real rules stays in the domain layer and gets called by the slice. `TransferTransactionUseCase` is the worked example — see [03-what-stays-shared.md](03-what-stays-shared.md).
-2. **Slices do not call each other.** If two slices need the same logic, it moves down into the domain or into an explicitly shared helper. It never becomes slice-to-slice.
+1. **A slice owns its endpoint, not the domain.** Money movement, invariants and anything with real rules stays in the domain layer and gets called by the slice. `MoneyTransfer` is the worked example — see [03-what-stays-shared.md](03-what-stays-shared.md).
+2. **Slices do not call each other.** If two slices need the same thing it moves down — to `Xpense.API/Contracts/` for a shared HTTP contract, or to `Xpense.Domain` for a shared rule. It never becomes slice-to-slice.
 3. **Duplication is allowed, and is the point.** Two slices writing similar EF queries is cheaper than one shared query that four features are afraid to change. This is a deliberate trade of DRY for independence.
+
+Rules 2 and 3 are not honour-system: `Xpense.Tests/Architecture/SliceIsolationTests.cs` reads the compiled IL and fails the build on a cross-slice reference or a domain-exception `catch` inside a slice. That is the replacement for the compiler-enforced project boundary this architecture gives up — see [04-trade-offs.md](04-trade-offs.md).
 
 ## Where things live
 
@@ -48,18 +50,22 @@ src/Xpense/
   Xpense.API/
     Infrastructure/        IEndpoint, endpoint discovery, validation filter
     ExceptionHandlers/     one handler per exception type -> RFC 7807
+    Contracts/             response contracts shared by 2+ features
     Features/
       Tags/
-        TagResponse.cs     shared response contract for this feature
+        TagResponse.cs     response contract for this feature
+        TagRules.cs        validation shared by CreateTag and UpdateTag
         ListTags.cs        one endpoint = one file
         GetTagById.cs
         CreateTag.cs
         UpdateTag.cs
         DeleteTag.cs
       Accounts/ ...
-  Xpense.Domain/           entities, value objects, enums, exceptions
-  Xpense.Persistence/      DbContext, type configuration, migrations
+  Xpense.Domain/           entities, value objects, enums, exceptions, MoneyTransfer
+  Xpense.Persistence/      DbContext, type configuration, migrations, OptionResolver
 ```
+
+Repo-root [`AGENTS.md`](../../AGENTS.md) carries the same rules in the place agents read first.
 
 ## Reading order
 

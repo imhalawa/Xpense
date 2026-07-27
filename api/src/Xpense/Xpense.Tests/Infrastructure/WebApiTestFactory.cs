@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Xpense.Persistence;
@@ -12,6 +13,9 @@ namespace Xpense.Tests.Infrastructure;
 public sealed class WebApiTestFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection connection = new("Data Source=:memory:");
+    private readonly IInterceptor[] interceptors;
+
+    public WebApiTestFactory(params IInterceptor[] interceptors) => this.interceptors = interceptors;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -20,7 +24,8 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
         {
             RemoveProductionDbContext(services);
             connection.Open();
-            services.AddDbContext<XpenseDbContext>(options => options.UseSqlite(connection));
+            services.AddDbContext<XpenseDbContext>(options =>
+                options.UseSqlite(connection).AddInterceptors(interceptors));
         });
     }
 

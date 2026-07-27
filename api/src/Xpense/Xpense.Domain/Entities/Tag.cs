@@ -1,4 +1,4 @@
-﻿using Xpense.Domain.Abstract.Entities;
+﻿using Xpense.Domain.Entities;
 
 namespace Xpense.Domain.Entities;
 

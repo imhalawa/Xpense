@@ -1,6 +1,6 @@
-﻿using Xpense.Domain.Abstract.Entities;
+﻿using Xpense.Domain.Entities;
 
-namespace Xpense.Domain.Abstract.Models
+namespace Xpense.Domain.Options
 {
     public interface IOption<T> where T : IOptionEntity
     {

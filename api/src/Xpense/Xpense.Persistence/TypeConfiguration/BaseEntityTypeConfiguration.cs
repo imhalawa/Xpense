@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Xpense.Domain.Abstract.Entities;
+using Xpense.Domain.Entities;
 
 namespace Xpense.Persistence.TypeConfiguration
 {

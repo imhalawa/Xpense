@@ -1,7 +1,7 @@
 using System;
 using Xpense.Domain.Entities;
 
-namespace Xpense.API.Features.Categories;
+namespace Xpense.API.Contracts;
 
 public sealed record CategoryResponse(
     int Id,

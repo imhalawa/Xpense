@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
 using Xpense.Persistence;
 using Xpense.Domain.Exceptions;
-using Xpense.Domain.Models;
 
 namespace Xpense.API.Features.Transactions;
 
@@ -28,7 +27,7 @@ public sealed class ListTransactions : IEndpoint
         int pageSize = DefaultPageSize)
     {
         if (page <= 0 || pageSize <= 0)
-            throw new InvalidFilteredResultParams(FilterQuery.Of(page, pageSize));
+            throw new InvalidFilteredResultParams(page, pageSize);
 
         var query = db.WithDetails().AsNoTracking();
 

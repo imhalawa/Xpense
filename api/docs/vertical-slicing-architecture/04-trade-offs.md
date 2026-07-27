@@ -14,9 +14,15 @@ Written after doing the migration, not before. Some of this only became visible 
 
 ## What got worse
 
-**Duplication is real.** Five slices build a similar `Ok(...)` projection. Two write near-identical colour validation. `TryParseCurrency` exists in both `CreateTransaction` and `CreateTransfer`. This is the deliberate trade — independence over DRY — but it is a genuine cost, and it grows with the number of CRUD-shaped resources.
+**Duplication is real.** Five slices build a similar `Ok(...)` projection. Two write near-identical colour validation. This is the deliberate trade — independence over DRY — but it is a genuine cost, and it grows with the number of CRUD-shaped resources.
 
-**The compiler no longer enforces layering.** Previously `Xpense.Domain` (then `Xpense.Services`) *could not* reference the API project; the build stopped you. Now nothing stops a slice from importing another slice except review. The rule is in [README](README.md); the rule is not in the type system.
+Judgement is still required about *which* duplication to keep. Currency parsing was duplicated across the two money slices and got pulled down into `Xpense.Domain.Enums.CurrencyParser`, because it encodes a real rule (reject numeric input, which `Enum.TryParse` would otherwise accept — a client could post `"currency": "0"` and silently get EUR). Similar-looking EF queries stay duplicated. The line is whether the duplicated thing is a *rule* or a *shape*.
+
+**The compiler no longer enforces layering — so we put the enforcement back by hand.** Previously `Xpense.Domain` (then `Xpense.Services`) *could not* reference the API project; the build stopped you. Nothing in the type system stops a slice importing another slice.
+
+`Xpense.Tests/Architecture/SliceIsolationTests.cs` closes that hole: it reads the compiled assembly with Mono.Cecil and fails if any `Features.X` type references a `Features.Y` type, or if a slice catches a `Xpense.Domain.Exceptions` type. It is a test rather than a compiler rule, so it fails a build later than the compiler would — but it fails one.
+
+It earned its keep immediately: it caught `Analytics` reaching into `Categories.CategoryResponse`, which is why cross-feature response contracts now live in `Xpense.API/Contracts/`.
 
 **Routes are not statically traceable.** "Find all references" no longer answers "what serves `POST /api/v1/tags`". Discovery is a reflection scan, so the answer comes from grepping the route string. `WithName(nameof(CreateTag))` mitigates this a little.
 
@@ -32,8 +38,21 @@ Be honest about the shape of the work:
 
 Xpense's planned work is distinct features — budgets, forecasting, receipt OCR, bank sync — rather than more CRUD, which is what makes slices the better fit here.
 
-## Known gaps this migration introduced
+## Gaps this migration introduced, and how they were closed
 
-- **Rollback-on-save-failure is no longer directly unit tested.** The old suite injected a failing repository to prove partial balance changes never persist. With the repository gone there is no injection point. Rollback *on domain failure* is still covered by two integration tests that assert balances are unchanged and no transfer row exists. Rollback on an infrastructure failure is not directly covered.
-- **`TryParseCurrency` is duplicated** in the two slices that accept money. Small enough to leave, worth watching.
-- **The `Dependencies/DependencyValidation1.layerdiagram`** is now meaningless and should be deleted with its `AdditionalFiles` entries.
+All of these were real at the point the slices first landed. Listed with their resolution rather than deleted, because the sequence is the useful part.
+
+| Gap | Resolution |
+|---|---|
+| Rollback-on-save-failure lost its test when the injectable repository went | `FailOnSaveInterceptor<T>` fails persistence one level lower; the test asserts 500 with no balance change and no transfer or leg rows |
+| `TryParseCurrency` duplicated across two slices | Moved to `Xpense.Domain.Enums.CurrencyParser` — it is a rule, not a shape |
+| No enforcement of slice isolation | `SliceIsolationTests` reads the IL and fails on cross-slice references or domain-exception catches |
+| `POST /api/v1/transfers` returned 201 with no `Location` | `GET /api/v1/transfers/{id}` added, so the header points somewhere real — and a test follows it |
+| `Dependencies/DependencyValidation1.layerdiagram` meaningless under slices | Deleted with its `AdditionalFiles` entries |
+| `docs/api/v1.0/v1.0.yaml` described the pre-v1 contract | Deleted; Swashbuckle generates the spec from the code |
+
+## Still open
+
+- **Cross-currency transfers move unit-less decimals.** `Account.Balance` has no currency, so a USD transfer between EUR accounts succeeds. Whether Xpense is multi-currency is a product decision, not a bug fix.
+- **Responses return Unix seconds** where [`docs/contract/api-v1-contract-design.md`](../contract/api-v1-contract-design.md) specifies ISO 8601, and account balances are bare decimals where it specifies `{cents, currency}`.
+- **Transfer isolation is untested where it matters.** The transaction requests `Serializable`, but tests run on SQLite. `Account` has no rowversion.

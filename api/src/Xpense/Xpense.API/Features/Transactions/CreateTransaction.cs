@@ -14,8 +14,7 @@ using Xpense.Persistence;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
 using Xpense.Domain.Exceptions;
-using ServiceMerchant = Xpense.Domain.Models.Merchant;
-using ServiceTag = Xpense.Domain.Models.Tag;
+using Xpense.Domain.Options;
 
 namespace Xpense.API.Features.Transactions;
 
@@ -56,7 +55,7 @@ public sealed class CreateTransaction : IEndpoint
                     .GreaterThan(0).WithMessage("The amount in cents must be positive.");
 
                 RuleFor(request => request.Amount.Currency)
-                    .Must(currency => TryParseCurrency(currency, out _))
+                    .Must(currency => CurrencyParser.TryParse(currency, out _))
                     .WithMessage("The currency must be a supported currency name.");
             });
 
@@ -81,7 +80,7 @@ public sealed class CreateTransaction : IEndpoint
     {
         // The validator already rejected anything else.
         TryParseKind(request.Type, out var isIncome);
-        TryParseCurrency(request.Amount.Currency, out var currency);
+        CurrencyParser.TryParse(request.Amount.Currency, out var currency);
 
         var account = await ResolveAccount(db, request.AccountNumber, ct);
 
@@ -153,10 +152,10 @@ public sealed class CreateTransaction : IEndpoint
         return resolved;
     }
 
-    private static ServiceMerchant ToOption(OptionRequest option) =>
+    private static MerchantOption ToOption(OptionRequest option) =>
         new() { Id = option.Id, Label = option.Label, Create = option.Create };
 
-    private static ServiceTag ToTagOption(OptionRequest option) =>
+    private static TagOption ToTagOption(OptionRequest option) =>
         new() { Id = option.Id, Label = option.Label, Create = option.Create };
 
     private static bool TryParseKind(string type, out bool isIncome)
@@ -165,11 +164,4 @@ public sealed class CreateTransaction : IEndpoint
         return isIncome || string.Equals(type, "expense", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool TryParseCurrency(string currency, out Currency parsed)
-    {
-        parsed = default;
-        return !string.IsNullOrWhiteSpace(currency)
-               && Enum.GetNames<Currency>().Any(name => string.Equals(name, currency, StringComparison.OrdinalIgnoreCase))
-               && Enum.TryParse(currency, ignoreCase: true, out parsed);
-    }
 }

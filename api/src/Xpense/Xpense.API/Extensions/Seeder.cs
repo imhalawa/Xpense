@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Xpense.Persistence;
-using Xpense.Domain.Abstract.Entities;
+using Xpense.Domain.Entities;
 
 namespace Xpense.API.Extensions
 {

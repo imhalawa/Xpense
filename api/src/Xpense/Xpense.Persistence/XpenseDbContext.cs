@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Linq.Expressions;
 using System.Reflection;
-using Xpense.Domain.Abstract.Entities;
+using Xpense.Domain.Entities;
 using Xpense.Domain.Entities;
 
 namespace Xpense.Persistence

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Xpense.Domain.Abstract.Entities;
-using Xpense.Domain.Abstract.Models;
+using Xpense.Domain.Entities;
+using Xpense.Domain.Options;
 
 namespace Xpense.Persistence;
 
