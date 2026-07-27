@@ -16,9 +16,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <AdditionalFiles Include="..\Dependencies\DependencyValidation1.layerdiagram" Link="DependencyValidation1.layerdiagram">
-	    <Visible>False</Visible>
-	  </AdditionalFiles>
 	</ItemGroup>
 
 	<ItemGroup>
@@ -26,12 +23,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Asp.Versioning.Mvc replaces Microsoft.AspNetCore.Mvc.Versioning, which was
-		     deprecated and never targeted anything past net6. -->
-		<PackageReference Include="Asp.Versioning.Mvc" Version="10.0.0" />
+		<!-- No MVC. Slices are minimal-API endpoints, and API versioning lives in the
+		     route path (/api/v1/...) rather than in Asp.Versioning. -->
 		<PackageReference Include="FluentValidation" Version="12.1.1" />
 		<PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-		<PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.10" />
 		<PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
 		<PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
@@ -39,7 +34,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\Xpense.Persistence\Xpense.Persistence.csproj" />
-	  <ProjectReference Include="..\Xpense.Services\Xpense.Services.csproj" />
+	  <ProjectReference Include="..\Xpense.Domain\Xpense.Domain.csproj" />
 	</ItemGroup>
 
 </Project>

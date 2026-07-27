@@ -1,5 +1,5 @@
 using System;
-using Xpense.Services.Entities;
+using Xpense.Domain.Entities;
 
 namespace Xpense.API.Features.Tags;
 

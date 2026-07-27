@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
-using Xpense.Services.Exceptions;
+using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.ExceptionHandlers;
 

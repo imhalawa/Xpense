@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Xpense.API.Infrastructure;
 using Xpense.Persistence;
-using Xpense.Services.Entities;
-using Xpense.Services.Exceptions;
+using Xpense.Domain.Entities;
+using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.Features.Tags;
 

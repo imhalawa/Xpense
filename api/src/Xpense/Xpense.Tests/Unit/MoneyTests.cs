@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Xpense.Services.ValueObjects;
+using Xpense.Domain.ValueObjects;
 
 namespace Xpense.Tests.Unit;
 

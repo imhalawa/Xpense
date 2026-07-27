@@ -5,7 +5,7 @@ VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xpense.Persistence", "Xpense.Persistence\Xpense.Persistence.csproj", "{81922114-07CD-4C3B-8B5E-B7B884BDB108}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xpense.Services", "Xpense.Services\Xpense.Services.csproj", "{5029E61E-6C8A-4F00-B6AA-C6B675781FED}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xpense.Domain", "Xpense.Domain\Xpense.Domain.csproj", "{5029E61E-6C8A-4F00-B6AA-C6B675781FED}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xpense.Tests", "Xpense.Tests\Xpense.Tests.csproj", "{F9D1F924-99D1-4244-B9FD-BF3C62E71E2A}"
 EndProject

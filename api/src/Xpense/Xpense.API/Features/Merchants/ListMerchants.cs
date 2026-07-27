@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
 using Xpense.Persistence;
-using Xpense.Services.Entities;
+using Xpense.Domain.Entities;
 
 namespace Xpense.API.Features.Merchants;
 

@@ -7,8 +7,8 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xpense.Persistence;
-using Xpense.Services.Entities;
-using Xpense.Services.Enums;
+using Xpense.Domain.Entities;
+using Xpense.Domain.Enums;
 using Xpense.Tests.Infrastructure;
 
 namespace Xpense.Tests.Integration;

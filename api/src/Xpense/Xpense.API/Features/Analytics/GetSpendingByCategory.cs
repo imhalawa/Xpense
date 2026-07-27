@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Xpense.API.Features.Categories;
 using Xpense.API.Infrastructure;
 using Xpense.Persistence;
-using Xpense.Services.Enums;
+using Xpense.Domain.Enums;
 
 namespace Xpense.API.Features.Analytics;
 

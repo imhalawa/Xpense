@@ -68,3 +68,4 @@ src/Xpense/
 3. [03-what-stays-shared.md](03-what-stays-shared.md) — the line between slice and domain
 4. [04-trade-offs.md](04-trade-offs.md) — honest costs, and when this is the wrong choice
 5. [05-migration-log.md](05-migration-log.md) — what changed, what broke, what we learned
+6. [06-ai-assisted-development.md](06-ai-assisted-development.md) — how this structure behaves with an AI agent in the loop, versus the layered one

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
 using Xpense.Persistence;
-using Xpense.Services.Exceptions;
+using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.Features.Categories;
 
