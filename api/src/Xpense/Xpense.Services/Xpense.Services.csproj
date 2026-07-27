@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -12,12 +12,7 @@
     </AdditionalFiles>
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Features\Merchants\Commands\" />
-  </ItemGroup>
+  <!-- System.Linq.Async removed: net10 ships System.Linq.AsyncEnumerable in the BCL and the
+       package's extension methods now collide with it. -->
 
 </Project>
