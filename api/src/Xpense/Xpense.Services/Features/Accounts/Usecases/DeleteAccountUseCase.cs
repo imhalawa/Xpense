@@ -16,7 +16,7 @@ public class DeleteAccountUseCase(IAccountRepository repository): ICommandHandle
        var result = await repository.SaveChanges();
        if (result < 1)
        {
-           throw new AccountUpdateFailedException(id.ToString());
+           throw new AccountDeletionFailedException(id);
        }
     }
 }

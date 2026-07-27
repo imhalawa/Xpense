@@ -22,7 +22,7 @@ public class CreateCategoryUseCase(
         {
             Label = command.Name,
             Priority = priority,
-            CreatedOn = DateTime.Now
+            CreatedOn = DateTime.UtcNow
         };
 
         repository.Create(category);

@@ -26,7 +26,7 @@ public sealed class TransferTransactionUseCase(
                 ?? throw new AccountNotFoundException(command.SourceAccountId);
             var destination = await accountRepository.GetById(command.DestinationAccountId)
                 ?? throw new AccountNotFoundException(command.DestinationAccountId);
-            var amount = command.Amount.ToSingle();
+            var amount = command.Amount.ToDecimal();
 
             if (source.Balance < amount)
                 throw new InsufficientFundsForTransferException(source.Id, source.Balance, amount);

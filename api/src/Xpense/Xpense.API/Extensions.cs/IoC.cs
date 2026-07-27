@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -7,6 +8,8 @@ using Microsoft.OpenApi.Models;
 using System;
 using System.IO;
 using System.Reflection;
+using Xpense.API.ExceptionHandlers;
+using Xpense.API.Models.Validators;
 using Xpense.Persistence;
 using Xpense.Persistence.Repositories;
 using Xpense.Services.Abstract.Persistence;
@@ -82,9 +85,30 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<IPriorityRepository, PriorityRepository>();
         }
 
+        /// <summary>
+        /// Registers one handler per exception type. Order is significant: the first handler
+        /// that claims an exception wins, so specific cases are registered ahead of the base
+        /// type they derive from, and the catch-all goes last.
+        /// </summary>
+        public static void AddExceptionHandlers(this IServiceCollection services)
+        {
+            services.AddProblemDetails();
+
+            services.AddExceptionHandler<ValidationExceptionHandler>();
+            services.AddExceptionHandler<InsufficientFundsExceptionHandler>();
+            services.AddExceptionHandler<NotFoundExceptionHandler>();
+            services.AddExceptionHandler<DomainRuleViolationExceptionHandler>();
+            services.AddExceptionHandler<PersistenceFailedExceptionHandler>();
+            services.AddExceptionHandler<FallbackExceptionHandler>();
+        }
+
+        public static void AddRequestValidation(this IServiceCollection services)
+        {
+            services.AddValidatorsFromAssemblyContaining<CreateAccountRequestValidator>();
+        }
+
         public static void AddUseCases(this IServiceCollection services)
         {
-            services.AddScoped<GetAccountByNumberUseCase>();
             services.AddScoped<GetAccountByIdUseCase>();
             services.AddScoped<GetAllAccountsUseCase>();
             services.AddScoped<CreateAccountUseCase>();

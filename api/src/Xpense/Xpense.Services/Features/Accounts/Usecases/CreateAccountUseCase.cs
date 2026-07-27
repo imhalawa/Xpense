@@ -16,7 +16,7 @@ public class CreateAccountUseCase(IAccountRepository repository) : ICommandResul
             Balance = request.Balance,
             AccountNumber = repository.GetNextAccountNumber(),
             IsDefaultAccount = !repository.HasDefaultAccount(),
-            CreatedOn = DateTime.Now,
+            CreatedOn = DateTime.UtcNow,
         };
 
         repository.Create(account);

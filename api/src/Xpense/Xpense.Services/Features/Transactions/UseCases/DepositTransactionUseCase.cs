@@ -27,7 +27,7 @@ public class DepositTransactionUseCase(
                            ? await accountRepository.GetDefaultAccount()
                            : await accountRepository.GetAccountByNumber(command.AccountNumber);
 
-        account.Deposit(command.Amount.ToSingle());
+        account.Deposit(command.Amount.ToDecimal());
 
         var merchant = await merchantRepository.GetOrCreateIfMissing(command.Merchant) ?? throw new MerchantNotFoundException(command.Merchant.Label);
 
@@ -43,7 +43,7 @@ public class DepositTransactionUseCase(
             Currency = command.Amount.Currency,
             Category = category,
             Account = account,
-            CreatedOn = command.CreatedOn.ToDateTime() ?? DateTime.Now,
+            CreatedOn = command.CreatedOn.ToDateTime() ?? DateTime.UtcNow,
             Tags = tags,
             Merchant = merchant,
             TransactionType = TransactionType.Credit
@@ -53,7 +53,7 @@ public class DepositTransactionUseCase(
         var result = await transactionRepository.SaveChanges();
 
         if (result < 1)
-            throw new DepositCreationFailedException(command.Amount.ToSingle(), command.AccountNumber);
+            throw new DepositCreationFailedException(command.Amount.ToDecimal(), command.AccountNumber);
 
         return transaction;
     }

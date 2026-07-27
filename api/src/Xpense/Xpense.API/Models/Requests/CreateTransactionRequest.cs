@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Xpense.Services.Enums;
 using Xpense.Services.Features.Transactions.Commands;
@@ -18,18 +17,11 @@ public enum TransactionKind
 
 public sealed class CreateTransactionRequest
 {
-    [Required]
     public string Type { get; init; } = null!;
-
-    [Required]
     public TransactionMoneyRequest Amount { get; init; } = null!;
 
     public string? AccountNumber { get; init; }
-
-    [Range(1, int.MaxValue)]
     public int CategoryId { get; init; }
-
-    [Required]
     public TransactionMerchantRequest Merchant { get; init; } = null!;
 
     public IReadOnlyList<TransactionTagRequest>? Tags { get; init; }

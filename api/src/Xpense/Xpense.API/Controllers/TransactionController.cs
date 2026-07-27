@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
-using Xpense.API.Helpers;
 using Xpense.API.Models.Requests;
 using Xpense.API.Models.Responses;
 using Xpense.Services.Features.Transactions.UseCases;
@@ -13,40 +12,26 @@ namespace Xpense.API.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v1/transactions")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+[ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
 public class TransactionController(
     DepositTransactionUseCase depositTransactionUseCase,
     WithdrawTransactionUseCase withdrawTransactionUseCase,
     GetTransactionByIdUseCase getTransactionByIdUseCase,
     FilterTransactionsUseCase filterTransactionsUseCase)
-    : XpenseController
+    : ControllerBase
 {
+    /// <summary>Default paging, applied when the caller omits page/pageSize.</summary>
+    private const int DefaultPage = 1;
+    private const int DefaultPageSize = 25;
+
     [HttpPost]
-    [ProducesResponseType(typeof(V1TransactionResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<V1TransactionResponse>(StatusCodes.Status201Created)]
     public async Task<IActionResult> Create([FromBody] CreateTransactionRequest request)
     {
-        if (!request.TryGetKind(out var kind))
-        {
-            ModelState.AddModelError("type", "The type must be either 'income' or 'expense'.");
-        }
-
-        if (request.Amount is null)
-        {
-            ModelState.AddModelError("amount", "The amount is required.");
-        }
-        else
-        {
-            if (request.Amount.Cents <= 0)
-                ModelState.AddModelError("amount.cents", "The amount in cents must be positive.");
-
-            if (!request.TryGetCurrency(out _))
-                ModelState.AddModelError("amount.currency", "The currency must be a supported currency name.");
-        }
-
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
+        // CreateTransactionRequestValidator has already rejected anything other than
+        // income/expense, so the fall-through arm is unreachable.
+        request.TryGetKind(out var kind);
 
         var transaction = kind switch
         {
@@ -59,19 +44,18 @@ public class TransactionController(
     }
 
     [HttpGet("{id:int}", Name = "Get V1 Transaction By Id")]
+    [ProducesResponseType<V1TransactionResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetV1ById(int id)
     {
         var transaction = await getTransactionByIdUseCase.Execute(id);
-        return transaction is null
-            ? new NotFoundResult()
-            : new OkObjectResult(V1TransactionResponse.From(transaction));
+        return Ok(V1TransactionResponse.From(transaction));
     }
 
     [HttpGet(Name = "Get V1 Transactions")]
-    public async Task<IActionResult> GetV1Page([FromQuery] int page, [FromQuery] int pageSize)
+    [ProducesResponseType<V1TransactionPageResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetV1Page([FromQuery] int page = DefaultPage, [FromQuery] int pageSize = DefaultPageSize)
     {
         var result = await filterTransactionsUseCase.Execute(FilterQuery.Of(page, pageSize));
-        return new OkObjectResult(V1TransactionPageResponse.From(result));
+        return Ok(V1TransactionPageResponse.From(result));
     }
-
 }
