@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Xpense.API.Extensions.cs;
 using Xpense.API.Filters;
+using Xpense.API.Infrastructure;
 using Xpense.Persistence;
 using Xpense.Services.Entities;
 
@@ -54,6 +55,11 @@ app.UseCors(policy =>
     policy.AllowAnyHeader();
     policy.AllowAnyMethod();
 });
+// Slices. Discovered by scanning for IEndpoint -- no registration step per feature.
+app.MapEndpoints();
+
+// Controllers still serve the features that have not been sliced yet. Both routing systems
+// coexist in one app; see docs/vertical-slicing-architecture/05-migration-log.md.
 app.MapControllers();
 
 // Enable Swagger & Swagger UI
