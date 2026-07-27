@@ -15,7 +15,8 @@ namespace Xpense.Tests.Integration;
 
 /// <summary>
 /// The canonical HTTP contract suite. Every endpoint, every error shape, one file.
-/// Each test gets a fresh in-memory database via <see cref="WebApiTestFactory"/>.
+/// Each test gets its own Postgres database, cloned from the migrated template that
+/// <see cref="PostgresFixture"/> builds once per run.
 /// </summary>
 [TestFixture]
 public class ApiEndpointTests
@@ -26,9 +27,9 @@ public class ApiEndpointTests
     private HttpClient client = null!;
 
     [SetUp]
-    public void SetUp()
+    public async Task SetUp()
     {
-        factory = new WebApiTestFactory();
+        factory = new WebApiTestFactory(await PostgresFixture.CreateDatabase());
         client = factory.CreateClient();
     }
 
@@ -525,7 +526,9 @@ public class ApiEndpointTests
     {
         // Needs a host whose persistence layer fails, so it builds its own rather than using
         // the fixture's. Replaces the old test that injected a failing ITransferRepository.
-        using var failing = new WebApiTestFactory(new FailOnSaveInterceptor<Transfer>());
+        using var failing = new WebApiTestFactory(
+            await PostgresFixture.CreateDatabase(),
+            new FailOnSaveInterceptor<Transfer>());
         using var failingClient = failing.CreateClient();
 
         int sourceId, destinationId;

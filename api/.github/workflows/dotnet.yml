@@ -29,6 +29,8 @@ jobs:
       run: dotnet restore $SOLUTION
     - name: Build
       run: dotnet build $SOLUTION --no-restore
+    # Integration tests start a real PostgreSQL container via Testcontainers.
+    # ubuntu-latest ships a running Docker daemon, so no service container is needed.
     - name: Test
       run: dotnet test $SOLUTION --no-build --logger trx --results-directory TestResults
     - name: Upload dotnet test results

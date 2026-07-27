@@ -18,9 +18,9 @@ public static class IoC
     {
         services.AddDbContext<XpenseDbContext>(optionsBuilder =>
         {
-            optionsBuilder.UseSqlServer(
+            optionsBuilder.UseNpgsql(
                 configuration.GetConnectionString("DefaultConnection"),
-                sqlServer => sqlServer.MigrationsAssembly("Xpense.Persistence"));
+                npgsql => npgsql.MigrationsAssembly("Xpense.Persistence"));
         });
     }
 

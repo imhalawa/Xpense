@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: xpense-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: xpense
+      POSTGRES_USER: xpense
+      POSTGRES_PASSWORD: xpense
+    ports:
+      - "5432:5432"
+    volumes:
+      - xpense-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # `dotnet run` right after `compose up` otherwise races the database's first start.
+      test: ["CMD-SHELL", "pg_isready -U xpense -d xpense"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  xpense-postgres-data:

@@ -12,7 +12,7 @@ namespace Xpense.API.ExceptionHandlers;
 
 /// <summary>
 /// Handles FluentValidation's <see cref="ValidationException"/>, thrown by
-/// <see cref="Filters.ValidationFilter"/> when a request DTO fails its validator.
+/// <see cref="Infrastructure.ValidationEndpointFilter"/> when a request DTO fails its validator.
 /// </summary>
 public sealed class ValidationExceptionHandler(IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
