@@ -8,7 +8,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using Xpense.API.ExceptionHandlers;
-using Xpense.API.Models.Validators;
+using Xpense.API.Infrastructure;
 using Xpense.Persistence;
 using Xpense.Persistence.Repositories;
 using Xpense.Services.Abstract.Persistence;
@@ -101,9 +101,13 @@ namespace Xpense.API.Extensions.cs
             services.AddExceptionHandler<FallbackExceptionHandler>();
         }
 
+        /// <summary>
+        /// Validators live nested inside their slice, so scan the whole assembly rather than
+        /// naming a marker type that moves every time a feature is restructured.
+        /// </summary>
         public static void AddRequestValidation(this IServiceCollection services)
         {
-            services.AddValidatorsFromAssemblyContaining<CreateAccountRequestValidator>();
+            services.AddValidatorsFromAssembly(typeof(IEndpoint).Assembly);
         }
 
         public static void AddUseCases(this IServiceCollection services)
