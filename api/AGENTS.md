@@ -32,6 +32,7 @@ These are enforced by `Xpense.Tests/Architecture/SliceIsolationTests.cs`. Breaki
 - **Return `TypedResults`**, not `IActionResult`. The concrete return type is the OpenAPI description.
 - **Creates return an absolute `Location`** via `HttpContext.ResourceUri(path)`. `TypedResults.Created` emits a relative header if you hand it a bare path.
 - **Deletes are soft** — `MarkAsDeleted()` + `Touch()`. A global query filter hides the rows. Do not use `Remove`.
+- **Money is `{cents, currency}` on the wire** via `Contracts/MoneyResponse`, and `Money` in the domain. Accounts are denominated in one currency and nothing converts — a mismatched amount is a 400, never a conversion. See [`docs/multi-currency.md`](docs/multi-currency.md).
 - **Timestamps are UTC.** `DateTime.UtcNow` everywhere; a value converter in `XpenseDbContext` tags reads as UTC.
 - **Validation is FluentValidation only.** Do not add DataAnnotations — two validation systems produce two error shapes.
 

@@ -1,4 +1,5 @@
 using System;
+using Xpense.API.Contracts;
 using Xpense.Domain.Entities;
 
 namespace Xpense.API.Features.Accounts;
@@ -7,7 +8,7 @@ public sealed record AccountResponse(
     int Id,
     string AccountNumber,
     string Label,
-    decimal Balance,
+    MoneyResponse Balance,
     bool IsDefault,
     long? CreatedOn,
     long? LastUpdated)
@@ -16,7 +17,7 @@ public sealed record AccountResponse(
         account.Id,
         account.AccountNumber,
         account.Name,
-        account.Balance,
+        MoneyResponse.Of(account.Balance),
         account.IsDefaultAccount,
         new DateTimeOffset(account.CreatedOn).ToUnixTimeSeconds(),
         account.LastUpdated.HasValue

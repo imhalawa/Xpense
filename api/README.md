@@ -32,6 +32,7 @@ Vertical slices: one endpoint per file, holding its route, request, validation a
 
 - [`docs/vertical-slicing-architecture/`](docs/vertical-slicing-architecture/) — why, how, and the trade-offs
 - [`docs/postgres.md`](docs/postgres.md) — database, migrations, test setup
+- [`docs/multi-currency.md`](docs/multi-currency.md) — denominated accounts, and why nothing converts
 - [`docs/contract/api-v1-contract-design.md`](docs/contract/api-v1-contract-design.md) — the v1 API contract
 - [`AGENTS.md`](AGENTS.md) — the rules, enforced by `SliceIsolationTests`
 

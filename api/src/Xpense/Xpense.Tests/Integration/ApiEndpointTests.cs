@@ -70,7 +70,7 @@ public class ApiEndpointTests
 
         var response = await client.PostAsync(
             "/api/v1/accounts",
-            JsonBody("{\"name\":\"Savings\",\"balance\":123.45}"));
+            JsonBody("{\"name\":\"Savings\",\"balance\":{\"cents\":12345,\"currency\":\"EUR\"}}"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().Be(new Uri("http://localhost/api/v1/accounts/2"));
@@ -207,7 +207,7 @@ public class ApiEndpointTests
     [Test]
     public async Task Post_income_creates_a_direct_resource_and_uses_the_get_by_id_location()
     {
-        var seeded = await SeedAccountAndCategory(0m);
+        var seeded = await SeedAccountAndCategory(0);
         var occurredAt = new DateTimeOffset(2026, 7, 26, 9, 30, 0, TimeSpan.Zero);
 
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new
@@ -242,18 +242,18 @@ public class ApiEndpointTests
         using var getCreatedDocument = JsonDocument.Parse(await getCreatedResponse.Content.ReadAsStringAsync());
         getCreatedDocument.RootElement.GetProperty("id").GetInt32().Should().Be(createdId);
 
-        (await GetAccountBalance(seeded.AccountId)).Should().Be(12.34m);
+        (await GetAccountBalance(seeded.AccountId)).Should().Be(1234);
     }
 
     [Test]
     public async Task Post_expense_creates_a_direct_resource_and_debits_exact_cents()
     {
-        var seeded = await SeedAccountAndCategory(20m);
+        var seeded = await SeedAccountAndCategory(2000);
 
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
             type = "expense",
-            amount = new { cents = 99, currency = "USD" },
+            amount = new { cents = 99, currency = "EUR" },
             accountNumber = seeded.AccountNumber,
             categoryId = seeded.CategoryId,
             merchant = new { label = "Coffee Shop", create = true }
@@ -264,10 +264,10 @@ public class ApiEndpointTests
         var transaction = document.RootElement;
         transaction.GetProperty("type").GetString().Should().Be("expense");
         transaction.GetProperty("amount").GetProperty("cents").GetInt64().Should().Be(99);
-        transaction.GetProperty("amount").GetProperty("currency").GetString().Should().Be("USD");
+        transaction.GetProperty("amount").GetProperty("currency").GetString().Should().Be("EUR");
         transaction.GetProperty("updatedAt").ValueKind.Should().Be(JsonValueKind.Null);
 
-        (await GetAccountBalance(seeded.AccountId)).Should().Be(19.01m);
+        (await GetAccountBalance(seeded.AccountId)).Should().Be(1901);
     }
 
     [Test]
@@ -368,7 +368,8 @@ public class ApiEndpointTests
     [Test]
     public async Task Post_creates_an_atomic_transfer_resource_with_two_auditable_legs()
     {
-        var accounts = await SeedTransferAccounts(20m, 3m);
+        // Both accounts in USD: proves a non-default currency works end to end.
+        var accounts = await SeedTransferAccounts(2000, 300, Currency.USD, Currency.USD);
         var occurredAt = new DateTimeOffset(2026, 7, 26, 9, 30, 0, TimeSpan.Zero);
 
         var response = await client.PostAsJsonAsync("/api/v1/transfers", new
@@ -401,9 +402,9 @@ public class ApiEndpointTests
             .Include(item => item.Legs)
             .SingleAsync(item => item.Id == transfer.GetProperty("id").GetInt32());
         (await dbContext.Accounts.AsNoTracking().SingleAsync(account => account.Id == accounts.SourceId))
-            .Balance.Should().Be(7.66m);
+            .BalanceCents.Should().Be(766);
         (await dbContext.Accounts.AsNoTracking().SingleAsync(account => account.Id == accounts.DestinationId))
-            .Balance.Should().Be(15.34m);
+            .BalanceCents.Should().Be(1534);
         persisted.Legs.Should().HaveCount(2)
             .And.OnlyContain(leg => leg.TransferId == persisted.Id && leg.Amount == 1234 && leg.Currency == Currency.USD);
     }
@@ -411,7 +412,7 @@ public class ApiEndpointTests
     [Test]
     public async Task Post_transfer_with_identical_accounts_is_rejected_without_writes()
     {
-        var accounts = await SeedTransferAccounts(20m, 3m);
+        var accounts = await SeedTransferAccounts(2000, 300);
 
         var response = await client.PostAsJsonAsync("/api/v1/transfers", new
         {
@@ -428,13 +429,13 @@ public class ApiEndpointTests
             .GetProperty("destinationAccountId")[0]
             .GetString()
             .Should().Be("Source and destination accounts must be different.");
-        await AssertBalancesUnchanged(accounts, 20m, 3m);
+        await AssertBalancesUnchanged(accounts, 2000, 300);
     }
 
     [Test]
     public async Task Post_transfer_with_insufficient_funds_is_rejected_without_writes()
     {
-        var accounts = await SeedTransferAccounts(5m, 3m);
+        var accounts = await SeedTransferAccounts(500, 300);
 
         var response = await client.PostAsJsonAsync("/api/v1/transfers", new
         {
@@ -448,7 +449,7 @@ public class ApiEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement.GetProperty("title").GetString().Should().Be("Insufficient funds");
         document.RootElement.GetProperty("errors").TryGetProperty("amount.cents", out _).Should().BeTrue();
-        await AssertBalancesUnchanged(accounts, 5m, 3m);
+        await AssertBalancesUnchanged(accounts, 500, 300);
     }
 
     [TestCase(0, "EUR")]
@@ -469,7 +470,7 @@ public class ApiEndpointTests
     [Test]
     public async Task Post_transfer_to_a_missing_account_returns_problem_details_without_writes()
     {
-        var accounts = await SeedTransferAccounts(20m, 3m);
+        var accounts = await SeedTransferAccounts(2000, 300);
 
         var response = await client.PostAsJsonAsync("/api/v1/transfers", new
         {
@@ -482,13 +483,13 @@ public class ApiEndpointTests
         response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement.GetProperty("title").GetString().Should().Be("Resource not found");
-        await AssertBalancesUnchanged(accounts, 20m, 3m);
+        await AssertBalancesUnchanged(accounts, 2000, 300);
     }
 
     [Test]
     public async Task Post_transfer_returns_a_location_that_serves_the_new_transfer()
     {
-        var accounts = await SeedTransferAccounts(20m, 3m);
+        var accounts = await SeedTransferAccounts(2000, 300);
 
         var response = await client.PostAsJsonAsync("/api/v1/transfers", new
         {
@@ -535,8 +536,8 @@ public class ApiEndpointTests
         using (var scope = failing.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
-            var source = NewAccount("1000000000", "Source", 20m);
-            var destination = NewAccount("2000000000", "Destination", 3m);
+            var source = NewAccount("1000000000", "Source", 2000);
+            var destination = NewAccount("2000000000", "Destination", 300);
             db.Accounts.AddRange(source, destination);
             await db.SaveChangesAsync();
             sourceId = source.Id;
@@ -554,10 +555,99 @@ public class ApiEndpointTests
 
         using var verification = failing.Services.CreateScope();
         var verifyDb = verification.ServiceProvider.GetRequiredService<XpenseDbContext>();
-        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.Id == sourceId)).Balance.Should().Be(20m);
-        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.Id == destinationId)).Balance.Should().Be(3m);
+        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.Id == sourceId)).BalanceCents.Should().Be(2000);
+        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.Id == destinationId)).BalanceCents.Should().Be(300);
         (await verifyDb.Transfers.CountAsync()).Should().Be(0);
         (await verifyDb.TransferLegs.CountAsync()).Should().Be(0);
+    }
+
+    // ---------------------------------------------------------------- multi-currency
+    //
+    // Accounts are denominated. Xpense holds several currencies but never converts between
+    // them, so anything that would mix currencies is rejected rather than silently moving the
+    // wrong quantity of money -- which is what happened when Balance was a bare decimal.
+
+    [Test]
+    public async Task Accounts_can_be_created_in_different_currencies()
+    {
+        var euro = await client.PostAsync(
+            "/api/v1/accounts",
+            JsonBody("{\"name\":\"Euro\",\"balance\":{\"cents\":1000,\"currency\":\"EUR\"}}"));
+        var dollar = await client.PostAsync(
+            "/api/v1/accounts",
+            JsonBody("{\"name\":\"Dollar\",\"balance\":{\"cents\":2500,\"currency\":\"USD\"}}"));
+
+        euro.StatusCode.Should().Be(HttpStatusCode.Created);
+        dollar.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        using var euroDoc = JsonDocument.Parse(await euro.Content.ReadAsStringAsync());
+        using var dollarDoc = JsonDocument.Parse(await dollar.Content.ReadAsStringAsync());
+
+        euroDoc.RootElement.GetProperty("balance").GetProperty("cents").GetInt64().Should().Be(1000);
+        euroDoc.RootElement.GetProperty("balance").GetProperty("currency").GetString().Should().Be("EUR");
+        dollarDoc.RootElement.GetProperty("balance").GetProperty("cents").GetInt64().Should().Be(2500);
+        dollarDoc.RootElement.GetProperty("balance").GetProperty("currency").GetString().Should().Be("USD");
+    }
+
+    [Test]
+    public async Task Transaction_in_a_currency_the_account_does_not_hold_is_rejected()
+    {
+        var seeded = await SeedAccountAndCategory(2000);
+
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            type = "expense",
+            amount = new { cents = 500, currency = "USD" },  // the account is EUR
+            accountNumber = seeded.AccountNumber,
+            categoryId = seeded.CategoryId,
+            merchant = new { label = "Coffee Shop", create = true }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("detail").GetString()
+            .Should().Contain("EUR").And.Contain("USD");
+
+        // Rejected before anything moved.
+        (await GetAccountBalance(seeded.AccountId)).Should().Be(2000);
+    }
+
+    [Test]
+    public async Task Transfer_between_accounts_in_different_currencies_is_rejected_without_writes()
+    {
+        var accounts = await SeedTransferAccounts(2000, 300, Currency.EUR, Currency.USD);
+
+        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        {
+            sourceAccountId = accounts.SourceId,
+            destinationAccountId = accounts.DestinationId,
+            amount = new { cents = 100, currency = "EUR" }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("detail").GetString()
+            .Should().Contain("different currencies");
+
+        await AssertBalancesUnchanged(accounts, 2000, 300);
+    }
+
+    [Test]
+    public async Task Transfer_whose_amount_currency_differs_from_the_accounts_is_rejected()
+    {
+        var accounts = await SeedTransferAccounts(2000, 300, Currency.EUR, Currency.EUR);
+
+        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        {
+            sourceAccountId = accounts.SourceId,
+            destinationAccountId = accounts.DestinationId,
+            amount = new { cents = 100, currency = "USD" }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertBalancesUnchanged(accounts, 2000, 300);
     }
 
     // ---------------------------------------------------------------- analytics
@@ -636,7 +726,7 @@ public class ApiEndpointTests
     {
         var response = await client.PostAsync(
             "/api/v1/accounts",
-            JsonBody("{\"name\":\"\",\"balance\":10}"));
+            JsonBody("{\"name\":\"\",\"balance\":{\"cents\":1000,\"currency\":\"EUR\"}}"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -716,11 +806,17 @@ public class ApiEndpointTests
         return scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
     }
 
-    private static Account NewAccount(string number, string name, decimal balance, bool isDefault = false) => new()
+    private static Account NewAccount(
+        string number,
+        string name,
+        long balanceCents,
+        bool isDefault = false,
+        Currency currency = Currency.EUR) => new()
     {
         AccountNumber = number,
         Name = name,
-        Balance = balance,
+        BalanceCents = balanceCents,
+        Currency = currency,
         CreatedOn = DateTime.UtcNow,
         IsDefaultAccount = isDefault
     };
@@ -777,13 +873,13 @@ public class ApiEndpointTests
         }
     }
 
-    private async Task<SeededAccountAndCategory> SeedAccountAndCategory(decimal balance)
+    private async Task<SeededAccountAndCategory> SeedAccountAndCategory(long balanceCents)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
             var priority = new Priority { Label = "Normal", Weight = 1, CreatedOn = DateTime.UtcNow };
-            var account = NewAccount("1000000000", "Cash", balance, isDefault: true);
+            var account = NewAccount("1000000000", "Cash", balanceCents, isDefault: true);
             var category = new Category { Label = "Food", Priority = priority, CreatedOn = DateTime.UtcNow };
             dbContext.AddRange(priority, account, category);
             await dbContext.SaveChangesAsync();
@@ -843,13 +939,17 @@ public class ApiEndpointTests
         }
     }
 
-    private async Task<TransferAccounts> SeedTransferAccounts(decimal sourceBalance, decimal destinationBalance)
+    private async Task<TransferAccounts> SeedTransferAccounts(
+        long sourceBalanceCents,
+        long destinationBalanceCents,
+        Currency sourceCurrency = Currency.EUR,
+        Currency destinationCurrency = Currency.EUR)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            var source = NewAccount("1000000000", "Source", sourceBalance);
-            var destination = NewAccount("2000000000", "Destination", destinationBalance);
+            var source = NewAccount("1000000000", "Source", sourceBalanceCents, currency: sourceCurrency);
+            var destination = NewAccount("2000000000", "Destination", destinationBalanceCents, currency: destinationCurrency);
             dbContext.Accounts.AddRange(source, destination);
             await dbContext.SaveChangesAsync();
             return new TransferAccounts(source.Id, destination.Id);
@@ -874,30 +974,30 @@ public class ApiEndpointTests
         CreatedOn = occurredAt.UtcDateTime
     };
 
-    private async Task<decimal> GetAccountBalance(int accountId)
+    private async Task<long> GetAccountBalance(int accountId)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
             return await dbContext.Accounts.AsNoTracking()
                 .Where(account => account.Id == accountId)
-                .Select(account => account.Balance)
+                .Select(account => account.BalanceCents)
                 .SingleAsync();
         }
     }
 
     private async Task AssertBalancesUnchanged(
         TransferAccounts accounts,
-        decimal sourceBalance,
-        decimal destinationBalance)
+        long sourceBalanceCents,
+        long destinationBalanceCents)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
             (await dbContext.Accounts.AsNoTracking().SingleAsync(account => account.Id == accounts.SourceId))
-                .Balance.Should().Be(sourceBalance);
+                .BalanceCents.Should().Be(sourceBalanceCents);
             (await dbContext.Accounts.AsNoTracking().SingleAsync(account => account.Id == accounts.DestinationId))
-                .Balance.Should().Be(destinationBalance);
+                .BalanceCents.Should().Be(destinationBalanceCents);
             (await dbContext.Transfers.CountAsync()).Should().Be(0);
         }
     }

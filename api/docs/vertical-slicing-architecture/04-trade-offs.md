@@ -53,6 +53,8 @@ All of these were real at the point the slices first landed. Listed with their r
 
 ## Still open
 
-- **Cross-currency transfers move unit-less decimals.** `Account.Balance` has no currency, so a USD transfer between EUR accounts succeeds. Whether Xpense is multi-currency is a product decision, not a bug fix.
-- **Responses return Unix seconds** where [`docs/contract/api-v1-contract-design.md`](../contract/api-v1-contract-design.md) specifies ISO 8601, and account balances are bare decimals where it specifies `{cents, currency}`.
+- **Responses return Unix seconds** where [`docs/contract/api-v1-contract-design.md`](../contract/api-v1-contract-design.md) specifies ISO 8601. Account balances now match the spec's `{cents, currency}`; timestamps still do not.
 - **Concurrent transfers are untested.** Integration tests now run on real Postgres, so the `Serializable` isolation the transfer requests is actually honoured rather than quietly ignored by SQLite. What is still missing is a test that runs two transfers against the same account at once to prove no update is lost. `Account` also has no rowversion.
+
+Resolved since: **cross-currency money movement**. Accounts are denominated and every
+currency-mixing operation is rejected — see [`docs/multi-currency.md`](../multi-currency.md).
