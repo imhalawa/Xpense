@@ -5,7 +5,7 @@ namespace Xpense.API.Models.Requests;
 public class CreateCategoryRequest(string name, int priorityId)
 {
     public string Name { get; } = name;
-    public int Priority { get; } = priorityId;
+    public int PriorityId { get; } = priorityId;
 
-    public CreateCategoryCommand ToCommand() => new(Name, priorityId);
+    public CreateCategoryCommand ToCommand() => new(Name, PriorityId);
 }
