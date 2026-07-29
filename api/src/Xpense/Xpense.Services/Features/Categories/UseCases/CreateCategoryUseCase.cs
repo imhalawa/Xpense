@@ -21,7 +21,8 @@ public class CreateCategoryUseCase(
         var category = new Category()
         {
             Label = command.Name,
-            Priority = priority
+            Priority = priority,
+            CreatedOn = DateTime.Now
         };
 
         repository.Create(category);

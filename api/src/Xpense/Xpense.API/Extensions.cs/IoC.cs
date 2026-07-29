@@ -84,6 +84,7 @@ namespace Xpense.API.Extensions.cs
         public static void AddUseCases(this IServiceCollection services)
         {
             services.AddScoped<GetAccountByNumberUseCase>();
+            services.AddScoped<GetAccountByIdUseCase>();
             services.AddScoped<GetAllAccountsUseCase>();
             services.AddScoped<CreateAccountUseCase>();
             services.AddScoped<DeleteAccountUseCase>();

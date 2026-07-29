@@ -7,7 +7,7 @@ using Xpense.Services.Features.Merchants.UseCases;
 
 namespace Xpense.API.Controllers
 {
-    [Route("api/merchant")]
+    [Route("api/v1/merchants")]
     [ApiController]
     public class MerchantController(
         GetAllMerchantsUseCase getAllMerchantsUse
@@ -17,7 +17,7 @@ namespace Xpense.API.Controllers
         public async Task<IActionResult> Get()
         {
             var merchants = await getAllMerchantsUse.Execute();
-            return Ok(merchants.Select(MerchantResponse.Of));
+            return new OkObjectResult(merchants.Select(MerchantResponse.Of));
         }
     }
 }
