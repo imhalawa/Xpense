@@ -397,3 +397,10 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Test and coverage output, produced by the CI coverage step and by local runs
+TestResults/
+CoverageReport/
+
+# macOS
+.DS_Store
