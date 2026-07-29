@@ -14,7 +14,7 @@ namespace Xpense.API.Controllers;
 public sealed class TransferController(TransferTransactionUseCase transferTransactionUseCase) : ControllerBase
 {
     [HttpPost]
-    [ProducesResponseType(typeof(V1TransferResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(TransferResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Create([FromBody] CreateTransferRequest request)
@@ -41,7 +41,7 @@ public sealed class TransferController(TransferTransactionUseCase transferTransa
         try
         {
             var transfer = await transferTransactionUseCase.Handle(request.ToCommand());
-            return StatusCode(StatusCodes.Status201Created, V1TransferResponse.From(transfer));
+            return StatusCode(StatusCodes.Status201Created, TransferResponse.Of(transfer));
         }
         catch (InsufficientFundsForTransferException exception)
         {

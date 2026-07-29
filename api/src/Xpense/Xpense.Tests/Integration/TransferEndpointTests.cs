@@ -12,7 +12,7 @@ using Xpense.Tests.Infrastructure;
 namespace Xpense.Tests.Integration;
 
 [TestFixture]
-public class V1TransferEndpointTests
+public class TransferEndpointTests
 {
     [Test]
     public async Task Post_creates_an_atomic_transfer_resource_with_two_auditable_legs()
