@@ -6,8 +6,16 @@ name: .NET
 on:
   push:
     branches: [ "main" ]
+  # Every branch, not just those targeting main. Stacked pull requests are based on
+  # their parent branch, so a main-only filter silently skips CI for all but the
+  # bottom of a stack.
   pull_request:
-    branches: [ "main" ]
+    branches: [ "**" ]
+
+env:
+  # The solution lives under src/Xpense, not the repository root. Without this every
+  # dotnet command failed with MSB1003.
+  SOLUTION: src/Xpense/Xpense.sln
 
 jobs:
   build:
@@ -16,18 +24,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Setup .NET v8
-      uses: actions/setup-dotnet@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore $SOLUTION
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build $SOLUTION --no-restore
     - name: Test
-      run: dotnet test --logger trx --results-directory "TestResults-${{ matrix.dotnet-version }}"
+      run: dotnet test $SOLUTION --no-build --logger trx --results-directory TestResults
     - name: Upload dotnet test results
+      if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v4
       with:
-       name: dotnet-results-${{ matrix.dotnet-version }}
-       path: TestResults-${{ matrix.dotnet-version }}
+        name: dotnet-results
+        path: TestResults
