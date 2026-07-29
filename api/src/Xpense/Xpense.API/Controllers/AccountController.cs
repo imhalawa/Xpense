@@ -23,10 +23,7 @@ namespace Xpense.API.Controllers
         UpdateAccountUseCase updateAccountUseCase,
         ILogger logger) : XpenseController
     {
-        [HttpGet(
-            "{id:int}",
-            Name = "Get Account By Id"
-        )]
+        [HttpGet("{id:int}", Name = "Get Account By Id")]
         [ProducesResponseType<AccountResponse>(StatusCodes.Status200OK, "application/json")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -63,10 +60,7 @@ namespace Xpense.API.Controllers
             }
         }
 
-        [HttpDelete(
-            "{id:int}",
-            Name = "Delete Account By Id"
-        )]
+        [HttpDelete("{id:int}", Name = "Delete Account By Id")]
         public async Task<IActionResult> Delete(int id)
         {
             try
