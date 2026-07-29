@@ -10,7 +10,7 @@ using Xpense.Tests.Infrastructure;
 namespace Xpense.Tests.Integration;
 
 [TestFixture]
-public class V1AnalyticsEndpointTests
+public class AnalyticsEndpointTests
 {
     [Test]
     public async Task Get_spending_by_category_returns_the_current_summary_directly()
