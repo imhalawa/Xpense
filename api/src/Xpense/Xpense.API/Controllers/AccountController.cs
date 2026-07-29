@@ -14,7 +14,7 @@ namespace Xpense.API.Controllers
 {
     [ApiController]
     [ApiVersion("1.0")]
-    [Route("api/account")]
+    [Route("api/v1/accounts")]
     public class AccountController(
         CreateAccountUseCase createAccount,
         GetAllAccountsUseCase getAllAccountsAccounts,
