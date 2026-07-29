@@ -27,7 +27,7 @@ public class WithdrawTransactionUseCase(
             ? await accountRepository.GetDefaultAccount()
             : await accountRepository.GetAccountByNumber(command.AccountNumber);
 
-        account.Withdraw(command.Amount.ToSingle());
+        account.Withdraw(command.Amount.ToDecimal());
 
         var merchant = await merchantRepository.GetOrCreateIfMissing(command.Merchant) ?? throw new MerchantNotFoundException(command.Merchant.Label);
 
@@ -53,7 +53,7 @@ public class WithdrawTransactionUseCase(
         var result = await transactionRepository.SaveChanges();
 
         if (result < 1)
-            throw new DepositCreationFailedException(command.Amount.ToSingle(), command.AccountNumber);
+            throw new DepositCreationFailedException(command.Amount.ToDecimal(), command.AccountNumber);
 
         return transaction;
     }

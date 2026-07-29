@@ -26,7 +26,7 @@ public sealed class TransferTransactionUseCase(
                 ?? throw new AccountNotFoundException(command.SourceAccountId);
             var destination = await accountRepository.GetById(command.DestinationAccountId)
                 ?? throw new AccountNotFoundException(command.DestinationAccountId);
-            var amount = command.Amount.ToSingle();
+            var amount = command.Amount.ToDecimal();
 
             if (source.Balance < amount)
                 throw new InsufficientFundsForTransferException(source.Id, source.Balance, amount);
@@ -43,7 +43,7 @@ public sealed class TransferTransactionUseCase(
                 Reason = string.IsNullOrWhiteSpace(command.Reason) ? null : command.Reason.Trim(),
                 CreatedOn = command.CreatedOn.HasValue
                     ? DateTimeOffset.FromUnixTimeSeconds(command.CreatedOn.Value).UtcDateTime
-                    : DateTime.UtcNow,
+                    : DateTime.Now,
                 Legs = new List<TransferLeg>()
             };
 
