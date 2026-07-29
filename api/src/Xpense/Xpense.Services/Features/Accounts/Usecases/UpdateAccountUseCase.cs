@@ -20,7 +20,7 @@ public class UpdateAccountUseCase(IAccountRepository repository)
         repository.Update(account);
         var result = await repository.SaveChanges();
         if (result < 1)
-            throw new AccountUpdateFailedException(command.Id.ToString());
+            throw new AccountUpdateFailedException(command.Id);
         return account;
     }
 }

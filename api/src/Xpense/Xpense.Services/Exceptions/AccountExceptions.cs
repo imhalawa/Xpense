@@ -1,6 +1,6 @@
 namespace Xpense.Services.Exceptions;
 
-public class AccountNotFoundException : XpenseException
+public class AccountNotFoundException : NotFoundException
 {
     public AccountNotFoundException(string accountNumber, Exception? innerException = null)
         : base($"Account with number {accountNumber} was not found!", innerException)
@@ -13,11 +13,18 @@ public class AccountNotFoundException : XpenseException
     }
 }
 
+/// <summary>
+/// The caller omitted an account and no default exists. This is a 400 rather than a 404:
+/// nothing was looked up by identity, and the caller fixes it by naming an account.
+/// </summary>
 public class DefaultAccountNotFoundException(Exception? innerException = null)
-    : XpenseException($"Account was not specified and no default account was found! ", innerException);
+    : DomainRuleViolationException("Account was not specified and no default account was found!", innerException);
 
 public class AccountCreationFailedException(string name, Exception? innerException = null)
-    : XpenseException($"Failed Attempt to create account {name}", innerException);
+    : PersistenceFailedException($"Failed attempt to create account {name}", innerException);
 
-public class AccountUpdateFailedException(string accountNumber, Exception? innerException = null)
-    : XpenseException($"Failed to update account with number {accountNumber}", innerException);
+public class AccountUpdateFailedException(int id, Exception? innerException = null)
+    : PersistenceFailedException($"Failed attempt to update account with id:[{id}]", innerException);
+
+public class AccountDeletionFailedException(int id, Exception? innerException = null)
+    : PersistenceFailedException($"Failed attempt to remove account with id:[{id}]", innerException);
