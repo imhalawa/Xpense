@@ -1,10 +1,9 @@
-﻿using FluentValidation;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Versioning;
+﻿using Asp.Versioning;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using System;
 using System.IO;
 using System.Reflection;
@@ -71,7 +70,7 @@ namespace Xpense.API.Extensions.cs
                 options.AssumeDefaultVersionWhenUnspecified = true;
                 options.ReportApiVersions = true;
                 options.ApiVersionReader = new HeaderApiVersionReader("x-api-version");
-            });
+            }).AddMvc();
         }
 
         public static void AddRepositories(this IServiceCollection services)

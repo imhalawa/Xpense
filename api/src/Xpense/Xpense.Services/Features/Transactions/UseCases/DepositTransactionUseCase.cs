@@ -31,11 +31,7 @@ public class DepositTransactionUseCase(
 
         var merchant = await merchantRepository.GetOrCreateIfMissing(command.Merchant) ?? throw new MerchantNotFoundException(command.Merchant.Label);
 
-        var tags = command.Tags != null
-            ? await command.Tags.ToAsyncEnumerable()
-                .SelectAwait(async t => await tagRepository.GetOrCreateIfMissing(t))
-                .Where(t => t != null).ToListAsync()
-            : null;
+        var tags = await ResolveTags(tagRepository, command.Tags);
 
         var transaction = new Transaction
         {
@@ -56,5 +52,26 @@ public class DepositTransactionUseCase(
             throw new DepositCreationFailedException(command.Amount.ToDecimal(), command.AccountNumber);
 
         return transaction;
+    }
+
+    /// <summary>
+    /// Resolves each requested tag, creating it when missing and dropping any that could not be
+    /// resolved. This used to run through IAsyncEnumerable over an in-memory array, which net10
+    /// no longer supports the same way -- and which was only ever a sequential loop.
+    /// </summary>
+    internal static async Task<List<Tag>?> ResolveTags(ITagRepository tagRepository, Models.Tag[]? requested)
+    {
+        if (requested is null)
+            return null;
+
+        List<Tag> tags = [];
+        foreach (var tag in requested)
+        {
+            var resolved = await tagRepository.GetOrCreateIfMissing(tag);
+            if (resolved != null)
+                tags.Add(resolved);
+        }
+
+        return tags;
     }
 }
