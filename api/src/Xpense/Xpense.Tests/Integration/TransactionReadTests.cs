@@ -10,7 +10,7 @@ using Xpense.Tests.Infrastructure;
 namespace Xpense.Tests.Integration;
 
 [TestFixture]
-public class V1TransactionReadTests
+public class TransactionReadTests
 {
     [Test]
     public async Task Get_transaction_by_id_returns_the_direct_v1_transaction_resource()

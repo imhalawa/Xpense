@@ -12,7 +12,7 @@ using Xpense.Tests.Infrastructure;
 namespace Xpense.Tests.Integration;
 
 [TestFixture]
-public class V1ResourceEndpointTests
+public class ResourceEndpointTests
 {
     [TestCase("/api/v1/accounts")]
     [TestCase("/api/v1/categories")]

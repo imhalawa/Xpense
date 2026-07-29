@@ -14,16 +14,16 @@ public class CreateTransactionRequestTests
         var request = new CreateTransactionRequest
         {
             Type = "income",
-            Amount = new TransactionMoneyRequest(1234, "EUR"),
+            Amount = new TransactionMoney(1234, "EUR"),
             AccountNumber = "1234567890",
             CategoryId = 7,
-            Merchant = new TransactionMerchantRequest(4, "Employer", false),
-            Tags = [new TransactionTagRequest(2, "salary", false)],
+            Merchant = new TransactionMerchant(4, "Employer", false),
+            Tags = [new TransactionTag(2, "salary", false)],
             OccurredAt = occurredAt
         };
 
-        request.TryGetKind(out var kind).Should().BeTrue();
-        kind.Should().Be(TransactionKind.Income);
+        request.TryGetTransactionType(out var kind).Should().BeTrue();
+        kind.Should().Be(TransactionType.Credit);
 
         var command = request.ToDepositCommand();
         command.Amount.Cents.Should().Be(1234);
@@ -45,13 +45,13 @@ public class CreateTransactionRequestTests
         var request = new CreateTransactionRequest
         {
             Type = "expense",
-            Amount = new TransactionMoneyRequest(99, "USD"),
+            Amount = new TransactionMoney(99, "USD"),
             CategoryId = 3,
-            Merchant = new TransactionMerchantRequest(null, "Coffee Shop", true)
+            Merchant = new TransactionMerchant(null, "Coffee Shop", true)
         };
 
-        request.TryGetKind(out var kind).Should().BeTrue();
-        kind.Should().Be(TransactionKind.Expense);
+        request.TryGetTransactionType(out var kind).Should().BeTrue();
+        kind.Should().Be(TransactionType.Debit);
 
         var command = request.ToWithdrawCommand();
         command.Amount.Cents.Should().Be(99);
@@ -71,6 +71,6 @@ public class CreateTransactionRequestTests
     {
         var request = new CreateTransactionRequest { Type = type };
 
-        request.TryGetKind(out _).Should().BeFalse();
+        request.TryGetTransactionType(out _).Should().BeFalse();
     }
 }

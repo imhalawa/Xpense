@@ -6,7 +6,7 @@ using Xpense.Tests.Infrastructure;
 namespace Xpense.Tests.Integration;
 
 [TestFixture]
-public class V1RouteContractTests
+public class RouteContractTests
 {
     [Test]
     public async Task GetAccounts_uses_the_v1_plural_resource_route()

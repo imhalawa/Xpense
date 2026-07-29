@@ -11,7 +11,7 @@ using Xpense.Tests.Infrastructure;
 namespace Xpense.Tests.Integration;
 
 [TestFixture]
-public class V1TransactionEndpointTests
+public class TransactionEndpointTests
 {
     [Test]
     public async Task Post_income_creates_a_direct_v1_resource_and_uses_the_get_by_id_location()

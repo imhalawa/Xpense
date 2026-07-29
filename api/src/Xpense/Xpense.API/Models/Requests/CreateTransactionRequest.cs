@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Xpense.Services.Enums;
+using Xpense.Services.Exceptions;
 using Xpense.Services.Features.Transactions.Commands;
 using Xpense.Services.ValueObjects;
 using ServiceMerchant = Xpense.Services.Models.Merchant;
@@ -10,19 +11,13 @@ using ServiceTag = Xpense.Services.Models.Tag;
 
 namespace Xpense.API.Models.Requests;
 
-public enum TransactionKind
-{
-    Income,
-    Expense
-}
-
-public sealed class CreateTransactionRequest
+public sealed record CreateTransactionRequest
 {
     [Required]
     public string Type { get; init; } = null!;
 
     [Required]
-    public TransactionMoneyRequest Amount { get; init; } = null!;
+    public TransactionMoney Amount { get; init; } = null!;
 
     public string? AccountNumber { get; init; }
 
@@ -30,38 +25,47 @@ public sealed class CreateTransactionRequest
     public int CategoryId { get; init; }
 
     [Required]
-    public TransactionMerchantRequest Merchant { get; init; } = null!;
+    public TransactionMerchant Merchant { get; init; } = null!;
 
-    public IReadOnlyList<TransactionTagRequest>? Tags { get; init; }
+    public IReadOnlyList<TransactionTag>? Tags { get; init; }
 
     public DateTimeOffset? OccurredAt { get; init; }
 
-    public bool TryGetKind(out TransactionKind kind)
+    /// <summary>
+    /// The wire vocabulary is income/expense; the domain records Credit/Debit.
+    /// </summary>
+    public bool TryGetTransactionType(out TransactionType transactionType)
     {
-        if (string.Equals(Type, "income", StringComparison.OrdinalIgnoreCase))
+        switch (Type?.ToLowerInvariant())
         {
-            kind = TransactionKind.Income;
-            return true;
+            case "income":
+                transactionType = TransactionType.Credit;
+                return true;
+            case "expense":
+                transactionType = TransactionType.Debit;
+                return true;
+            default:
+                transactionType = default;
+                return false;
         }
-
-        if (string.Equals(Type, "expense", StringComparison.OrdinalIgnoreCase))
-        {
-            kind = TransactionKind.Expense;
-            return true;
-        }
-
-        kind = default;
-        return false;
     }
 
-    public bool TryGetCurrency(out Currency currency)
-    {
-        currency = default;
-        return Amount is not null
-            && !string.IsNullOrWhiteSpace(Amount.Currency)
-            && Enum.GetNames<Currency>().Any(name => string.Equals(name, Amount.Currency, StringComparison.OrdinalIgnoreCase))
-            && Enum.TryParse(Amount.Currency, true, out currency);
-    }
+    /// <summary>
+    /// Null when the currency is absent or is not a supported currency <em>name</em>. Returning
+    /// null rather than taking an out parameter keeps the caller on one path.
+    /// <para>
+    /// The name check is not redundant: Enum.TryParse also accepts the underlying number, so
+    /// "0" would parse as EUR and let a caller submit a value that is not a currency at all.
+    /// </para>
+    /// </summary>
+    public Currency? GetCurrency() =>
+        Amount is not null
+        && !string.IsNullOrWhiteSpace(Amount.Currency)
+        && Enum.GetNames<Currency>().Any(name =>
+            string.Equals(name, Amount.Currency, StringComparison.OrdinalIgnoreCase))
+        && Enum.TryParse<Currency>(Amount.Currency, ignoreCase: true, out var currency)
+            ? currency
+            : null;
 
     public DepositTransactionCommand ToDepositCommand() => new(
         ToMoney(),
@@ -79,13 +83,18 @@ public sealed class CreateTransactionRequest
         ToTags(),
         OccurredAt?.ToUnixTimeSeconds());
 
-    private Money ToMoney()
-    {
-        if (!TryGetCurrency(out var currency))
-            throw new InvalidOperationException("The currency must be a supported currency name.");
+    /// <summary>
+    /// Guards the mapping path as well as the validation path, so a caller that skipped
+    /// validation gets a stated failure rather than a silently mistyped transaction.
+    /// </summary>
+    public TransactionType RequireTransactionType() =>
+        TryGetTransactionType(out var transactionType)
+            ? transactionType
+            : throw new UnsupportedTransactionTypeException(Type);
 
-        return Money.OfCents(Amount.Cents, currency);
-    }
+    private Money ToMoney() => Money.OfCents(
+        Amount.Cents,
+        GetCurrency() ?? throw new UnsupportedCurrencyException(Amount?.Currency));
 
     private ServiceMerchant ToMerchant() => new()
     {
@@ -102,8 +111,10 @@ public sealed class CreateTransactionRequest
     }).ToArray();
 }
 
-public sealed record TransactionMoneyRequest(long Cents, string Currency);
+// Parts of a request, not requests in their own right - no endpoint accepts one on its own,
+// so they are not named *Request.
+public sealed record TransactionMoney(long Cents, string Currency);
 
-public sealed record TransactionMerchantRequest(int? Id, string Label, bool Create);
+public sealed record TransactionMerchant(int? Id, string Label, bool Create);
 
-public sealed record TransactionTagRequest(int? Id, string Label, bool Create);
+public sealed record TransactionTag(int? Id, string Label, bool Create);
