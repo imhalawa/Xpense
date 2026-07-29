@@ -14,7 +14,7 @@
 
         public void Touch()
         {
-            LastUpdated = DateTime.Now;
+            LastUpdated = DateTime.UtcNow;
         }
     }
 }
