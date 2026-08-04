@@ -14,6 +14,7 @@ using Xpense.Persistence;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
 using Xpense.Domain.Exceptions;
+using Xpense.Domain.ValueObjects;
 using Xpense.Domain.Options;
 
 namespace Xpense.API.Features.Transactions;
@@ -89,7 +90,9 @@ public sealed class CreateTransaction : IEndpoint
             .FirstOrDefaultAsync(item => item.Id == request.CategoryId, ct)
             ?? throw new CategoryNotFoundException(request.CategoryId);
 
-        var amount = request.Amount.Cents / 100m;
+        // Deposit/Withdraw reject an amount whose currency differs from the account's, so a
+        // USD transaction against a EUR account fails here rather than moving the wrong number.
+        var amount = Money.OfCents(request.Amount.Cents, currency);
         if (isIncome)
             account.Deposit(amount);
         else
@@ -115,8 +118,8 @@ public sealed class CreateTransaction : IEndpoint
         if (await db.SaveChangesAsync(ct) < 1)
         {
             throw isIncome
-                ? new DepositCreationFailedException(amount, request.AccountNumber)
-                : new WithdrawCreationFailedException(amount, request.AccountNumber);
+                ? new DepositCreationFailedException(amount.ToDecimal(), request.AccountNumber)
+                : new WithdrawCreationFailedException(amount.ToDecimal(), request.AccountNumber);
         }
 
         return TypedResults.Created(

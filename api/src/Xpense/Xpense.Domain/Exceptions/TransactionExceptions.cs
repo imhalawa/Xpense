@@ -32,5 +32,5 @@ public class UnsupportedCurrencyException(string? currency, Exception? innerExce
 
 public class InvalidTransferException(string message) : DomainRuleViolationException(message);
 
-public class InsufficientFundsForTransferException(int accountId, decimal balance, decimal amount)
+public class InsufficientFundsForTransferException(int accountId, object balance, object amount)
     : DomainRuleViolationException($"Account {accountId} has balance {balance} but transfer requires {amount}.");

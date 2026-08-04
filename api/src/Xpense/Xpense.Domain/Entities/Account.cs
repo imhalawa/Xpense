@@ -1,57 +1,68 @@
-﻿using Xpense.Domain.Entities;
+using Xpense.Domain.Enums;
+using Xpense.Domain.Exceptions;
+using Xpense.Domain.ValueObjects;
 
 namespace Xpense.Domain.Entities
 {
-    /// <summary>Account Entity</summary>
+    /// <summary>
+    /// An account holds money in exactly one currency.
+    /// <para>
+    /// The balance is stored in minor units rather than as a decimal so it shares a
+    /// representation with <see cref="ValueObjects.Money"/>. Previously it was a bare decimal
+    /// with no currency at all, which let a USD transfer move money out of a EUR account
+    /// without complaint.
+    /// </para>
+    /// </summary>
     public class Account : BaseEntity, IEquatable<Account>
     {
-        /// <summary>
-        ///   <para>
-        /// Gets or sets the account friendly name.
-        /// </para>
-        /// </summary>
-        /// <value>The account friendly name.</value>
+        /// <summary>The account friendly name.</summary>
         public required string Name { get; set; }
 
-        /// <summary>Gets or sets the account number.</summary>
-        /// <value>The number.</value>
+        /// <summary>The account number.</summary>
         public required string AccountNumber { get; set; }
 
-        /// <summary>Gets or sets the account balance.</summary>
-        /// <value>The balance.</value>
-        public decimal Balance { get; set; }
+        /// <summary>Balance in minor units of <see cref="Currency"/>. Mapped; prefer <see cref="Balance"/>.</summary>
+        public long BalanceCents { get; set; }
 
-        /// <summary>Gets or sets a value indicating whether this account is default account for transactions.</summary>
-        /// <value>
-        ///   <para>
-        ///     <c>true</c> if this account is the default one for transactions; otherwise, <c>false</c>.
-        /// </para>
-        /// </value>
+        /// <summary>The currency this account is denominated in.</summary>
+        public Currency Currency { get; set; }
+
+        /// <summary>The balance as money. Not mapped -- projected from the two columns above.</summary>
+        public Money Balance => Money.OfCents(BalanceCents, Currency);
+
+        /// <summary>Whether this account is the default one for transactions.</summary>
         public bool IsDefaultAccount { get; set; }
 
-        public virtual ICollection<Transaction> Transactions { get; set; }
+        public virtual ICollection<Transaction> Transactions { get; set; } = [];
 
-        public bool Equals(Account? other)
+        public void Deposit(Money amount)
         {
-            if (other == null) return false;
-            return AccountNumber == other.AccountNumber;
-        }
-
-        public override bool Equals(object other)
-        {
-            return AccountNumber == ((Account)other).AccountNumber;
-        }
-
-        public void Deposit(decimal amount)
-        {
-            Balance += amount;
+            RequireMatchingCurrency(amount);
+            BalanceCents += amount.Cents;
             Touch();
         }
 
-        public void Withdraw(decimal amount)
+        public void Withdraw(Money amount)
         {
-            Balance -= amount;
+            RequireMatchingCurrency(amount);
+            BalanceCents -= amount.Cents;
             Touch();
         }
+
+        /// <summary>
+        /// There is no conversion here: an amount in another currency cannot be applied to this
+        /// account. Adding FX would mean converting before this point, never inside it.
+        /// </summary>
+        private void RequireMatchingCurrency(Money amount)
+        {
+            if (amount.Currency != Currency)
+                throw new CurrencyMismatchException(AccountNumber, Currency, amount.Currency);
+        }
+
+        public bool Equals(Account? other) => other is not null && AccountNumber == other.AccountNumber;
+
+        public override bool Equals(object? other) => Equals(other as Account);
+
+        public override int GetHashCode() => AccountNumber.GetHashCode();
     }
 }

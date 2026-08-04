@@ -9,9 +9,10 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
-using Xpense.Persistence;
 using Xpense.Domain.Entities;
+using Xpense.Domain.Enums;
 using Xpense.Domain.Exceptions;
+using Xpense.Persistence;
 
 namespace Xpense.API.Features.Accounts;
 
@@ -20,7 +21,13 @@ public sealed class CreateAccount : IEndpoint
     /// <summary>Account number allocated to the very first account.</summary>
     private const long FirstAccountNumber = 1_000_000_000;
 
-    public sealed record Request(string Name, decimal Balance);
+    /// <summary>
+    /// The opening balance carries a currency, and that currency denominates the account for
+    /// its whole life. There is no way to create an account without saying what it holds.
+    /// </summary>
+    public sealed record Request(string Name, MoneyRequest Balance);
+
+    public sealed record MoneyRequest(long Cents, string Currency);
 
     public sealed class Validator : AbstractValidator<Request>
     {
@@ -31,7 +38,17 @@ public sealed class CreateAccount : IEndpoint
                 .MaximumLength(200);
 
             RuleFor(request => request.Balance)
-                .GreaterThanOrEqualTo(0).WithMessage("The opening balance cannot be negative.");
+                .NotNull().WithMessage("The balance is required.");
+
+            When(request => request.Balance is not null, () =>
+            {
+                RuleFor(request => request.Balance.Cents)
+                    .GreaterThanOrEqualTo(0).WithMessage("The opening balance cannot be negative.");
+
+                RuleFor(request => request.Balance.Currency)
+                    .Must(currency => CurrencyParser.TryParse(currency, out _))
+                    .WithMessage("The currency must be a supported currency name.");
+            });
         }
     }
 
@@ -44,10 +61,13 @@ public sealed class CreateAccount : IEndpoint
         HttpContext http,
         CancellationToken ct)
     {
+        CurrencyParser.TryParse(request.Balance.Currency, out var currency);
+
         var account = new Account
         {
             Name = request.Name,
-            Balance = request.Balance,
+            BalanceCents = request.Balance.Cents,
+            Currency = currency,
             AccountNumber = await NextAccountNumber(db, ct),
             IsDefaultAccount = !await db.Accounts.AnyAsync(a => a.IsDefaultAccount, ct),
             CreatedOn = DateTime.UtcNow

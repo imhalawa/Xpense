@@ -25,13 +25,22 @@ public static class MoneyTransfer
         if (source.Id == destination.Id)
             throw new InvalidTransferException("Source and destination accounts must be different.");
 
-        var value = amount.ToDecimal();
+        // Xpense holds multiple currencies but does not convert between them. Both accounts and
+        // the amount have to agree; otherwise this moves the wrong quantity of money, which is
+        // exactly what it used to do when Balance was a currency-less decimal.
+        if (source.Currency != destination.Currency)
+            throw new InvalidTransferException(
+                "Cannot transfer between accounts in different currencies: "
+                + $"{source.AccountNumber} is {source.Currency}, {destination.AccountNumber} is {destination.Currency}.");
 
-        if (source.Balance < value)
-            throw new InsufficientFundsForTransferException(source.Id, source.Balance, value);
+        if (amount.Currency != source.Currency)
+            throw new CurrencyMismatchException(source.AccountNumber, source.Currency, amount.Currency);
 
-        source.Withdraw(value);
-        destination.Deposit(value);
+        if (source.Balance < amount)
+            throw new InsufficientFundsForTransferException(source.Id, source.Balance, amount);
+
+        source.Withdraw(amount);
+        destination.Deposit(amount);
 
         var transfer = new Transfer
         {
