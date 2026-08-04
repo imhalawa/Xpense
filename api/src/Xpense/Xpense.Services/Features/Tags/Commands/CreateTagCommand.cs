@@ -12,6 +12,7 @@ public class CreateTagCommand(string label, string bgColorHex, string fgColorHex
     {
         Label = Label,
         BgColorHex = BgColorHex,
-        FgColorHex = FgColorHex
+        FgColorHex = FgColorHex,
+        CreatedOn = DateTime.Now
     };
 }

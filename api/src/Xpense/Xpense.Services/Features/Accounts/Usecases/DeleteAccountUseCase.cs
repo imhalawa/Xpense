@@ -4,15 +4,19 @@ using Xpense.Services.Exceptions;
 
 namespace Xpense.Services.Features.Accounts.Usecases;
 
-public class DeleteAccountUseCase(IAccountRepository repository): ICommandHandler<string>
+public class DeleteAccountUseCase(IAccountRepository repository): ICommandHandler<int>
 {
-    public async Task Handle(string accountNumber)
+    public async Task Handle(int id)
     {
-       repository.DeleteAccountByNumber(accountNumber);
+       var account = await repository.GetById(id);
+       if (account == null)
+           throw new AccountNotFoundException(id);
+
+       repository.Delete(account);
        var result = await repository.SaveChanges();
        if (result < 1)
        {
-           throw new AccountUpdateFailedException(accountNumber);
+           throw new AccountUpdateFailedException(id.ToString());
        }
     }
 }
