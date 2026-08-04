@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -36,7 +37,10 @@ if (!app.Environment.IsEnvironment("Testing"))
     using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<XpenseDbContext>();
-    context.Database.EnsureCreated();
+
+    // Migrate, not EnsureCreated: EnsureCreated builds the schema without recording any
+    // migration history, which then makes `dotnet ef database update` fail against it.
+    context.Database.Migrate();
     Seeder.Seed<Priority>(context, "Priorities.json");
 }
 

@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Linq.Expressions;
 using System.Reflection;
 using Xpense.Domain.Entities;
-using Xpense.Domain.Entities;
 
 namespace Xpense.Persistence
 {
@@ -38,21 +37,37 @@ namespace Xpense.Persistence
         }
 
         /// <summary>
-        /// Relational date columns carry no offset, so EF hands values back with
-        /// <see cref="DateTimeKind.Unspecified"/>. Everything is written in UTC, so tag reads as
-        /// UTC too -- otherwise DateTimeOffset conversions in the response DTOs silently apply
-        /// the server's local offset. Also required by Npgsql, which rejects Local kinds.
+        /// Every timestamp is stored and returned as UTC.
+        /// <para>
+        /// Reads: relational date columns carry no offset, so EF hands values back as
+        /// <see cref="DateTimeKind.Unspecified"/>. Tagging them UTC stops the DateTimeOffset
+        /// conversions in the response DTOs from silently applying the server's local offset.
+        /// </para>
+        /// <para>
+        /// Writes: Npgsql maps DateTime to `timestamp with time zone` and throws on any Kind
+        /// other than Utc. Local is converted; Unspecified is *tagged*, not converted, because
+        /// in this codebase an untagged value already means UTC -- calling ToUniversalTime on
+        /// it would shift it by the server's offset.
+        /// </para>
         /// </summary>
         private static void ConfigureUtcDateTimes(ModelBuilder modelBuilder)
         {
             var utc = new ValueConverter<DateTime, DateTime>(
-                value => value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : value,
+                value => value.Kind == DateTimeKind.Utc
+                    ? value
+                    : value.Kind == DateTimeKind.Local
+                        ? value.ToUniversalTime()
+                        : DateTime.SpecifyKind(value, DateTimeKind.Utc),
                 value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
             var nullableUtc = new ValueConverter<DateTime?, DateTime?>(
-                value => value.HasValue && value.Value.Kind == DateTimeKind.Local
-                    ? value.Value.ToUniversalTime()
-                    : value,
+                value => !value.HasValue
+                    ? value
+                    : value.Value.Kind == DateTimeKind.Utc
+                        ? value
+                        : value.Value.Kind == DateTimeKind.Local
+                            ? value.Value.ToUniversalTime()
+                            : DateTime.SpecifyKind(value.Value, DateTimeKind.Utc),
                 value => value.HasValue
                     ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
                     : value);

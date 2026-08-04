@@ -55,4 +55,4 @@ All of these were real at the point the slices first landed. Listed with their r
 
 - **Cross-currency transfers move unit-less decimals.** `Account.Balance` has no currency, so a USD transfer between EUR accounts succeeds. Whether Xpense is multi-currency is a product decision, not a bug fix.
 - **Responses return Unix seconds** where [`docs/contract/api-v1-contract-design.md`](../contract/api-v1-contract-design.md) specifies ISO 8601, and account balances are bare decimals where it specifies `{cents, currency}`.
-- **Transfer isolation is untested where it matters.** The transaction requests `Serializable`, but tests run on SQLite. `Account` has no rowversion.
+- **Concurrent transfers are untested.** Integration tests now run on real Postgres, so the `Serializable` isolation the transfer requests is actually honoured rather than quietly ignored by SQLite. What is still missing is a test that runs two transfers against the same account at once to prove no update is lost. `Account` also has no rowversion.

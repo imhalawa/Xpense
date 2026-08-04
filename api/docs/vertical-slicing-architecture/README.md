@@ -29,7 +29,7 @@ The layering was costing more than it returned. Measured before the migration:
 - **41 of those files were under 15 lines**
 - **31 hand-written `AddScoped` registrations**, one per use case, each a step you could forget
 - **4 use-case marker interfaces** (`ICommandHandler`, `ICommandResultHandler`, `IQueryHandler`, `IQueryParamHandler`) with one method each — nothing dispatched on them, nothing implemented two of them
-- **9 repository interfaces, each with exactly one implementation** — no second provider, no polymorphism, no test double that the SQLite integration host doesn't already give us
+- **9 repository interfaces, each with exactly one implementation** — no second provider, no polymorphism, and no test double that the integration host doesn't already give us for free
 
 None of that is abstraction. It is indirection with an abstraction's file count.
 
