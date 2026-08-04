@@ -31,11 +31,7 @@ public class WithdrawTransactionUseCase(
 
         var merchant = await merchantRepository.GetOrCreateIfMissing(command.Merchant) ?? throw new MerchantNotFoundException(command.Merchant.Label);
 
-        var tags = command.Tags != null
-            ? await command.Tags.ToAsyncEnumerable()
-                .SelectAwait(async t => await tagRepository.GetOrCreateIfMissing(t))
-                .Where(t => t != null).ToListAsync()
-            : null;
+        var tags = await DepositTransactionUseCase.ResolveTags(tagRepository, command.Tags);
 
         var transaction = new Transaction
         {
