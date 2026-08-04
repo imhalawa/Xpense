@@ -77,6 +77,7 @@ namespace Xpense.API.Extensions.cs
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<ITagRepository, TagRepository>();
             services.AddScoped<ITransactionRepository, TransactionRepository>();
+            services.AddScoped<ITransferRepository, TransferRepository>();
             services.AddScoped<IMerchantRepository, MerchantRepository>();
             services.AddScoped<IPriorityRepository, PriorityRepository>();
         }
@@ -106,6 +107,7 @@ namespace Xpense.API.Extensions.cs
 
             services.AddScoped<DepositTransactionUseCase>();
             services.AddScoped<WithdrawTransactionUseCase>();
+            services.AddScoped<TransferTransactionUseCase>();
             services.AddScoped<GetAllTransactionsForAccountNumberUseCase>();
             services.AddScoped<GetAllTransactionsUseCase>();
             services.AddScoped<GetTransactionByIdUseCase>();

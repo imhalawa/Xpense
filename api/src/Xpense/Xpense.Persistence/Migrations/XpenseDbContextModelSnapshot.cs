@@ -264,6 +264,90 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Transactions", "Xpense");
                 });
 
+            modelBuilder.Entity("Xpense.Services.Entities.Transfer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DestinationAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("SourceAccountId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinationAccountId");
+
+                    b.HasIndex("SourceAccountId");
+
+                    b.ToTable("Transfers", "Xpense");
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.TransferLeg", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Direction")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TransferId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("TransferId", "Direction")
+                        .IsUnique();
+
+                    b.ToTable("TransferLegs", "Xpense");
+                });
+
             modelBuilder.Entity("TransactionTags", b =>
                 {
                     b.HasOne("Xpense.Services.Entities.Tag", null)
@@ -316,6 +400,44 @@ namespace Xpense.Persistence.Migrations
                     b.Navigation("Merchant");
                 });
 
+            modelBuilder.Entity("Xpense.Services.Entities.Transfer", b =>
+                {
+                    b.HasOne("Xpense.Services.Entities.Account", "DestinationAccount")
+                        .WithMany()
+                        .HasForeignKey("DestinationAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Xpense.Services.Entities.Account", "SourceAccount")
+                        .WithMany()
+                        .HasForeignKey("SourceAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DestinationAccount");
+
+                    b.Navigation("SourceAccount");
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.TransferLeg", b =>
+                {
+                    b.HasOne("Xpense.Services.Entities.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Xpense.Services.Entities.Transfer", "Transfer")
+                        .WithMany("Legs")
+                        .HasForeignKey("TransferId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Transfer");
+                });
+
             modelBuilder.Entity("Xpense.Services.Entities.Account", b =>
                 {
                     b.Navigation("Transactions");
@@ -334,6 +456,11 @@ namespace Xpense.Persistence.Migrations
             modelBuilder.Entity("Xpense.Services.Entities.Priority", b =>
                 {
                     b.Navigation("Categories");
+                });
+
+            modelBuilder.Entity("Xpense.Services.Entities.Transfer", b =>
+                {
+                    b.Navigation("Legs");
                 });
 #pragma warning restore 612, 618
         }
