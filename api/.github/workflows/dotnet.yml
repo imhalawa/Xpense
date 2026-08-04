@@ -6,8 +6,11 @@ name: .NET
 on:
   push:
     branches: [ "main" ]
+  # Every branch, not just those targeting main. Stacked pull requests are based on
+  # their parent branch, so a main-only filter silently skips CI for all but the
+  # bottom of a stack.
   pull_request:
-    branches: [ "main" ]
+    branches: [ "**" ]
 
 env:
   # The solution lives under src/Xpense, not the repository root. Without this every
@@ -30,10 +33,29 @@ jobs:
     - name: Build
       run: dotnet build $SOLUTION --no-restore
     - name: Test
-      run: dotnet test $SOLUTION --no-build --logger trx --results-directory TestResults
+      run: >
+        dotnet test $SOLUTION --no-build
+        --logger trx --results-directory TestResults
+        --collect:"XPlat Code Coverage"
+    - name: Coverage report
+      if: ${{ !cancelled() }}
+      run: |
+        dotnet tool install --global dotnet-reportgenerator-globaltool
+        export PATH="$PATH:$HOME/.dotnet/tools"
+        reportgenerator \
+          -reports:'TestResults/**/coverage.cobertura.xml' \
+          -targetdir:CoverageReport \
+          -reporttypes:'MarkdownSummaryGithub;Html'
+        cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
     - name: Upload dotnet test results
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v4
       with:
         name: dotnet-results
         path: TestResults
+    - name: Upload coverage report
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: CoverageReport
