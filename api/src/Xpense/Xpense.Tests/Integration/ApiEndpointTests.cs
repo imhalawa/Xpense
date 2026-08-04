@@ -7,8 +7,8 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xpense.Persistence;
-using Xpense.Services.Entities;
-using Xpense.Services.Enums;
+using Xpense.Domain.Entities;
+using Xpense.Domain.Enums;
 using Xpense.Tests.Infrastructure;
 
 namespace Xpense.Tests.Integration;
@@ -482,6 +482,79 @@ public class ApiEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement.GetProperty("title").GetString().Should().Be("Resource not found");
         await AssertBalancesUnchanged(accounts, 20m, 3m);
+    }
+
+    [Test]
+    public async Task Post_transfer_returns_a_location_that_serves_the_new_transfer()
+    {
+        var accounts = await SeedTransferAccounts(20m, 3m);
+
+        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        {
+            sourceAccountId = accounts.SourceId,
+            destinationAccountId = accounts.DestinationId,
+            amount = new { cents = 1234, currency = "EUR" },
+            reason = "Shared rent"
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.ToString().Should().MatchRegex("/api/v1/transfers/[1-9][0-9]*$");
+
+        // The header has to actually resolve -- a Location pointing at a 404 is worse than none.
+        var followed = await client.GetAsync(response.Headers.Location);
+        followed.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await followed.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("reason").GetString().Should().Be("Shared rent");
+        document.RootElement.GetProperty("legs").GetArrayLength().Should().Be(2);
+    }
+
+    [Test]
+    public async Task Unknown_transfer_returns_problem_details()
+    {
+        var response = await client.GetAsync("/api/v1/transfers/424242");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("detail").GetString().Should().Contain("424242");
+    }
+
+    [Test]
+    public async Task Transfer_rolls_back_entirely_when_persistence_fails()
+    {
+        // Needs a host whose persistence layer fails, so it builds its own rather than using
+        // the fixture's. Replaces the old test that injected a failing ITransferRepository.
+        using var failing = new WebApiTestFactory(new FailOnSaveInterceptor<Transfer>());
+        using var failingClient = failing.CreateClient();
+
+        int sourceId, destinationId;
+        using (var scope = failing.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+            var source = NewAccount("1000000000", "Source", 20m);
+            var destination = NewAccount("2000000000", "Destination", 3m);
+            db.Accounts.AddRange(source, destination);
+            await db.SaveChangesAsync();
+            sourceId = source.Id;
+            destinationId = destination.Id;
+        }
+
+        var response = await failingClient.PostAsJsonAsync("/api/v1/transfers", new
+        {
+            sourceAccountId = sourceId,
+            destinationAccountId = destinationId,
+            amount = new { cents = 1234, currency = "EUR" }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+
+        using var verification = failing.Services.CreateScope();
+        var verifyDb = verification.ServiceProvider.GetRequiredService<XpenseDbContext>();
+        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.Id == sourceId)).Balance.Should().Be(20m);
+        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.Id == destinationId)).Balance.Should().Be(3m);
+        (await verifyDb.Transfers.CountAsync()).Should().Be(0);
+        (await verifyDb.TransferLegs.CountAsync()).Should().Be(0);
     }
 
     // ---------------------------------------------------------------- analytics

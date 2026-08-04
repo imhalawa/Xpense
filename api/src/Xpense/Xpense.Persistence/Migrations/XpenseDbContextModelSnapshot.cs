@@ -37,7 +37,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("TransactionTags", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Account", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Account", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -80,7 +80,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Accounts", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Category", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -115,7 +115,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Categories", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Merchant", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Merchant", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -145,7 +145,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Merchants", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Priority", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Priority", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -178,7 +178,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Priorities", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Tag", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Tag", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -218,7 +218,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Tags", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Transaction", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Transaction", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -264,7 +264,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Transactions", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Transfer", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Transfer", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -306,7 +306,7 @@ namespace Xpense.Persistence.Migrations
                     b.ToTable("Transfers", "Xpense");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.TransferLeg", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.TransferLeg", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -350,22 +350,22 @@ namespace Xpense.Persistence.Migrations
 
             modelBuilder.Entity("TransactionTags", b =>
                 {
-                    b.HasOne("Xpense.Services.Entities.Tag", null)
+                    b.HasOne("Xpense.Domain.Entities.Tag", null)
                         .WithMany()
                         .HasForeignKey("TagId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Xpense.Services.Entities.Transaction", null)
+                    b.HasOne("Xpense.Domain.Entities.Transaction", null)
                         .WithMany()
                         .HasForeignKey("TransactionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Category", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Category", b =>
                 {
-                    b.HasOne("Xpense.Services.Entities.Priority", "Priority")
+                    b.HasOne("Xpense.Domain.Entities.Priority", "Priority")
                         .WithMany("Categories")
                         .HasForeignKey("PriorityId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -374,20 +374,20 @@ namespace Xpense.Persistence.Migrations
                     b.Navigation("Priority");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Transaction", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Transaction", b =>
                 {
-                    b.HasOne("Xpense.Services.Entities.Account", "Account")
+                    b.HasOne("Xpense.Domain.Entities.Account", "Account")
                         .WithMany("Transactions")
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Xpense.Services.Entities.Category", "Category")
+                    b.HasOne("Xpense.Domain.Entities.Category", "Category")
                         .WithMany("Transactions")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Xpense.Services.Entities.Merchant", "Merchant")
+                    b.HasOne("Xpense.Domain.Entities.Merchant", "Merchant")
                         .WithMany("Transactions")
                         .HasForeignKey("MerchantId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -400,15 +400,15 @@ namespace Xpense.Persistence.Migrations
                     b.Navigation("Merchant");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Transfer", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Transfer", b =>
                 {
-                    b.HasOne("Xpense.Services.Entities.Account", "DestinationAccount")
+                    b.HasOne("Xpense.Domain.Entities.Account", "DestinationAccount")
                         .WithMany()
                         .HasForeignKey("DestinationAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Xpense.Services.Entities.Account", "SourceAccount")
+                    b.HasOne("Xpense.Domain.Entities.Account", "SourceAccount")
                         .WithMany()
                         .HasForeignKey("SourceAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -419,15 +419,15 @@ namespace Xpense.Persistence.Migrations
                     b.Navigation("SourceAccount");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.TransferLeg", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.TransferLeg", b =>
                 {
-                    b.HasOne("Xpense.Services.Entities.Account", "Account")
+                    b.HasOne("Xpense.Domain.Entities.Account", "Account")
                         .WithMany()
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Xpense.Services.Entities.Transfer", "Transfer")
+                    b.HasOne("Xpense.Domain.Entities.Transfer", "Transfer")
                         .WithMany("Legs")
                         .HasForeignKey("TransferId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -438,27 +438,27 @@ namespace Xpense.Persistence.Migrations
                     b.Navigation("Transfer");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Account", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Account", b =>
                 {
                     b.Navigation("Transactions");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Category", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Transactions");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Merchant", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Merchant", b =>
                 {
                     b.Navigation("Transactions");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Priority", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Priority", b =>
                 {
                     b.Navigation("Categories");
                 });
 
-            modelBuilder.Entity("Xpense.Services.Entities.Transfer", b =>
+            modelBuilder.Entity("Xpense.Domain.Entities.Transfer", b =>
                 {
                     b.Navigation("Legs");
                 });

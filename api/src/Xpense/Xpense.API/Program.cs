@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using Xpense.API.Extensions.cs;
-using Xpense.API.Filters;
+using Xpense.API.Extensions;
+using Xpense.API.Infrastructure;
 using Xpense.Persistence;
-using Xpense.Services.Entities;
+using Xpense.Domain.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,14 +19,13 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .WriteTo.Console();
 });
 
-// Register Services
 builder.Services.AddSingleton(Log.Logger);
-builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>()).AddNewtonsoftJson();
+// AddControllers used to bring these in implicitly; without MVC they must be explicit.
+builder.Services.AddCors();
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.ConfigureSwagger();
 builder.Services.ConfigurePersistence(builder.Configuration);
-builder.Services.AddRepositories();
-builder.Services.AddUseCases();
-builder.Services.ConfigureApiVersioning();
+builder.Services.AddDomainServices();
 builder.Services.AddRequestValidation();
 builder.Services.AddExceptionHandlers();
 
@@ -54,7 +53,9 @@ app.UseCors(policy =>
     policy.AllowAnyHeader();
     policy.AllowAnyMethod();
 });
-app.MapControllers();
+
+// Every slice, discovered by scanning for IEndpoint. There is no per-feature registration.
+app.MapEndpoints();
 
 // Enable Swagger & Swagger UI
 if (app.Environment.IsDevelopment())

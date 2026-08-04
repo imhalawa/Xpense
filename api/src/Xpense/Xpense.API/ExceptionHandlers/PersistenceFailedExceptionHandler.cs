@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Serilog;
-using Xpense.Services.Exceptions;
+using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.ExceptionHandlers;
 
