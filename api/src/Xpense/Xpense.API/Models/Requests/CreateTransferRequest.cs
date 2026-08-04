@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Xpense.Services.Enums;
 using Xpense.Services.Features.Transactions.Commands;
@@ -10,16 +9,9 @@ namespace Xpense.API.Models.Requests;
 
 public sealed class CreateTransferRequest
 {
-    [Range(1, int.MaxValue)]
     public int SourceAccountId { get; init; }
-
-    [Range(1, int.MaxValue)]
     public int DestinationAccountId { get; init; }
-
-    [Required]
     public TransferMoneyRequest Amount { get; init; } = null!;
-
-    [MaxLength(500)]
     public string? Reason { get; init; }
 
     public DateTimeOffset? OccurredAt { get; init; }

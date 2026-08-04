@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using Xpense.API.Helpers;
 using Xpense.API.Models.Responses;
 using Xpense.Services.Features.Analytics.UseCases;
 
@@ -11,13 +11,14 @@ namespace Xpense.API.Controllers
     [Route("api/v1/analytics")]
     public class AnalyticsController(
         GetExpensesByCategoryUseCase getExpensesByCategoryUseCase
-        ) : XpenseController
+        ) : ControllerBase
     {
         [HttpGet("spending/by-category")]
+        [ProducesResponseType<TodayExpensesByCategoryResponse>(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetExpensesByCategory()
         {
             var result = await getExpensesByCategoryUseCase.Execute();
-            return new OkObjectResult(TodayExpensesByCategoryResponse.Of(result));
+            return Ok(TodayExpensesByCategoryResponse.Of(result));
         }
     }
 }

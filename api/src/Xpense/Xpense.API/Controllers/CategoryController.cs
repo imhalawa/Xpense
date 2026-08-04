@@ -1,97 +1,64 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Serilog;
 using System.Linq;
 using System.Threading.Tasks;
-using Xpense.API.Helpers;
 using Xpense.API.Models.Requests;
 using Xpense.API.Models.Responses;
-using Xpense.Services.Exceptions;
 using Xpense.Services.Features.Categories.UseCases;
 
 namespace Xpense.API.Controllers
 {
     [Route("api/v1/categories")]
     [ApiController]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public class CategoryController(
         CreateCategoryUseCase createCategory,
         GetAllCategoriesUseCase getAllCategoriesUseCase,
         GetCategoryByIdUseCase getCategoryByIdUseCase,
         DeleteCategoryByIdUseCase deleteCategoryByIdUseCase,
-        UpdateCategoryUseCase updateCategoryUseCase,
-        ILogger logger
-    ) : XpenseController
+        UpdateCategoryUseCase updateCategoryUseCase
+    ) : ControllerBase
     {
         [HttpGet]
+        [ProducesResponseType<CategoryResponse[]>(StatusCodes.Status200OK)]
         public async Task<IActionResult> Get()
         {
             var categories = await getAllCategoriesUseCase.Execute();
-            return new OkObjectResult(categories.Select(CategoryResponse.Of));
+            return Ok(categories.Select(CategoryResponse.Of));
         }
 
         [HttpGet("{id:int}")]
+        [ProducesResponseType<CategoryResponse>(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetById([FromRoute] int id)
         {
-            try
-            {
-                var result = await getCategoryByIdUseCase.Execute(id);
-                return new OkObjectResult(CategoryResponse.Of(result));
-            }
-            catch (CategoryNotFoundException exception)
-            {
-                logger.Warning(exception.Message);
-                return NotFound(exception.Message);
-            }
+            var result = await getCategoryByIdUseCase.Execute(id);
+            return Ok(CategoryResponse.Of(result));
         }
 
         [HttpDelete("{id:int}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<IActionResult> DeleteById(int id)
         {
-            try
-            {
-                await deleteCategoryByIdUseCase.Handle(id);
-                return NoContent();
-            }
-            catch (CategoryDeletionFailedException exception)
-            {
-                logger.Error(exception, exception.Message);
-                return Problem(exception);
-            }
+            await deleteCategoryByIdUseCase.Handle(id);
+            return NoContent();
         }
 
         [HttpPost]
+        [ProducesResponseType<CategoryResponse>(StatusCodes.Status201Created)]
         public async Task<IActionResult> Create([FromBody] CreateCategoryRequest request)
         {
-            try
-            {
-                var category = await createCategory.Handle(request.ToCommand());
-                return CreatedAtAction(nameof(GetById), new { id = category.Id }, CategoryResponse.Of(category));
-            }
-            catch (CategoryCreationFailedException exception)
-            {
-                logger.Warning(exception.Message);
-                return NotFound(exception.Message);
-            }
+            var category = await createCategory.Handle(request.ToCommand());
+            return CreatedAtAction(nameof(GetById), new { id = category.Id }, CategoryResponse.Of(category));
         }
 
         [HttpPut("{id:int}")]
+        [ProducesResponseType<CategoryResponse>(StatusCodes.Status200OK)]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateCategoryRequest request)
         {
-            try
-            {
-                request.Id = id;
-                var category = await updateCategoryUseCase.Handle(request.ToCommand());
-                return new OkObjectResult(CategoryResponse.Of(category));
-            }
-            catch (CategoryNotFoundException exception)
-            {
-                logger.Warning(exception.Message);
-                return NotFound(exception.Message);
-            }
-            catch (CategoryUpdateFailedException exception)
-            {
-                logger.Warning(exception.Message);
-                return NotFound(exception.Message);
-            }
+            request.Id = id;
+            var category = await updateCategoryUseCase.Handle(request.ToCommand());
+            return Ok(CategoryResponse.Of(category));
         }
     }
 }

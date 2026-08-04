@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Xpense.Services.Enums;
 using Xpense.Services.Exceptions;
@@ -13,18 +12,11 @@ namespace Xpense.API.Models.Requests;
 
 public sealed record CreateTransactionRequest
 {
-    [Required]
     public string Type { get; init; } = null!;
-
-    [Required]
     public TransactionMoney Amount { get; init; } = null!;
 
     public string? AccountNumber { get; init; }
-
-    [Range(1, int.MaxValue)]
     public int CategoryId { get; init; }
-
-    [Required]
     public TransactionMerchant Merchant { get; init; } = null!;
 
     public IReadOnlyList<TransactionTag>? Tags { get; init; }
@@ -67,6 +59,15 @@ public sealed record CreateTransactionRequest
             ? currency
             : null;
 
+    /// <summary>
+    /// Guards the mapping path as well as the validation path, so a caller that skipped
+    /// validation gets a stated failure rather than a silently mistyped transaction.
+    /// </summary>
+    public TransactionType RequireTransactionType() =>
+        TryGetTransactionType(out var transactionType)
+            ? transactionType
+            : throw new UnsupportedTransactionTypeException(Type);
+
     public DepositTransactionCommand ToDepositCommand() => new(
         ToMoney(),
         AccountNumber,
@@ -82,15 +83,6 @@ public sealed record CreateTransactionRequest
         ToMerchant(),
         ToTags(),
         OccurredAt?.ToUnixTimeSeconds());
-
-    /// <summary>
-    /// Guards the mapping path as well as the validation path, so a caller that skipped
-    /// validation gets a stated failure rather than a silently mistyped transaction.
-    /// </summary>
-    public TransactionType RequireTransactionType() =>
-        TryGetTransactionType(out var transactionType)
-            ? transactionType
-            : throw new UnsupportedTransactionTypeException(Type);
 
     private Money ToMoney() => Money.OfCents(
         Amount.Cents,

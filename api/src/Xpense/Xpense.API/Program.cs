@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Xpense.API.Extensions.cs;
+using Xpense.API.Filters;
 using Xpense.Persistence;
 using Xpense.Services.Entities;
 
@@ -20,12 +21,14 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 // Register Services
 builder.Services.AddSingleton(Log.Logger);
-builder.Services.AddControllers().AddNewtonsoftJson();
+builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>()).AddNewtonsoftJson();
 builder.Services.ConfigureSwagger();
 builder.Services.ConfigurePersistence(builder.Configuration);
 builder.Services.AddRepositories();
 builder.Services.AddUseCases();
 builder.Services.ConfigureApiVersioning();
+builder.Services.AddRequestValidation();
+builder.Services.AddExceptionHandlers();
 
 var app = builder.Build();
 
@@ -38,6 +41,10 @@ if (!app.Environment.IsEnvironment("Testing"))
     Seeder.Seed<Priority>(context, "Priorities.json");
 }
 
+// First in the pipeline so it wraps everything downstream. The registered IExceptionHandlers
+// decide the status and body; anything unclaimed falls through to FallbackExceptionHandler.
+app.UseExceptionHandler();
+
 app.UseStaticFiles("/static");
 app.UseRouting();
 app.UseCors(policy =>
@@ -48,7 +55,6 @@ app.UseCors(policy =>
     policy.AllowAnyMethod();
 });
 app.MapControllers();
-app.UseGlobalExceptionHandler();
 
 // Enable Swagger & Swagger UI
 if (app.Environment.IsDevelopment())
