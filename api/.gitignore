@@ -397,6 +397,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+.idea/
 
 # Test and coverage output, produced by the CI coverage step and by local runs
 TestResults/
