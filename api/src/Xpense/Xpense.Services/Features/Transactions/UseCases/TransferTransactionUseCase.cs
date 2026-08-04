@@ -43,7 +43,7 @@ public sealed class TransferTransactionUseCase(
                 Reason = string.IsNullOrWhiteSpace(command.Reason) ? null : command.Reason.Trim(),
                 CreatedOn = command.CreatedOn.HasValue
                     ? DateTimeOffset.FromUnixTimeSeconds(command.CreatedOn.Value).UtcDateTime
-                    : DateTime.Now,
+                    : DateTime.UtcNow,
                 Legs = new List<TransferLeg>()
             };
 

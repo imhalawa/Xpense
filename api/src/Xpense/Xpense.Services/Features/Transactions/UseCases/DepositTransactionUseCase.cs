@@ -43,7 +43,7 @@ public class DepositTransactionUseCase(
             Currency = command.Amount.Currency,
             Category = category,
             Account = account,
-            CreatedOn = command.CreatedOn.ToDateTime() ?? DateTime.Now,
+            CreatedOn = command.CreatedOn.ToDateTime() ?? DateTime.UtcNow,
             Tags = tags,
             Merchant = merchant,
             TransactionType = TransactionType.Credit

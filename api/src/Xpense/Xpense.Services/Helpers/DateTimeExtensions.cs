@@ -1,13 +1,15 @@
-﻿namespace Xpense.Services.Helpers
+namespace Xpense.Services.Helpers
 {
     public static class DateTimeExtensions
     {
+        /// <summary>
+        /// Unix seconds to UTC. Previously converted to local time, which combined with the
+        /// local-time writes elsewhere made stored timestamps depend on the server's zone.
+        /// </summary>
         public static DateTime? ToDateTime(this long? unixTimeStamp)
         {
             if (!unixTimeStamp.HasValue) return null;
-            var dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-            dateTime = dateTime.AddSeconds(unixTimeStamp.Value).ToLocalTime();
-            return dateTime;
+            return DateTimeOffset.FromUnixTimeSeconds(unixTimeStamp.Value).UtcDateTime;
         }
     }
 }

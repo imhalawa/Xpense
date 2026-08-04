@@ -13,7 +13,7 @@ namespace Xpense.Services.Models
             return new Entities.Tag
             {
                 Label = this.Label,
-                CreatedOn = DateTime.Now
+                CreatedOn = DateTime.UtcNow
             };
         }
         public static IEnumerable<Entities.Tag> ToEntityRange(IEnumerable<Tag> tags)
