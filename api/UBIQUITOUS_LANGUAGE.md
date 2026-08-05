@@ -9,10 +9,10 @@ or a payment app such as Tikkie — and Xpense records the fact that it happened
 Users will be able to record money moving to each other on the platform, which is
 the one place where the record is shared rather than personal.
 
-> This model is implemented. See [docs/model-rename-pass.md](docs/model-rename-pass.md) for what
-> changed and the ADRs in [docs/adr/](docs/adr/) for why. **User** and **Owner** are the exception:
-> they are in the language because the **Transaction** model depends on them, and they do not exist
-> in code yet.
+> This model is implemented, [Budgeting](#budgeting) included. See
+> [docs/model-rename-pass.md](docs/model-rename-pass.md) for what changed and the ADRs in
+> [docs/adr/](docs/adr/) for why. **User** and **Owner** are the exception: they are in the language
+> because the **Transaction** model depends on them, and they do not exist in code yet.
 
 ## Money
 
@@ -114,6 +114,50 @@ optional and unlimited on any **Transaction**.
 
 **Label** is the one word for a human-readable name, in code, in the database and on the wire.
 
+## Budgeting
+
+| Term              | Definition                                                                              | Aliases to avoid                          |
+| ----------------- | --------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Budget**        | An intended limit on **Expense** for one **Category**, in one **Currency**, over a **Budget period** | Cap, allowance, envelope, target, quota   |
+| **Budget period** | The window of time a **Budget** measures **Expenses** in: a calendar week, month or year when it repeats, otherwise any stretch of dates | Cycle, month, term, range |
+| **Recurrence**    | How a **Budget** repeats: not at all, or once per week, month or year                     | Schedule, frequency, interval, repeat     |
+| **Spent**         | The total **Money** of **Expenses** in a **Budget**'s **Category** and **Currency** within its period | Used, consumed, actual, burn         |
+| **Remaining**     | A **Budget**'s amount minus **Spent**, negative once exceeded                            | Left, available, **Balance**              |
+
+A **Budget** reports and never blocks. Xpense records money that has already moved, so a
+**Budget** cannot refuse a **Transaction** — refusing the record would not un-spend the
+money, it would only make Xpense disagree with the bank.
+
+**Remaining** is deliberately not called a balance. **Balance** is **Money** an **Account**
+holds; **Remaining** is the unused part of an intention, and the two must not be confused.
+
+Only **Expenses** count. A **Transfer** has no **Category** and is money you still own, so
+it is never spending. **Income** is not spending either. Like all reporting, a **Budget**
+measures by **Occurred at**, so a purchase entered today but made last month counts against
+last month.
+
+A **Budget** has one **Currency**, and only **Expenses** in that **Currency** count toward
+it — nothing converts here either. A **Category** spans **Accounts** and therefore
+**Currencies**, so spending in another **Currency** is reported as explicitly not counted
+rather than dropped in silence. Two **Currencies** worth of groceries means two **Budgets**.
+
+One entity covers both shapes. A one-off **Budget** has no **Recurrence** and one fixed window;
+a repeating one has a **Recurrence** and may run indefinitely. There is no separate "recurring
+budget" — that would be two entities differing by one column, which is the mistake
+[ADR 0001](docs/adr/0001-one-transaction-entity-with-two-nullable-sides.md) already corrected
+once.
+
+A repeating **Budget**'s periods are calendar weeks, months or years, so each has a name —
+`2026-W32`, `2026-08`, `2026` — that a client, a report and a notification can all mean the same
+thing by. A one-off **Budget** may cover any stretch of dates.
+
+**Budgets** are independent of one another. Xpense does not compare them, rank them, or refuse
+one for overlapping another: several may cover the same **Category** at once, in different
+**Currencies**, over different lengths, or over the very same days. **Spent** and **Remaining**
+belong to a **Budget** and not to a **Category**, so each **Budget** answers only for itself and
+no rule decides which of two applies. Keeping a set of **Budgets** coherent is the user's
+business, not Xpense's.
+
 ## Relationships
 
 - An **Account** is denominated in exactly one **Currency**, fixed for its life
@@ -124,6 +168,9 @@ optional and unlimited on any **Transaction**.
 - A **Transaction** has zero or more **Tags**
 - A **Category** has exactly one **Priority**; a **Priority** covers zero or more **Categories**
 - A **Transfer**'s two **Accounts** and its amount all share one **Currency**
+- A **Budget** covers exactly one **Category** and is denominated in one **Currency**
+- A **Category** has zero or more **Budgets**, which need not agree with each other
+- A **Budget** counts **Expenses** only, never **Income** and never **Transfers**
 
 ## Example dialogue
 

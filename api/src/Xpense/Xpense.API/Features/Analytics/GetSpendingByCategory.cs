@@ -39,29 +39,42 @@ public sealed class GetSpendingByCategory : IEndpoint
                                   && transaction.OccurredAt.Date == today)
             .ToListAsync(ct);
 
-        if (expensesToday.Count == 0)
-            return TypedResults.Ok(new SpendingByCategoryResponse([], new MoneyResponse(0, nameof(Currency.EUR))));
-
-        var currency = expensesToday[0].Currency.ToString();
-
+        // Grouped by currency as well as by category, because nothing converts. This used to label
+        // the whole total with expensesToday[0].Currency and sum minor units across every currency
+        // in the day, so 10 EUR and 10 USD reported as 2000 EUR -- money invented by addition.
         var byCategory = expensesToday
-            .GroupBy(transaction => transaction.Category!)
+            .GroupBy(transaction => new { transaction.Category!.Id, transaction.Currency })
             .Select(group => new CategorySpendingResponse(
                 group.Key.Id,
-                CategoryResponse.Of(group.Key),
-                new MoneyResponse(group.Sum(transaction => transaction.AmountMinorUnits), currency)))
+                CategoryResponse.Of(group.First().Category!),
+                new MoneyResponse(group.Sum(transaction => transaction.AmountMinorUnits), group.Key.Currency.ToString())))
+            .OrderBy(spending => spending.Id)
+            .ThenBy(spending => spending.Amount.Currency)
             .ToArray();
 
-        var total = new MoneyResponse(expensesToday.Sum(transaction => transaction.AmountMinorUnits), currency);
+        // One total per currency present. An empty day has no currency to speak for, so it has no
+        // totals rather than a zero in a currency nobody used.
+        var totals = expensesToday
+            .GroupBy(transaction => transaction.Currency)
+            .Select(group => new MoneyResponse(group.Sum(transaction => transaction.AmountMinorUnits), group.Key.ToString()))
+            .OrderBy(total => total.Currency)
+            .ToArray();
 
-        return TypedResults.Ok(new SpendingByCategoryResponse(byCategory, total));
+        return TypedResults.Ok(new SpendingByCategoryResponse(byCategory, totals));
     }
 }
 
+/// <summary>
+/// <paramref name="Totals"/> is one entry per currency spent today, never a single summed figure:
+/// adding amounts in different currencies produces a number that is true of nothing.
+/// </summary>
 public sealed record SpendingByCategoryResponse(
     CategorySpendingResponse[] Expenses,
-    MoneyResponse Total);
+    MoneyResponse[] Totals);
 
+/// <summary>
+/// One category's spending in one currency. A category spent in two currencies appears twice.
+/// </summary>
 public sealed record CategorySpendingResponse(
     int Id,
     CategoryResponse Category,

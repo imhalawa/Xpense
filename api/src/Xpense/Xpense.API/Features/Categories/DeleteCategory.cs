@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -25,6 +26,19 @@ public sealed class DeleteCategory : IEndpoint
 
         category.MarkAsDeleted();
         category.Touch();
+
+        // A budget on a category nobody can see measures nothing anyone can ask about, so it goes
+        // with it. This also keeps budget reads from ever meeting a null category: the global query
+        // filter hides the row, and an Include would hand back null for a category that is still
+        // referenced. Budget is an entity rather than another slice's type, so reaching it from here
+        // does not cross a slice boundary.
+        var budgets = await db.Budgets.Where(budget => budget.CategoryId == id).ToListAsync(ct);
+
+        foreach (var budget in budgets)
+        {
+            budget.MarkAsDeleted();
+            budget.Touch();
+        }
 
         if (await db.SaveChangesAsync(ct) < 1)
             throw new CategoryDeletionFailedException(id);
