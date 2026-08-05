@@ -22,6 +22,8 @@ namespace Xpense.Tests.Integration;
 public class ApiEndpointTests
 {
     private const string ProblemJson = "application/problem+json";
+    private const string SourceNumber = "1000000000";
+    private const string DestinationNumber = "2000000000";
 
     private WebApiTestFactory factory = null!;
     private HttpClient client = null!;
@@ -64,31 +66,34 @@ public class ApiEndpointTests
     // ---------------------------------------------------------------- accounts
 
     [Test]
-    public async Task Post_accounts_returns_the_created_resource_at_its_id_route()
+    public async Task Post_accounts_returns_the_created_resource_at_its_account_number_route()
     {
         await SeedAccount();
 
         var response = await client.PostAsync(
             "/api/v1/accounts",
-            JsonBody("{\"name\":\"Savings\",\"balance\":{\"cents\":12345,\"currency\":\"EUR\"}}"));
+            JsonBody("{\"label\":\"Savings\",\"balance\":{\"minorUnits\":12345,\"currency\":\"EUR\"}}"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        response.Headers.Location.Should().Be(new Uri("http://localhost/api/v1/accounts/2"));
+        response.Headers.Location.Should().Be(new Uri("http://localhost/api/v1/accounts/1000000001"));
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        document.RootElement.GetProperty("id").GetInt32().Should().Be(2);
+        document.RootElement.GetProperty("accountNumber").GetString().Should().Be("1000000001");
         document.RootElement.GetProperty("label").GetString().Should().Be("Savings");
+
+        // The database key is not part of the contract, so it must not leak into the body.
+        document.RootElement.TryGetProperty("id", out _).Should().BeFalse();
     }
 
     [Test]
-    public async Task Get_accounts_by_id_returns_the_direct_resource()
+    public async Task Get_accounts_by_number_returns_the_direct_resource()
     {
         await SeedAccount();
 
-        var response = await client.GetAsync("/api/v1/accounts/1");
+        var response = await client.GetAsync($"/api/v1/accounts/{SourceNumber}");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        document.RootElement.GetProperty("id").GetInt32().Should().Be(1);
+        document.RootElement.GetProperty("accountNumber").GetString().Should().Be(SourceNumber);
         document.RootElement.GetProperty("label").GetString().Should().Be("Cash");
     }
 
@@ -98,14 +103,28 @@ public class ApiEndpointTests
         await SeedAccount();
 
         var updateResponse = await client.PutAsync(
-            "/api/v1/accounts/1",
-            JsonBody("{\"name\":\"Updated Cash\",\"isDefault\":false}"));
-        var deleteResponse = await client.DeleteAsync("/api/v1/accounts/1");
+            $"/api/v1/accounts/{SourceNumber}",
+            JsonBody("{\"label\":\"Updated Cash\",\"isDefault\":false}"));
+        var deleteResponse = await client.DeleteAsync($"/api/v1/accounts/{SourceNumber}");
 
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await updateResponse.Content.ReadAsStringAsync());
         document.RootElement.GetProperty("label").GetString().Should().Be("Updated Cash");
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Test]
+    public async Task Account_timestamps_are_iso_8601_not_unix_seconds()
+    {
+        await SeedAccount();
+
+        var response = await client.GetAsync($"/api/v1/accounts/{SourceNumber}");
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var createdAt = document.RootElement.GetProperty("createdAt");
+        createdAt.ValueKind.Should().Be(JsonValueKind.String);
+        createdAt.GetDateTimeOffset().Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(5));
+        document.RootElement.GetProperty("updatedAt").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     // ---------------------------------------------------------------- categories
@@ -117,7 +136,7 @@ public class ApiEndpointTests
 
         var response = await client.PostAsync(
             "/api/v1/categories",
-            JsonBody("{\"name\":\"Food\",\"priorityId\":1}"));
+            JsonBody("{\"label\":\"Food\",\"priorityId\":1}"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().Be(new Uri("http://localhost/api/v1/categories/1"));
@@ -146,7 +165,7 @@ public class ApiEndpointTests
 
         var updateResponse = await client.PutAsync(
             "/api/v1/categories/1",
-            JsonBody("{\"name\":\"Dining\",\"priorityId\":1}"));
+            JsonBody("{\"label\":\"Dining\",\"priorityId\":1}"));
         var deleteResponse = await client.DeleteAsync("/api/v1/categories/1");
 
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -203,6 +222,9 @@ public class ApiEndpointTests
     }
 
     // ---------------------------------------------------------------- transactions
+    //
+    // One resource, three kinds. Which sides the caller names decides the kind, so there is no
+    // type field: only a destination is income, only a source is expense, both is a transfer.
 
     [Test]
     public async Task Post_income_creates_a_direct_resource_and_uses_the_get_by_id_location()
@@ -212,9 +234,8 @@ public class ApiEndpointTests
 
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            type = "income",
-            amount = new { cents = 1234, currency = "EUR" },
-            accountNumber = seeded.AccountNumber,
+            amount = new { minorUnits = 1234, currency = "EUR" },
+            destinationAccountNumber = seeded.AccountNumber,
             categoryId = seeded.CategoryId,
             merchant = new { label = "Employer", create = true },
             tags = new[] { new { label = "salary", create = true } },
@@ -227,10 +248,11 @@ public class ApiEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var transaction = document.RootElement;
         transaction.TryGetProperty("data", out _).Should().BeFalse();
-        transaction.GetProperty("type").GetString().Should().Be("income");
-        transaction.GetProperty("amount").GetProperty("cents").GetInt64().Should().Be(1234);
+        transaction.GetProperty("kind").GetString().Should().Be("income");
+        transaction.GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(1234);
         transaction.GetProperty("amount").GetProperty("currency").GetString().Should().Be("EUR");
-        transaction.GetProperty("accountId").GetInt32().Should().Be(seeded.AccountId);
+        transaction.GetProperty("destinationAccountNumber").GetString().Should().Be(seeded.AccountNumber);
+        transaction.GetProperty("sourceAccountNumber").ValueKind.Should().Be(JsonValueKind.Null);
         transaction.GetProperty("categoryId").GetInt32().Should().Be(seeded.CategoryId);
         transaction.GetProperty("merchant").GetProperty("label").GetString().Should().Be("Employer");
         transaction.GetProperty("tags").GetArrayLength().Should().Be(1);
@@ -242,19 +264,45 @@ public class ApiEndpointTests
         using var getCreatedDocument = JsonDocument.Parse(await getCreatedResponse.Content.ReadAsStringAsync());
         getCreatedDocument.RootElement.GetProperty("id").GetInt32().Should().Be(createdId);
 
-        (await GetAccountBalance(seeded.AccountId)).Should().Be(1234);
+        (await GetAccountBalance(seeded.AccountNumber)).Should().Be(1234);
+    }
+
+    /// <summary>
+    /// OccurredAt and CreatedAt are separate facts. A transaction dated in the past keeps that date
+    /// while still recording when the row was written -- they were the same column until now, so a
+    /// backdated entry made it impossible to tell when anything was entered.
+    /// </summary>
+    [Test]
+    public async Task Post_transaction_keeps_the_supplied_occurrence_time_and_stamps_its_own_created_time()
+    {
+        var seeded = await SeedAccountAndCategory(5000);
+        var occurredAt = new DateTimeOffset(2026, 6, 1, 8, 0, 0, TimeSpan.Zero);
+
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            amount = new { minorUnits = 250, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber,
+            categoryId = seeded.CategoryId,
+            merchant = new { label = "Coffee Shop", create = true },
+            occurredAt
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("occurredAt").GetDateTimeOffset().Should().Be(occurredAt);
+        document.RootElement.GetProperty("createdAt").GetDateTimeOffset()
+            .Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(5));
     }
 
     [Test]
-    public async Task Post_expense_creates_a_direct_resource_and_debits_exact_cents()
+    public async Task Post_expense_creates_a_direct_resource_and_debits_exact_minor_units()
     {
         var seeded = await SeedAccountAndCategory(2000);
 
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            type = "expense",
-            amount = new { cents = 99, currency = "EUR" },
-            accountNumber = seeded.AccountNumber,
+            amount = new { minorUnits = 99, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber,
             categoryId = seeded.CategoryId,
             merchant = new { label = "Coffee Shop", create = true }
         });
@@ -262,12 +310,14 @@ public class ApiEndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var transaction = document.RootElement;
-        transaction.GetProperty("type").GetString().Should().Be("expense");
-        transaction.GetProperty("amount").GetProperty("cents").GetInt64().Should().Be(99);
+        transaction.GetProperty("kind").GetString().Should().Be("expense");
+        transaction.GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(99);
         transaction.GetProperty("amount").GetProperty("currency").GetString().Should().Be("EUR");
+        transaction.GetProperty("sourceAccountNumber").GetString().Should().Be(seeded.AccountNumber);
+        transaction.GetProperty("destinationAccountNumber").ValueKind.Should().Be(JsonValueKind.Null);
         transaction.GetProperty("updatedAt").ValueKind.Should().Be(JsonValueKind.Null);
 
-        (await GetAccountBalance(seeded.AccountId)).Should().Be(1901);
+        (await GetAccountBalance(seeded.AccountNumber)).Should().Be(1901);
     }
 
     [Test]
@@ -282,10 +332,10 @@ public class ApiEndpointTests
         var transaction = document.RootElement;
         transaction.TryGetProperty("data", out _).Should().BeFalse();
         transaction.GetProperty("id").GetInt32().Should().Be(seeded.LatestTransactionId);
-        transaction.GetProperty("type").GetString().Should().Be("income");
-        transaction.GetProperty("amount").GetProperty("cents").GetInt64().Should().Be(1234);
+        transaction.GetProperty("kind").GetString().Should().Be("income");
+        transaction.GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(1234);
         transaction.GetProperty("amount").GetProperty("currency").GetString().Should().Be("EUR");
-        transaction.GetProperty("accountId").GetInt32().Should().Be(seeded.AccountId);
+        transaction.GetProperty("destinationAccountNumber").GetString().Should().Be(SourceNumber);
         transaction.GetProperty("categoryId").GetInt32().Should().Be(seeded.CategoryId);
         transaction.GetProperty("merchant").GetProperty("id").GetInt32().Should().Be(seeded.MerchantId);
         transaction.GetProperty("merchant").GetProperty("label").GetString().Should().Be("Grocer");
@@ -328,14 +378,12 @@ public class ApiEndpointTests
         document.RootElement.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
     }
 
-    [TestCase("transfer")]
-    [TestCase("refund")]
-    public async Task Post_transaction_with_an_unsupported_type_returns_a_validation_problem(string type)
+    [Test]
+    public async Task Post_transaction_naming_neither_account_is_rejected()
     {
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            type,
-            amount = new { cents = 1234, currency = "EUR" },
+            amount = new { minorUnits = 1234, currency = "EUR" },
             categoryId = 1,
             merchant = new { label = "Employer", create = true }
         });
@@ -343,18 +391,61 @@ public class ApiEndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        document.RootElement.GetProperty("errors").TryGetProperty("type", out _).Should().BeTrue();
+        document.RootElement.GetProperty("errors")
+            .TryGetProperty("sourceAccountNumber", out _).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Post_one_sided_transaction_without_a_category_or_merchant_is_rejected()
+    {
+        var seeded = await SeedAccountAndCategory(2000);
+
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var errors = document.RootElement.GetProperty("errors");
+        errors.TryGetProperty("categoryId", out _).Should().BeTrue();
+        errors.TryGetProperty("merchant", out _).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Post_transfer_carrying_a_category_or_merchant_is_rejected()
+    {
+        var accounts = await SeedTransferAccounts(2000, 300);
+
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = accounts.DestinationNumber,
+            categoryId = 1,
+            merchant = new { label = "Employer", create = true }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var errors = document.RootElement.GetProperty("errors");
+        errors.TryGetProperty("categoryId", out _).Should().BeTrue();
+        errors.TryGetProperty("merchant", out _).Should().BeTrue();
+        await AssertBalancesUnchanged(accounts, 2000, 300);
     }
 
     [TestCase(0, "EUR")]
     [TestCase(1234, "0")]
     [TestCase(1234, "GBP")]
-    public async Task Post_transaction_with_an_invalid_amount_returns_a_validation_problem(long cents, string currency)
+    public async Task Post_transaction_with_an_invalid_amount_returns_a_validation_problem(
+        long minorUnits,
+        string currency)
     {
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            type = "income",
-            amount = new { cents, currency },
+            amount = new { minorUnits, currency },
+            destinationAccountNumber = SourceNumber,
             categoryId = 1,
             merchant = new { label = "Employer", create = true }
         });
@@ -364,19 +455,22 @@ public class ApiEndpointTests
     }
 
     // ---------------------------------------------------------------- transfers
+    //
+    // A transfer is a transaction with both sides named. There is no /transfers resource and no
+    // leg rows: the legs held nothing the parent did not already hold.
 
     [Test]
-    public async Task Post_creates_an_atomic_transfer_resource_with_two_auditable_legs()
+    public async Task Post_creates_an_atomic_transfer_naming_both_accounts()
     {
         // Both accounts in USD: proves a non-default currency works end to end.
         var accounts = await SeedTransferAccounts(2000, 300, Currency.USD, Currency.USD);
         var occurredAt = new DateTimeOffset(2026, 7, 26, 9, 30, 0, TimeSpan.Zero);
 
-        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            sourceAccountId = accounts.SourceId,
-            destinationAccountId = accounts.DestinationId,
-            amount = new { cents = 1234, currency = "USD" },
+            amount = new { minorUnits = 1234, currency = "USD" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = accounts.DestinationNumber,
             reason = "Shared rent",
             occurredAt
         });
@@ -386,27 +480,41 @@ public class ApiEndpointTests
         var transfer = document.RootElement;
         transfer.TryGetProperty("data", out _).Should().BeFalse();
         transfer.GetProperty("id").GetInt32().Should().BePositive();
-        transfer.GetProperty("sourceAccountId").GetInt32().Should().Be(accounts.SourceId);
-        transfer.GetProperty("destinationAccountId").GetInt32().Should().Be(accounts.DestinationId);
-        transfer.GetProperty("amount").GetProperty("cents").GetInt64().Should().Be(1234);
+        transfer.GetProperty("kind").GetString().Should().Be("transfer");
+        transfer.GetProperty("sourceAccountNumber").GetString().Should().Be(accounts.SourceNumber);
+        transfer.GetProperty("destinationAccountNumber").GetString().Should().Be(accounts.DestinationNumber);
+        transfer.GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(1234);
         transfer.GetProperty("amount").GetProperty("currency").GetString().Should().Be("USD");
         transfer.GetProperty("reason").GetString().Should().Be("Shared rent");
         transfer.GetProperty("occurredAt").GetDateTimeOffset().Should().Be(occurredAt);
-        transfer.GetProperty("legs").EnumerateArray()
-            .Select(leg => leg.GetProperty("direction").GetString())
-            .Should().BeEquivalentTo("debit", "credit");
 
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
-        var persisted = await dbContext.Transfers.AsNoTracking()
-            .Include(item => item.Legs)
-            .SingleAsync(item => item.Id == transfer.GetProperty("id").GetInt32());
-        (await dbContext.Accounts.AsNoTracking().SingleAsync(account => account.Id == accounts.SourceId))
-            .BalanceCents.Should().Be(766);
-        (await dbContext.Accounts.AsNoTracking().SingleAsync(account => account.Id == accounts.DestinationId))
-            .BalanceCents.Should().Be(1534);
-        persisted.Legs.Should().HaveCount(2)
-            .And.OnlyContain(leg => leg.TransferId == persisted.Id && leg.Amount == 1234 && leg.Currency == Currency.USD);
+        // A transfer is money you still own, so it has no spending class and no external party.
+        transfer.GetProperty("categoryId").ValueKind.Should().Be(JsonValueKind.Null);
+        transfer.GetProperty("merchant").ValueKind.Should().Be(JsonValueKind.Null);
+
+        (await GetAccountBalance(accounts.SourceNumber)).Should().Be(766);
+        (await GetAccountBalance(accounts.DestinationNumber)).Should().Be(1534);
+    }
+
+    [Test]
+    public async Task Post_transfer_appears_in_the_transaction_list()
+    {
+        var accounts = await SeedTransferAccounts(2000, 300);
+
+        await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = accounts.DestinationNumber
+        });
+
+        var response = await client.GetAsync("/api/v1/transactions");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var items = document.RootElement.GetProperty("items");
+        items.GetArrayLength().Should().Be(1);
+        items[0].GetProperty("kind").GetString().Should().Be("transfer");
     }
 
     [Test]
@@ -414,11 +522,11 @@ public class ApiEndpointTests
     {
         var accounts = await SeedTransferAccounts(2000, 300);
 
-        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            sourceAccountId = accounts.SourceId,
-            destinationAccountId = accounts.SourceId,
-            amount = new { cents = 100, currency = "EUR" }
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = accounts.SourceNumber
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -426,7 +534,7 @@ public class ApiEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement
             .GetProperty("errors")
-            .GetProperty("destinationAccountId")[0]
+            .GetProperty("destinationAccountNumber")[0]
             .GetString()
             .Should().Be("Source and destination accounts must be different.");
         await AssertBalancesUnchanged(accounts, 2000, 300);
@@ -437,34 +545,19 @@ public class ApiEndpointTests
     {
         var accounts = await SeedTransferAccounts(500, 300);
 
-        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            sourceAccountId = accounts.SourceId,
-            destinationAccountId = accounts.DestinationId,
-            amount = new { cents = 501, currency = "EUR" }
+            amount = new { minorUnits = 501, currency = "EUR" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = accounts.DestinationNumber
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement.GetProperty("title").GetString().Should().Be("Insufficient funds");
-        document.RootElement.GetProperty("errors").TryGetProperty("amount.cents", out _).Should().BeTrue();
+        document.RootElement.GetProperty("errors").TryGetProperty("amount.minorUnits", out _).Should().BeTrue();
         await AssertBalancesUnchanged(accounts, 500, 300);
-    }
-
-    [TestCase(0, "EUR")]
-    [TestCase(100, "GBP")]
-    public async Task Post_transfer_with_invalid_money_returns_a_validation_problem(long cents, string currency)
-    {
-        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
-        {
-            sourceAccountId = 1,
-            destinationAccountId = 2,
-            amount = new { cents, currency }
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
     }
 
     [Test]
@@ -472,11 +565,11 @@ public class ApiEndpointTests
     {
         var accounts = await SeedTransferAccounts(2000, 300);
 
-        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            sourceAccountId = accounts.SourceId,
-            destinationAccountId = 999,
-            amount = new { cents = 100, currency = "EUR" }
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = "9999999999"
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -487,39 +580,28 @@ public class ApiEndpointTests
     }
 
     [Test]
-    public async Task Post_transfer_returns_a_location_that_serves_the_new_transfer()
+    public async Task Post_transfer_returns_a_location_that_serves_the_new_transaction()
     {
         var accounts = await SeedTransferAccounts(2000, 300);
 
-        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            sourceAccountId = accounts.SourceId,
-            destinationAccountId = accounts.DestinationId,
-            amount = new { cents = 1234, currency = "EUR" },
+            amount = new { minorUnits = 1234, currency = "EUR" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = accounts.DestinationNumber,
             reason = "Shared rent"
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
-        response.Headers.Location!.ToString().Should().MatchRegex("/api/v1/transfers/[1-9][0-9]*$");
+        response.Headers.Location!.ToString().Should().MatchRegex("/api/v1/transactions/[1-9][0-9]*$");
 
         // The header has to actually resolve -- a Location pointing at a 404 is worse than none.
         var followed = await client.GetAsync(response.Headers.Location);
         followed.StatusCode.Should().Be(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await followed.Content.ReadAsStringAsync());
         document.RootElement.GetProperty("reason").GetString().Should().Be("Shared rent");
-        document.RootElement.GetProperty("legs").GetArrayLength().Should().Be(2);
-    }
-
-    [Test]
-    public async Task Unknown_transfer_returns_problem_details()
-    {
-        var response = await client.GetAsync("/api/v1/transfers/424242");
-
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        document.RootElement.GetProperty("detail").GetString().Should().Contain("424242");
+        document.RootElement.GetProperty("kind").GetString().Should().Be("transfer");
     }
 
     [Test]
@@ -529,36 +611,34 @@ public class ApiEndpointTests
         // the fixture's. Replaces the old test that injected a failing ITransferRepository.
         using var failing = new WebApiTestFactory(
             await PostgresFixture.CreateDatabase(),
-            new FailOnSaveInterceptor<Transfer>());
+            new FailOnSaveInterceptor<Transaction>());
         using var failingClient = failing.CreateClient();
 
-        int sourceId, destinationId;
         using (var scope = failing.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
-            var source = NewAccount("1000000000", "Source", 2000);
-            var destination = NewAccount("2000000000", "Destination", 300);
-            db.Accounts.AddRange(source, destination);
+            db.Accounts.AddRange(
+                NewAccount(SourceNumber, "Source", 2000),
+                NewAccount(DestinationNumber, "Destination", 300));
             await db.SaveChangesAsync();
-            sourceId = source.Id;
-            destinationId = destination.Id;
         }
 
-        var response = await failingClient.PostAsJsonAsync("/api/v1/transfers", new
+        var response = await failingClient.PostAsJsonAsync("/api/v1/transactions", new
         {
-            sourceAccountId = sourceId,
-            destinationAccountId = destinationId,
-            amount = new { cents = 1234, currency = "EUR" }
+            amount = new { minorUnits = 1234, currency = "EUR" },
+            sourceAccountNumber = SourceNumber,
+            destinationAccountNumber = DestinationNumber
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
 
         using var verification = failing.Services.CreateScope();
         var verifyDb = verification.ServiceProvider.GetRequiredService<XpenseDbContext>();
-        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.Id == sourceId)).BalanceCents.Should().Be(2000);
-        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.Id == destinationId)).BalanceCents.Should().Be(300);
-        (await verifyDb.Transfers.CountAsync()).Should().Be(0);
-        (await verifyDb.TransferLegs.CountAsync()).Should().Be(0);
+        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.AccountNumber == SourceNumber))
+            .BalanceMinorUnits.Should().Be(2000);
+        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.AccountNumber == DestinationNumber))
+            .BalanceMinorUnits.Should().Be(300);
+        (await verifyDb.Transactions.CountAsync()).Should().Be(0);
     }
 
     // ---------------------------------------------------------------- multi-currency
@@ -572,10 +652,10 @@ public class ApiEndpointTests
     {
         var euro = await client.PostAsync(
             "/api/v1/accounts",
-            JsonBody("{\"name\":\"Euro\",\"balance\":{\"cents\":1000,\"currency\":\"EUR\"}}"));
+            JsonBody("{\"label\":\"Euro\",\"balance\":{\"minorUnits\":1000,\"currency\":\"EUR\"}}"));
         var dollar = await client.PostAsync(
             "/api/v1/accounts",
-            JsonBody("{\"name\":\"Dollar\",\"balance\":{\"cents\":2500,\"currency\":\"USD\"}}"));
+            JsonBody("{\"label\":\"Dollar\",\"balance\":{\"minorUnits\":2500,\"currency\":\"USD\"}}"));
 
         euro.StatusCode.Should().Be(HttpStatusCode.Created);
         dollar.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -583,9 +663,9 @@ public class ApiEndpointTests
         using var euroDoc = JsonDocument.Parse(await euro.Content.ReadAsStringAsync());
         using var dollarDoc = JsonDocument.Parse(await dollar.Content.ReadAsStringAsync());
 
-        euroDoc.RootElement.GetProperty("balance").GetProperty("cents").GetInt64().Should().Be(1000);
+        euroDoc.RootElement.GetProperty("balance").GetProperty("minorUnits").GetInt64().Should().Be(1000);
         euroDoc.RootElement.GetProperty("balance").GetProperty("currency").GetString().Should().Be("EUR");
-        dollarDoc.RootElement.GetProperty("balance").GetProperty("cents").GetInt64().Should().Be(2500);
+        dollarDoc.RootElement.GetProperty("balance").GetProperty("minorUnits").GetInt64().Should().Be(2500);
         dollarDoc.RootElement.GetProperty("balance").GetProperty("currency").GetString().Should().Be("USD");
     }
 
@@ -596,9 +676,8 @@ public class ApiEndpointTests
 
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            type = "expense",
-            amount = new { cents = 500, currency = "USD" },  // the account is EUR
-            accountNumber = seeded.AccountNumber,
+            amount = new { minorUnits = 500, currency = "USD" },  // the account is EUR
+            sourceAccountNumber = seeded.AccountNumber,
             categoryId = seeded.CategoryId,
             merchant = new { label = "Coffee Shop", create = true }
         });
@@ -610,7 +689,7 @@ public class ApiEndpointTests
             .Should().Contain("EUR").And.Contain("USD");
 
         // Rejected before anything moved.
-        (await GetAccountBalance(seeded.AccountId)).Should().Be(2000);
+        (await GetAccountBalance(seeded.AccountNumber)).Should().Be(2000);
     }
 
     [Test]
@@ -618,11 +697,11 @@ public class ApiEndpointTests
     {
         var accounts = await SeedTransferAccounts(2000, 300, Currency.EUR, Currency.USD);
 
-        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            sourceAccountId = accounts.SourceId,
-            destinationAccountId = accounts.DestinationId,
-            amount = new { cents = 100, currency = "EUR" }
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = accounts.DestinationNumber
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -639,11 +718,11 @@ public class ApiEndpointTests
     {
         var accounts = await SeedTransferAccounts(2000, 300, Currency.EUR, Currency.EUR);
 
-        var response = await client.PostAsJsonAsync("/api/v1/transfers", new
+        var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            sourceAccountId = accounts.SourceId,
-            destinationAccountId = accounts.DestinationId,
-            amount = new { cents = 100, currency = "USD" }
+            amount = new { minorUnits = 100, currency = "USD" },
+            sourceAccountNumber = accounts.SourceNumber,
+            destinationAccountNumber = accounts.DestinationNumber
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -663,12 +742,28 @@ public class ApiEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var summary = document.RootElement;
         summary.TryGetProperty("data", out _).Should().BeFalse();
-        summary.GetProperty("total").GetProperty("cents").GetInt64().Should().Be(1250);
+        summary.GetProperty("total").GetProperty("minorUnits").GetInt64().Should().Be(1250);
         summary.GetProperty("total").GetProperty("currency").GetString().Should().Be("EUR");
         var expenses = summary.GetProperty("expenses");
         expenses.GetArrayLength().Should().Be(1);
         expenses[0].GetProperty("category").GetProperty("label").GetString().Should().Be("Food");
-        expenses[0].GetProperty("amount").GetProperty("cents").GetInt64().Should().Be(1250);
+        expenses[0].GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(1250);
+    }
+
+    /// <summary>
+    /// Spending means expenses. Transfers have no category to group by, and income is not spending
+    /// -- nothing filtered by direction before, so both would have been counted.
+    /// </summary>
+    [Test]
+    public async Task Get_spending_by_category_counts_neither_income_nor_transfers()
+    {
+        await SeedTodayExpense(alsoSeedIncomeAndTransfer: true);
+
+        var response = await client.GetAsync("/api/v1/analytics/spending/by-category");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("total").GetProperty("minorUnits").GetInt64().Should().Be(1250);
     }
 
     // ---------------------------------------------------------------- error contract
@@ -680,7 +775,7 @@ public class ApiEndpointTests
     [Test]
     public async Task Unknown_account_returns_problem_details_not_an_envelope()
     {
-        var response = await client.GetAsync("/api/v1/accounts/424242");
+        var response = await client.GetAsync("/api/v1/accounts/4242424242");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
@@ -689,7 +784,7 @@ public class ApiEndpointTests
         var root = document.RootElement;
         root.GetProperty("status").GetInt32().Should().Be(404);
         root.GetProperty("title").GetString().Should().Be("Resource not found");
-        root.GetProperty("detail").GetString().Should().Contain("424242");
+        root.GetProperty("detail").GetString().Should().Contain("4242424242");
 
         // The old Response<T> envelope leaked these two keys; they must never come back.
         root.TryGetProperty("statusCode", out _).Should().BeFalse();
@@ -722,19 +817,19 @@ public class ApiEndpointTests
     }
 
     [Test]
-    public async Task Blank_account_name_is_reported_as_a_camel_case_field_error()
+    public async Task Blank_account_label_is_reported_as_a_camel_case_field_error()
     {
         var response = await client.PostAsync(
             "/api/v1/accounts",
-            JsonBody("{\"name\":\"\",\"balance\":{\"cents\":1000,\"currency\":\"EUR\"}}"));
+            JsonBody("{\"label\":\"\",\"balance\":{\"minorUnits\":1000,\"currency\":\"EUR\"}}"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement
             .GetProperty("errors")
-            .GetProperty("name")[0]
+            .GetProperty("label")[0]
             .GetString()
-            .Should().Be("The name is required.");
+            .Should().Be("The label is required.");
     }
 
     [Test]
@@ -765,12 +860,18 @@ public class ApiEndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    /// <summary>
+    /// The account number addresses an account; the database key does not. "1" matches the route
+    /// pattern but is nobody's account number, so it resolves to a 404 rather than to account 1.
+    /// </summary>
     [TestCase("/api/account")]
     [TestCase("/api/account/1000000000")]
-    [TestCase("/api/v1/accounts/1000000000")]
-    public async Task Legacy_account_number_put_routes_are_not_available(string route)
+    [TestCase("/api/v1/accounts/1")]
+    public async Task Legacy_account_put_routes_are_not_available(string route)
     {
-        var response = await client.PutAsync(route, JsonBody("{\"name\":\"Cash\",\"isDefault\":true}"));
+        await SeedAccount();
+
+        var response = await client.PutAsync(route, JsonBody("{\"label\":\"Cash\",\"isDefault\":true}"));
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -778,7 +879,8 @@ public class ApiEndpointTests
     [TestCase("/api/transaction/deposit")]
     [TestCase("/api/transaction/withdraw")]
     [TestCase("/api/transaction/transfer")]
-    public async Task Removed_or_unimplemented_transaction_routes_return_not_found(string path)
+    [TestCase("/api/v1/transfers")]
+    public async Task Removed_transaction_and_transfer_routes_return_not_found(string path)
     {
         var response = await client.PostAsync(path, JsonContent.Create(new { }));
 
@@ -808,17 +910,17 @@ public class ApiEndpointTests
 
     private static Account NewAccount(
         string number,
-        string name,
-        long balanceCents,
+        string label,
+        long balanceMinorUnits,
         bool isDefault = false,
         Currency currency = Currency.EUR) => new()
     {
         AccountNumber = number,
-        Name = name,
-        BalanceCents = balanceCents,
+        Label = label,
+        BalanceMinorUnits = balanceMinorUnits,
         Currency = currency,
-        CreatedOn = DateTime.UtcNow,
-        IsDefaultAccount = isDefault
+        CreatedAt = DateTime.UtcNow,
+        IsDefault = isDefault
     };
 
     private async Task SeedAccount()
@@ -826,7 +928,7 @@ public class ApiEndpointTests
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            dbContext.Accounts.Add(NewAccount("1000000000", "Cash", 0, isDefault: true));
+            dbContext.Accounts.Add(NewAccount(SourceNumber, "Cash", 0, isDefault: true));
             await dbContext.SaveChangesAsync();
         }
     }
@@ -836,7 +938,7 @@ public class ApiEndpointTests
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            dbContext.Priorities.Add(new Priority { Label = "Normal", Weight = 1, CreatedOn = DateTime.UtcNow });
+            dbContext.Priorities.Add(new Priority { Label = "Normal", Weight = 1, CreatedAt = DateTime.UtcNow });
             await dbContext.SaveChangesAsync();
         }
     }
@@ -846,9 +948,9 @@ public class ApiEndpointTests
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            var priority = new Priority { Label = "Normal", Weight = 1, CreatedOn = DateTime.UtcNow };
+            var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = DateTime.UtcNow };
             dbContext.Priorities.Add(priority);
-            dbContext.Categories.Add(new Category { Label = "Food", Priority = priority, CreatedOn = DateTime.UtcNow });
+            dbContext.Categories.Add(new Category { Label = "Food", Priority = priority, CreatedAt = DateTime.UtcNow });
             await dbContext.SaveChangesAsync();
         }
     }
@@ -863,28 +965,28 @@ public class ApiEndpointTests
         using (scope)
         {
             // Link via navigation, not a hard-coded PriorityId, so EF orders the inserts.
-            var priority = new Priority { Label = "Normal", Weight = 1, CreatedOn = DateTime.UtcNow };
+            var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = DateTime.UtcNow };
             dbContext.Priorities.Add(priority);
-            dbContext.Accounts.Add(NewAccount("1000000000", "Cash", 0, isDefault: true));
-            dbContext.Categories.Add(new Category { Label = "Food", Priority = priority, CreatedOn = DateTime.UtcNow });
-            dbContext.Tags.Add(new Tag { Label = "Travel", CreatedOn = DateTime.UtcNow });
-            dbContext.Merchants.Add(new Merchant { Label = "Albert Heijn", CreatedOn = DateTime.UtcNow });
+            dbContext.Accounts.Add(NewAccount(SourceNumber, "Cash", 0, isDefault: true));
+            dbContext.Categories.Add(new Category { Label = "Food", Priority = priority, CreatedAt = DateTime.UtcNow });
+            dbContext.Tags.Add(new Tag { Label = "Travel", CreatedAt = DateTime.UtcNow });
+            dbContext.Merchants.Add(new Merchant { Label = "Albert Heijn", CreatedAt = DateTime.UtcNow });
             await dbContext.SaveChangesAsync();
         }
     }
 
-    private async Task<SeededAccountAndCategory> SeedAccountAndCategory(long balanceCents)
+    private async Task<SeededAccountAndCategory> SeedAccountAndCategory(long balanceMinorUnits)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            var priority = new Priority { Label = "Normal", Weight = 1, CreatedOn = DateTime.UtcNow };
-            var account = NewAccount("1000000000", "Cash", balanceCents, isDefault: true);
-            var category = new Category { Label = "Food", Priority = priority, CreatedOn = DateTime.UtcNow };
+            var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = DateTime.UtcNow };
+            var account = NewAccount(SourceNumber, "Cash", balanceMinorUnits, isDefault: true);
+            var category = new Category { Label = "Food", Priority = priority, CreatedAt = DateTime.UtcNow };
             dbContext.AddRange(priority, account, category);
             await dbContext.SaveChangesAsync();
 
-            return new SeededAccountAndCategory(account.Id, account.AccountNumber, category.Id);
+            return new SeededAccountAndCategory(account.AccountNumber, category.Id);
         }
     }
 
@@ -893,123 +995,149 @@ public class ApiEndpointTests
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            var priority = new Priority { Label = "Normal", Weight = 1, CreatedOn = DateTime.UtcNow };
-            var account = NewAccount("1000000000", "Cash", 0, isDefault: true);
-            var category = new Category { Label = "Food", Priority = priority, CreatedOn = DateTime.UtcNow };
-            var merchant = new Merchant { Label = "Grocer", CreatedOn = DateTime.UtcNow };
+            var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = DateTime.UtcNow };
+            var account = NewAccount(SourceNumber, "Cash", 0, isDefault: true);
+            var category = new Category { Label = "Food", Priority = priority, CreatedAt = DateTime.UtcNow };
+            var merchant = new Merchant { Label = "Grocer", CreatedAt = DateTime.UtcNow };
             dbContext.AddRange(priority, account, category, merchant);
             await dbContext.SaveChangesAsync();
 
-            var oldest = NewTransaction(500, TransactionType.Debit, At(10), account, category, merchant);
-            var middle = NewTransaction(999, TransactionType.Debit, At(11), account, category, merchant);
-            var latest = NewTransaction(1234, TransactionType.Credit, At(12), account, category, merchant);
+            var oldest = NewExpense(500, At(10), account, category, merchant);
+            var middle = NewExpense(999, At(11), account, category, merchant);
+            var latest = NewIncome(1234, At(12), account, category, merchant);
             dbContext.Transactions.AddRange(oldest, middle, latest);
             await dbContext.SaveChangesAsync();
 
-            return new SeededTransactions(latest.Id, oldest.Id, account.Id, category.Id, merchant.Id);
+            return new SeededTransactions(latest.Id, oldest.Id, category.Id, merchant.Id);
         }
 
         static DateTimeOffset At(int hour) => new(2026, 7, 26, hour, 0, 0, TimeSpan.Zero);
     }
 
-    private async Task SeedTodayExpense()
+    private async Task SeedTodayExpense(bool alsoSeedIncomeAndTransfer = false)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            var priority = new Priority { Label = "Normal", Weight = 1, CreatedOn = DateTime.UtcNow };
-            var account = NewAccount("1000000000", "Cash", 0, isDefault: true);
-            var category = new Category { Label = "Food", Priority = priority, CreatedOn = DateTime.UtcNow };
-            var merchant = new Merchant { Label = "Grocer", CreatedOn = DateTime.UtcNow };
-            dbContext.AddRange(priority, account, category, merchant);
+            var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = DateTime.UtcNow };
+            var account = NewAccount(SourceNumber, "Cash", 0, isDefault: true);
+            var other = NewAccount(DestinationNumber, "Savings", 0);
+            var category = new Category { Label = "Food", Priority = priority, CreatedAt = DateTime.UtcNow };
+            var merchant = new Merchant { Label = "Grocer", CreatedAt = DateTime.UtcNow };
+            dbContext.AddRange(priority, account, other, category, merchant);
             await dbContext.SaveChangesAsync();
 
-            dbContext.Transactions.Add(new Transaction
+            var now = DateTime.UtcNow;
+            dbContext.Transactions.Add(NewExpense(1250, now, account, category, merchant));
+
+            if (alsoSeedIncomeAndTransfer)
             {
-                Amount = 1250,
-                Currency = Currency.EUR,
-                TransactionType = TransactionType.Debit,
-                Account = account,
-                Category = category,
-                Merchant = merchant,
-                Tags = [],
-                CreatedOn = DateTime.UtcNow
-            });
+                dbContext.Transactions.Add(NewIncome(9999, now, account, category, merchant));
+                dbContext.Transactions.Add(new Transaction
+                {
+                    AmountMinorUnits = 5555,
+                    Currency = Currency.EUR,
+                    SourceAccount = account,
+                    DestinationAccount = other,
+                    Tags = [],
+                    OccurredAt = now,
+                    CreatedAt = now
+                });
+            }
+
             await dbContext.SaveChangesAsync();
         }
     }
 
     private async Task<TransferAccounts> SeedTransferAccounts(
-        long sourceBalanceCents,
-        long destinationBalanceCents,
+        long sourceBalanceMinorUnits,
+        long destinationBalanceMinorUnits,
         Currency sourceCurrency = Currency.EUR,
         Currency destinationCurrency = Currency.EUR)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            var source = NewAccount("1000000000", "Source", sourceBalanceCents, currency: sourceCurrency);
-            var destination = NewAccount("2000000000", "Destination", destinationBalanceCents, currency: destinationCurrency);
+            var source = NewAccount(SourceNumber, "Source", sourceBalanceMinorUnits, currency: sourceCurrency);
+            var destination = NewAccount(
+                DestinationNumber, "Destination", destinationBalanceMinorUnits, currency: destinationCurrency);
             dbContext.Accounts.AddRange(source, destination);
             await dbContext.SaveChangesAsync();
-            return new TransferAccounts(source.Id, destination.Id);
+            return new TransferAccounts(source.AccountNumber, destination.AccountNumber);
         }
     }
 
-    private static Transaction NewTransaction(
-        long amount,
-        TransactionType type,
+    private static Transaction NewExpense(
+        long amountMinorUnits,
         DateTimeOffset occurredAt,
-        Account account,
+        Account source,
         Category category,
         Merchant merchant) => new()
     {
-        Amount = amount,
+        AmountMinorUnits = amountMinorUnits,
         Currency = Currency.EUR,
-        TransactionType = type,
-        Account = account,
+        SourceAccount = source,
         Category = category,
         Merchant = merchant,
         Tags = [],
-        CreatedOn = occurredAt.UtcDateTime
+        OccurredAt = occurredAt.UtcDateTime,
+        CreatedAt = DateTime.UtcNow
     };
 
-    private async Task<long> GetAccountBalance(int accountId)
+    private static Transaction NewIncome(
+        long amountMinorUnits,
+        DateTimeOffset occurredAt,
+        Account destination,
+        Category category,
+        Merchant merchant) => new()
+    {
+        AmountMinorUnits = amountMinorUnits,
+        Currency = Currency.EUR,
+        DestinationAccount = destination,
+        Category = category,
+        Merchant = merchant,
+        Tags = [],
+        OccurredAt = occurredAt.UtcDateTime,
+        CreatedAt = DateTime.UtcNow
+    };
+
+    private async Task<long> GetAccountBalance(string accountNumber)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
             return await dbContext.Accounts.AsNoTracking()
-                .Where(account => account.Id == accountId)
-                .Select(account => account.BalanceCents)
+                .Where(account => account.AccountNumber == accountNumber)
+                .Select(account => account.BalanceMinorUnits)
                 .SingleAsync();
         }
     }
 
     private async Task AssertBalancesUnchanged(
         TransferAccounts accounts,
-        long sourceBalanceCents,
-        long destinationBalanceCents)
+        long sourceBalanceMinorUnits,
+        long destinationBalanceMinorUnits)
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            (await dbContext.Accounts.AsNoTracking().SingleAsync(account => account.Id == accounts.SourceId))
-                .BalanceCents.Should().Be(sourceBalanceCents);
-            (await dbContext.Accounts.AsNoTracking().SingleAsync(account => account.Id == accounts.DestinationId))
-                .BalanceCents.Should().Be(destinationBalanceCents);
-            (await dbContext.Transfers.CountAsync()).Should().Be(0);
+            (await dbContext.Accounts.AsNoTracking()
+                    .SingleAsync(account => account.AccountNumber == accounts.SourceNumber))
+                .BalanceMinorUnits.Should().Be(sourceBalanceMinorUnits);
+            (await dbContext.Accounts.AsNoTracking()
+                    .SingleAsync(account => account.AccountNumber == accounts.DestinationNumber))
+                .BalanceMinorUnits.Should().Be(destinationBalanceMinorUnits);
+            (await dbContext.Transactions.CountAsync()).Should().Be(0);
         }
     }
 
-    private sealed record SeededAccountAndCategory(int AccountId, string AccountNumber, int CategoryId);
+    private sealed record SeededAccountAndCategory(string AccountNumber, int CategoryId);
 
     private sealed record SeededTransactions(
         int LatestTransactionId,
         int OldestTransactionId,
-        int AccountId,
         int CategoryId,
         int MerchantId);
 
-    private sealed record TransferAccounts(int SourceId, int DestinationId);
+    private sealed record TransferAccounts(string SourceNumber, string DestinationNumber);
 }

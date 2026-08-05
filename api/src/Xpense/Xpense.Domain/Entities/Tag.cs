@@ -8,5 +8,5 @@ public class Tag : BaseEntity, IOptionEntity
     public string? BgColorHex { get; set; }
     public string? FgColorHex { get; set; }
 
-    public virtual ICollection<Transaction> Transactions { get; set; }
+    public virtual ICollection<Transaction>? Transactions { get; set; }
 }

@@ -14,6 +14,6 @@ public class TagOption : IOption<Tag>
     public Tag ToEntity() => new()
     {
         Label = Label,
-        CreatedOn = DateTime.UtcNow
+        CreatedAt = DateTime.UtcNow
     };
 }

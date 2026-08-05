@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Xpense.API.Contracts;
 using Xpense.API.Infrastructure;
 using Xpense.Persistence;
 using Xpense.Domain.Entities;
@@ -28,14 +28,12 @@ public sealed class ListMerchants : IEndpoint
 public sealed record MerchantResponse(
     int Id,
     string Label,
-    long? CreatedOn,
-    long? LastUpdated)
+    string CreatedAt,
+    string? UpdatedAt)
 {
     public static MerchantResponse Of(Merchant merchant) => new(
         merchant.Id,
         merchant.Label,
-        new DateTimeOffset(merchant.CreatedOn).ToUnixTimeSeconds(),
-        merchant.LastUpdated.HasValue
-            ? new DateTimeOffset(merchant.LastUpdated.Value).ToUnixTimeSeconds()
-            : null);
+        Timestamps.Iso(merchant.CreatedAt),
+        Timestamps.Iso(merchant.UpdatedAt));
 }

@@ -44,7 +44,7 @@ public sealed class CreateTag : IEndpoint
             Label = request.Label,
             BgColorHex = TagColour.Normalise(request.BgColorHex),
             FgColorHex = TagColour.Normalise(request.FgColorHex),
-            CreatedOn = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow
         };
 
         db.Tags.Add(tag);

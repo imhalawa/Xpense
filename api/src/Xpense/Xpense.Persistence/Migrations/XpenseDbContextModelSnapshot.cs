@@ -51,28 +51,28 @@ namespace Xpense.Persistence.Migrations
                         .HasColumnType("character(10)")
                         .IsFixedLength();
 
-                    b.Property<long>("BalanceCents")
+                    b.Property<long>("BalanceMinorUnits")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("CreatedOn")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Currency")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("IsDefaultAccount")
+                    b.Property<bool>("IsDefault")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime?>("LastUpdated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
+                    b.Property<string>("Label")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -90,7 +90,7 @@ namespace Xpense.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedOn")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
@@ -101,11 +101,11 @@ namespace Xpense.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("LastUpdated")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<int>("PriorityId")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -125,7 +125,7 @@ namespace Xpense.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedOn")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
@@ -136,7 +136,7 @@ namespace Xpense.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("LastUpdated")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
@@ -155,7 +155,7 @@ namespace Xpense.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedOn")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
@@ -166,7 +166,7 @@ namespace Xpense.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("LastUpdated")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<double>("Weight")
@@ -193,7 +193,7 @@ namespace Xpense.Persistence.Migrations
                         .HasColumnType("character(6)")
                         .IsFixedLength();
 
-                    b.Property<DateTime>("CreatedOn")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("FgColorHex")
@@ -209,7 +209,7 @@ namespace Xpense.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("LastUpdated")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
@@ -228,126 +228,54 @@ namespace Xpense.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AccountId")
-                        .HasColumnType("integer");
-
-                    b.Property<long>("Amount")
+                    b.Property<long>("AmountMinorUnits")
                         .HasColumnType("bigint");
 
-                    b.Property<int>("CategoryId")
+                    b.Property<int?>("CategoryId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("CreatedOn")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Currency")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastUpdated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("MerchantId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TransactionType")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("MerchantId");
-
-                    b.ToTable("Transactions", "Xpense");
-                });
-
-            modelBuilder.Entity("Xpense.Domain.Entities.Transfer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<long>("Amount")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Currency")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("DestinationAccountId")
+                    b.Property<int?>("DestinationAccountId")
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime?>("LastUpdated")
+                    b.Property<int?>("MerchantId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Reason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<int>("SourceAccountId")
+                    b.Property<int?>("SourceAccountId")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
 
                     b.HasIndex("DestinationAccountId");
 
+                    b.HasIndex("MerchantId");
+
                     b.HasIndex("SourceAccountId");
 
-                    b.ToTable("Transfers", "Xpense");
-                });
-
-            modelBuilder.Entity("Xpense.Domain.Entities.TransferLeg", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AccountId")
-                        .HasColumnType("integer");
-
-                    b.Property<long>("Amount")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Currency")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Direction")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastUpdated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("TransferId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("TransferId", "Direction")
-                        .IsUnique();
-
-                    b.ToTable("TransferLegs", "Xpense");
+                    b.ToTable("Transactions", "Xpense", t =>
+                        {
+                            t.HasCheckConstraint("CK_Transaction_Sides_And_Classification", "(\n  (\"SourceAccountId\" IS NULL) <> (\"DestinationAccountId\" IS NULL)\n  AND \"CategoryId\" IS NOT NULL AND \"MerchantId\" IS NOT NULL\n)\nOR\n(\n  \"SourceAccountId\" IS NOT NULL AND \"DestinationAccountId\" IS NOT NULL\n  AND \"CategoryId\" IS NULL AND \"MerchantId\" IS NULL\n)");
+                        });
                 });
 
             modelBuilder.Entity("TransactionTags", b =>
@@ -378,71 +306,31 @@ namespace Xpense.Persistence.Migrations
 
             modelBuilder.Entity("Xpense.Domain.Entities.Transaction", b =>
                 {
-                    b.HasOne("Xpense.Domain.Entities.Account", "Account")
-                        .WithMany("Transactions")
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("Xpense.Domain.Entities.Category", "Category")
                         .WithMany("Transactions")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CategoryId");
 
-                    b.HasOne("Xpense.Domain.Entities.Merchant", "Merchant")
-                        .WithMany("Transactions")
-                        .HasForeignKey("MerchantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account");
-
-                    b.Navigation("Category");
-
-                    b.Navigation("Merchant");
-                });
-
-            modelBuilder.Entity("Xpense.Domain.Entities.Transfer", b =>
-                {
                     b.HasOne("Xpense.Domain.Entities.Account", "DestinationAccount")
                         .WithMany()
                         .HasForeignKey("DestinationAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Xpense.Domain.Entities.Merchant", "Merchant")
+                        .WithMany("Transactions")
+                        .HasForeignKey("MerchantId");
 
                     b.HasOne("Xpense.Domain.Entities.Account", "SourceAccount")
                         .WithMany()
                         .HasForeignKey("SourceAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Category");
 
                     b.Navigation("DestinationAccount");
 
+                    b.Navigation("Merchant");
+
                     b.Navigation("SourceAccount");
-                });
-
-            modelBuilder.Entity("Xpense.Domain.Entities.TransferLeg", b =>
-                {
-                    b.HasOne("Xpense.Domain.Entities.Account", "Account")
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Xpense.Domain.Entities.Transfer", "Transfer")
-                        .WithMany("Legs")
-                        .HasForeignKey("TransferId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Account");
-
-                    b.Navigation("Transfer");
-                });
-
-            modelBuilder.Entity("Xpense.Domain.Entities.Account", b =>
-                {
-                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("Xpense.Domain.Entities.Category", b =>
@@ -458,11 +346,6 @@ namespace Xpense.Persistence.Migrations
             modelBuilder.Entity("Xpense.Domain.Entities.Priority", b =>
                 {
                     b.Navigation("Categories");
-                });
-
-            modelBuilder.Entity("Xpense.Domain.Entities.Transfer", b =>
-                {
-                    b.Navigation("Legs");
                 });
 #pragma warning restore 612, 618
         }

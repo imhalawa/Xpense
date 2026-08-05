@@ -21,13 +21,6 @@ public class SliceIsolationTests
 {
     private const string FeaturesRoot = "Xpense.API.Features.";
 
-    /// <summary>
-    /// Response contracts returned by more than one feature. Analytics embeds a category, so
-    /// CategoryResponse cannot live inside the Categories feature without creating exactly the
-    /// slice-to-slice dependency this test forbids.
-    /// </summary>
-    private const string SharedContracts = "Xpense.API.Contracts.";
-
     private static ModuleDefinition module;
 
     [OneTimeSetUp]
@@ -37,6 +30,13 @@ public class SliceIsolationTests
     [OneTimeTearDown]
     public void Dispose() => module?.Dispose();
 
+    /// <summary>
+    /// Contracts returned by more than one feature live in <c>Xpense.API.Contracts</c>, which is
+    /// outside Features and therefore always allowed. Analytics embeds a category, so
+    /// CategoryResponse cannot live inside the Categories feature without creating exactly the
+    /// slice-to-slice dependency this test forbids; MoneyResponse and Timestamps are there for the
+    /// same reason.
+    /// </summary>
     [Test]
     public void No_slice_references_a_type_from_another_feature()
     {

@@ -51,7 +51,7 @@ namespace Xpense.API.Extensions
 
             data = data.Select(p =>
             {
-                p.CreatedOn = DateTime.UtcNow;
+                p.CreatedAt = DateTime.UtcNow;
                 return p;
             });
 

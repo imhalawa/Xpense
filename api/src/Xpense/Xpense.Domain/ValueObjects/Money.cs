@@ -3,21 +3,26 @@ using Xpense.Domain.Exceptions;
 
 namespace Xpense.Domain.ValueObjects
 {
-    public class Money(long value, Currency currency)
+    public class Money(long minorUnits, Currency currency)
     {
-        public long Cents { get; } = value;
+        /// <summary>
+        /// The amount as a whole number of the currency's smallest indivisible unit. Deliberately
+        /// not "cents": that holds for EUR and USD and is wrong for the first currency without them.
+        /// </summary>
+        public long MinorUnits { get; } = minorUnits;
+
         public Currency Currency { get; } = currency;
 
-        public static Money Zero => OfCents(0);
+        public static Money Zero => OfMinorUnits(0);
 
-        public static Money OfCents(long cents, Currency currency = Currency.EUR)
+        public static Money OfMinorUnits(long minorUnits, Currency currency = Currency.EUR)
         {
-            return new Money(cents, currency);
+            return new Money(minorUnits, currency);
         }
 
         public decimal ToDecimal()
         {
-            return Cents / 100m;
+            return MinorUnits / 100m;
         }
 
         public override string ToString() => $"{ToDecimal():0.00} {Currency}";
@@ -25,13 +30,13 @@ namespace Xpense.Domain.ValueObjects
         public static Money operator +(Money lhs, Money rhs)
         {
             RequireSameCurrency(lhs, rhs);
-            return OfCents(lhs.Cents + rhs.Cents, lhs.Currency);
+            return OfMinorUnits(lhs.MinorUnits + rhs.MinorUnits, lhs.Currency);
         }
 
         public static Money operator -(Money lhs, Money rhs)
         {
             RequireSameCurrency(lhs, rhs);
-            return OfCents(lhs.Cents - rhs.Cents, lhs.Currency);
+            return OfMinorUnits(lhs.MinorUnits - rhs.MinorUnits, lhs.Currency);
         }
 
         public static bool operator <(Money lhs, Money rhs) => Compare(lhs, rhs) < 0;
@@ -49,7 +54,7 @@ namespace Xpense.Domain.ValueObjects
         private static int Compare(Money lhs, Money rhs)
         {
             RequireSameCurrency(lhs, rhs);
-            return lhs.Cents.CompareTo(rhs.Cents);
+            return lhs.MinorUnits.CompareTo(rhs.MinorUnits);
         }
 
         private static void RequireSameCurrency(Money lhs, Money rhs)

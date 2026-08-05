@@ -17,14 +17,14 @@ namespace Xpense.API.Features.Categories;
 
 public sealed class CreateCategory : IEndpoint
 {
-    public sealed record Request(string Name, int PriorityId);
+    public sealed record Request(string Label, int PriorityId);
 
     public sealed class Validator : AbstractValidator<Request>
     {
         public Validator()
         {
-            RuleFor(request => request.Name)
-                .NotEmpty().WithMessage("The name is required.")
+            RuleFor(request => request.Label)
+                .NotEmpty().WithMessage("The label is required.")
                 .MaximumLength(200);
 
             RuleFor(request => request.PriorityId)
@@ -46,15 +46,15 @@ public sealed class CreateCategory : IEndpoint
 
         var category = new Category
         {
-            Label = request.Name,
+            Label = request.Label,
             Priority = priority,
-            CreatedOn = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow
         };
 
         db.Categories.Add(category);
 
         if (await db.SaveChangesAsync(ct) < 1)
-            throw new CategoryCreationFailedException(request.Name);
+            throw new CategoryCreationFailedException(request.Label);
 
         return TypedResults.Created(
             http.ResourceUri($"/api/v1/categories/{category.Id}"),

@@ -4,6 +4,16 @@ Xpense is a personal-finance ledger. It records money that has already moved and
 reports on it. It holds balances in more than one currency but never converts
 between them.
 
+Xpense never holds money itself. The movement happens somewhere else — a real bank,
+or a payment app such as Tikkie — and Xpense records the fact that it happened.
+Users will be able to record money moving to each other on the platform, which is
+the one place where the record is shared rather than personal.
+
+> This model is implemented. See [docs/model-rename-pass.md](docs/model-rename-pass.md) for what
+> changed and the ADRs in [docs/adr/](docs/adr/) for why. **User** and **Owner** are the exception:
+> they are in the language because the **Transaction** model depends on them, and they do not exist
+> in code yet.
+
 ## Money
 
 | Term            | Definition                                                                     | Aliases to avoid                      |
@@ -18,119 +28,170 @@ added, subtracted, or compared when their **Currency** matches; otherwise the
 operation is rejected. There is no conversion and no exchange rate anywhere in
 the system.
 
+**Minor units** is the word wherever an integer amount appears — in code, in the database
+and on the wire. "Cents" is true of `EUR` and `USD` and will be wrong for the first
+currency without them.
+
 ## Accounts
 
 | Term               | Definition                                                                       | Aliases to avoid            |
 | ------------------ | -------------------------------------------------------------------------------- | --------------------------- |
 | **Account**        | A named store of **Money** denominated in exactly one **Currency**              | Wallet, ledger, pot, bucket |
-| **Account number** | The stable human-facing identifier of an **Account**                            | Code, reference, IBAN       |
-| **Default account** | The one **Account** used when a **Transaction** names none                      | Primary, main, fallback     |
+| **Account number** | The stable, public identifier of an **Account**                                  | Code, reference, IBAN       |
+| **Default account** | The one **Account** a client should offer first                                  | Primary, main, fallback     |
+| **User**           | A person who uses Xpense                                                         | Account, customer, client   |
+| **Owner**          | The **User** an **Account** belongs to                                           | Tenant, holder, member      |
 | **Deposit**        | To increase an **Account** **Balance** by a **Money** amount                    | Credit, add, top up, fund   |
-| **Withdraw**       | To decrease an **Account** **Balance** by a **Money** amount                    | Debit, subtract, deduct     |
+| **Withdraw**       | To decrease an **Account** **Balance** by a **Money** amount                     | Debit, subtract, deduct     |
 
 An amount may only be applied to an **Account** whose **Currency** matches it.
 
+**Account number** is the only identifier a client ever sends or reads. The database key
+exists but is not public — see
+[ADR 0002](docs/adr/0002-account-number-is-the-public-identifier.md).
+
+**User** and **Owner** are in the language because the **Transaction** model depends on
+them: a **Transfer** is cross-user when its two **Accounts** have different **Owners**.
+Neither exists in code yet.
+
 ## Recording money movement
 
-| Term                 | Definition                                                                             | Aliases to avoid                    |
-| -------------------- | -------------------------------------------------------------------------------------- | ----------------------------------- |
-| **Transaction**      | A single recorded movement of **Money** affecting one **Account**                      | Entry, record, payment, purchase    |
-| **Transaction type** | Whether a **Transaction** raised or lowered the **Account** **Balance**                | Kind, direction, sign               |
-| **Transfer**         | An atomic movement of **Money** from one **Account** to another                        | Move, swap, internal payment        |
-| **Transfer leg**     | One of the two sides of a **Transfer**, naming the **Account** and the direction       | Entry, side, half, line             |
-| **Source account**   | The **Account** a **Transfer** takes **Money** from                                    | From, origin, sender                |
-| **Destination account** | The **Account** a **Transfer** puts **Money** into                                  | To, target, recipient, receiver     |
-| **Reason**           | Free text explaining why a **Transfer** happened                                       | Note, memo, description, comment    |
+| Term                    | Definition                                                                                  | Aliases to avoid                          |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Transaction**         | A single recorded movement of **Money**, naming an **Account** on each side that is inside Xpense | Entry, record, payment, purchase, leg, posting |
+| **Transaction kind**    | Whether a **Transaction** is **Income**, **Expense** or **Transfer**                        | Type, direction, sign                     |
+| **Income**              | A **Transaction** whose **Money** came from outside Xpense                                  | Credit, deposit, inflow, earning          |
+| **Expense**             | A **Transaction** whose **Money** went outside Xpense                                       | Debit, withdrawal, outflow, spend         |
+| **Transfer**            | A **Transaction** between two **Accounts** inside Xpense                                    | Move, swap, internal payment              |
+| **Source account**      | The **Account** a **Transaction** took **Money** from; absent on **Income**                 | From, origin, sender                      |
+| **Destination account** | The **Account** a **Transaction** put **Money** into; absent on **Expense**                 | To, target, recipient, receiver           |
+| **Occurred at**         | When the **Money** actually moved, as told to Xpense                                        | Date, timestamp, when, created            |
+| **Created at**          | When Xpense wrote the row; never supplied by a client                                       | Recorded, entered, inserted               |
+| **Reason**              | Free text explaining why a **Transaction** happened                                         | Note, memo, description, comment          |
 
-A **Transfer** is deliberately not a **Transaction**: it touches two **Accounts**
-and either records both sides or none. Both **Accounts** and the amount must
-share one **Currency**, and the **Source account** must already hold enough
-**Money**.
+One entity records all three kinds. Each side is either an **Account** inside Xpense
+or nothing, and nothing means the **Money** crossed the system boundary — in which case
+the **Merchant** names who was on that side. Every **Transaction** therefore says where
+the money came from and where it went.
+
+**Transaction kind** is derived from which sides are **Accounts**, never stored, so a
+**Transaction** cannot contradict itself:
+
+| Kind         | Source account | Destination account |
+| ------------ | -------------- | ------------------- |
+| **Income**   | absent         | an **Account**      |
+| **Expense**  | an **Account** | absent              |
+| **Transfer** | an **Account** | another **Account** |
+
+A **Transfer** is cross-user when its two **Accounts** have different **Owners**. That
+is also derived, not stored.
+
+**Occurred at** and **Created at** are different facts and both are recorded. A purchase
+made last month and entered today has last month's **Occurred at** and today's **Created
+at**. Reporting and ordering use **Occurred at**; **Created at** exists so a shared record
+can show when each side entered what.
 
 ## Classifying a transaction
 
-| Term         | Definition                                                                          | Aliases to avoid              |
-| ------------ | ----------------------------------------------------------------------------------- | ----------------------------- |
-| **Category** | The single spending class a **Transaction** falls under                             | Type, group, bucket, class    |
-| **Priority** | How important a **Category** is, carrying a weight used for reporting               | Importance, rank, level, tier |
-| **Merchant** | The external party a **Transaction** was with                                       | Payee, vendor, supplier, shop |
-| **Tag**      | A free-form label attached to a **Transaction** alongside its **Category**          | Label, marker, flag, keyword  |
-| **Option**   | An input that either points at an existing **Tag** or **Merchant** or creates one   | Lookup, picker, ref, upsert   |
+| Term         | Definition                                                                                          | Aliases to avoid              |
+| ------------ | --------------------------------------------------------------------------------------------------- | ----------------------------- |
+| **Merchant** | The party on the other side of a **Transaction**, when that side is outside Xpense                  | Payee, vendor, supplier, shop |
+| **Category** | The single spending class a **Transaction** falls under                                             | Type, group, bucket, class    |
+| **Priority** | How important a **Category** is, carrying a weight used for reporting                               | Importance, rank, level, tier |
+| **Tag**      | A free-form label attached to a **Transaction** alongside its **Category**                          | Marker, flag, keyword         |
+| **Option**   | An input that either points at an existing **Tag** or **Merchant** or creates one                   | Lookup, picker, ref, upsert   |
+| **Label**    | The human-readable name of an **Account**, **Category**, **Priority**, **Merchant** or **Tag**      | Name, title, description      |
 
-Every **Transaction** must have exactly one **Category** and one **Merchant**.
-**Tags** are optional and unlimited.
+**Merchant** and **Category** answer different questions. **Merchant** is *who* — it is the
+counterparty, and it is the only record of the side that is outside Xpense. **Category** is
+*what kind* — your own lens on your spending, used for reporting. The same purchase can be
+filed under a different **Category** without changing who was paid.
+
+A **Transaction** must have exactly one **Merchant** and exactly one **Category** when one of
+its sides is outside Xpense, and must have neither when both sides are **Accounts**. A
+**Transfer** between your own **Accounts** has no shop and no spending class. **Tags** are
+optional and unlimited on any **Transaction**.
+
+**Label** is the one word for a human-readable name, in code, in the database and on the wire.
 
 ## Relationships
 
 - An **Account** is denominated in exactly one **Currency**, fixed for its life
-- A **Transaction** affects exactly one **Account** — the **Default account** when none is named
-- A **Transaction** has exactly one **Category**, exactly one **Merchant**, and zero or more **Tags**
+- An **Account** belongs to exactly one **Owner**
+- A **Transaction** names zero or one **Source account** and zero or one **Destination account**, and at least one of the two
+- A **Transaction** with exactly one **Account** has exactly one **Category** and exactly one **Merchant**
+- A **Transaction** with two **Accounts** has neither a **Category** nor a **Merchant**
+- A **Transaction** has zero or more **Tags**
 - A **Category** has exactly one **Priority**; a **Priority** covers zero or more **Categories**
-- A **Transfer** has exactly two **Transfer legs**: one leaving the **Source account**, one entering the **Destination account**
-- A **Transfer leg** belongs to exactly one **Transfer** and names exactly one **Account**
 - A **Transfer**'s two **Accounts** and its amount all share one **Currency**
 
 ## Example dialogue
 
-> **Dev:** "If someone moves 50 EUR from savings to current, do I write two **Transactions**?"
+> **Dev:** "If someone moves 50 EUR from savings to current, is that one record or two?"
 
-> **Domain expert:** "No — that's one **Transfer** with two **Transfer legs**. A **Transaction** only ever touches one **Account**. The **Transfer** is what makes both legs land together or not at all."
+> **Domain expert:** "One **Transaction**. **Source account** is savings, **Destination account** is current. Both sides are known, so it is a **Transfer**."
 
-> **Dev:** "So what **Category** and **Merchant** does a **Transfer** get?"
+> **Dev:** "So what **Category** and **Merchant** does it get?"
 
-> **Domain expert:** "Neither. **Category** and **Merchant** describe money entering or leaving the system — a **Transfer** is money you still own, just somewhere else. It carries a **Reason** instead."
+> **Domain expert:** "Neither. **Category** and **Merchant** describe money crossing the boundary — a **Transfer** is money you still own, just somewhere else. It carries a **Reason** instead."
 
-> **Dev:** "And if savings is USD and current is EUR?"
+> **Dev:** "And when I buy groceries, what goes in the **Destination account**?"
 
-> **Domain expert:** "Rejected. We hold both **Currencies** but never convert, so there's no honest rate to apply. The user makes the exchange at their bank and records the result as two separate **Transactions**."
+> **Domain expert:** "Nothing. The shop is not in Xpense. That is what the **Merchant** is for — it names the side we do not hold an **Account** for. The **Category** tells you it was groceries."
 
-## Flagged ambiguities
+> **Dev:** "What if savings is USD and current is EUR?"
 
-- **`Credit` and `Debit` are numbered inconsistently.** `TransactionType` declares
-  `Credit, Debit, Transfer` (so `Credit` is `0`); `TransferLegDirection` declares
-  `Debit, Credit` (so `Debit` is `0`). The same two words carry opposite numeric
-  values in the two enums. Any cast, shared serializer, or column reuse between
-  them inverts the direction of money silently. Fix the declaration order so the
-  shared names share values, or rename one pair so no one can confuse them.
+> **Domain expert:** "Rejected. We hold both **Currencies** but never convert, so there is no honest rate to apply. The user makes the exchange at their bank and records the result as two separate **Transactions**."
 
-- **"Transfer" means two different things.** There is a **Transfer** entity with
-  two **Transfer legs**, and there is also a `TransactionType.Transfer` value on
-  **Transaction**. A reader cannot tell which is meant from the word alone.
-  Recommendation: drop `Transfer` from **Transaction type** — a **Transaction**
-  affects one **Account**, so it is only ever a rise or a fall. Let the
-  **Transfer** entity be the only thing called a transfer.
+> **Dev:** "And if I send 25 EUR to another user?"
 
-- **Three vocabularies for "up" and "down".** **Account** exposes
-  `Deposit`/`Withdraw`, **Transaction type** says `Credit`/`Debit`, and
-  **Transfer leg** direction says `Debit`/`Credit`. Recommendation: keep
-  **Deposit** and **Withdraw** as the domain verbs, and treat `Credit`/`Debit`
-  as bookkeeping directions on legs only. `Credit` is also ambiguous outside
-  double-entry — a bank statement credits the bank, not you.
+> **Domain expert:** "Still one **Transaction**, still a **Transfer**. The **Destination account** just has a different **Owner**. Xpense did not move the money — Tikkie did. We are recording that it happened."
 
-- **The HTTP contract uses a fourth vocabulary.** The v1 contract exposes
-  `type` as `income` or `expense`, which maps onto `Credit` and `Debit`. That
-  boundary translation is fine, but it is currently undocumented, so four words
-  exist for two states. Recommendation: state the mapping in the contract doc and
-  nowhere else.
+> **Dev:** "I recorded a purchase from last month. Is it last month's spending or today's?"
 
-- **"Name" and "Label" are the same concept.** **Account** has `Name`;
-  **Category**, **Tag**, **Merchant**, and **Priority** have `Label`, and
-  `IOptionEntity` requires `Label`. Recommendation: **Label** everywhere, since
-  the interface already depends on it.
+> **Domain expert:** "Last month's. **Occurred at** is when the money moved and that is what reports use. **Created at** says you typed it in today."
 
-- **"Cents" names a currency-specific unit.** `Money.Cents`,
-  `Money.OfCents`, and `Account.BalanceCents` all say cents. It happens to hold
-  for `EUR` and `USD`, but the concept is **minor units** and the name will be
-  wrong for the first currency that has none. Low urgency, worth fixing before
-  a third currency arrives.
+## Resolved
 
-- **Amounts in minor units are not named as such.** `Money.Cents` and
-  `Account.BalanceCents` say what unit they are in; `Transaction.Amount`,
-  `Transfer.Amount`, and `TransferLeg.Amount` are the same integer minor units
-  but read as if they might be decimals. Recommendation: one suffix, applied
-  everywhere a raw integer amount is stored.
+Every ambiguity previously flagged in this file has been decided. The reasoning is in
+[ADR 0001](docs/adr/0001-one-transaction-entity-with-two-nullable-sides.md),
+[ADR 0002](docs/adr/0002-account-number-is-the-public-identifier.md) and
+[ADR 0003](docs/adr/0003-generated-openapi-is-the-contract.md); the resulting renames are
+listed in [docs/model-rename-pass.md](docs/model-rename-pass.md).
 
-- **An Account has two identities.** Equality is defined on **Account number**,
-  but HTTP routes and foreign keys address an **Account** by `Id`. Two accounts
-  with the same number and different ids compare equal. Recommendation: decide
-  which one is the identity, and make the other a plain attribute.
+- **"Transfer" no longer means two things.** There is no `Transfer` entity. **Transfer** is
+  one of the three **Transaction kinds**, derived rather than stored.
+- **"Transfer leg" is gone.** The entity carried nothing its parent did not already hold, so
+  it was deleted rather than renamed. "Leg" was trading vocabulary in any case.
+- **`Credit` and `Debit` are gone.** Both enums that held them are deleted, and the stored
+  `TransactionType` column is replaced by a derived **Transaction kind**. They can no longer
+  be numbered inconsistently because they no longer exist.
+- **Two vocabularies for up and down, not three.** **Deposit** and **Withdraw** are the verbs
+  that change a **Balance**; **Income** and **Expense** classify a **Transaction**. These are
+  genuinely different concepts — a **Transfer** changes two balances while being neither
+  income nor expense — so two pairs is correct and a third was not.
+- **Label everywhere.** One word for a human-readable name, and the requests that used to
+  send `name` while the responses returned `label` now agree.
+- **Minor units everywhere.** In code, in the database and on the wire, replacing "cents".
+  Every stored integer amount says its unit.
+- **Row time and business time are separate.** **Occurred at** is a column of its own, and
+  **Created at** is never supplied by a client. One `At` suffix and one ISO 8601 format for
+  every timestamp on the wire.
+- **An Account has one identity.** **Account number** is public; the database key is not.
+  Equality on the entity is deleted, because nothing used it.
+- **The rule that moves Money lives on Transaction.** Static factories, one per kind, each
+  enforcing its own invariants — so income and expense are guarded as well as transfers.
+- **`/transfers` is gone.** One entity, one resource: `/transactions` covers all three kinds.
+- **"Option" stays.** It is a deliberate term with a clear definition, it never reaches the
+  wire, and renaming it would trade one word for another on this file's own avoid list.
+
+## Not in code yet
+
+- **User** and **Owner** are named here but do not exist: no entity, no ownership column, no
+  query scoping, and no authentication anywhere to enforce them. That work comes next, as one
+  piece, together with transfer authorisation and receiver confirmation.
+- A **Transaction** can currently be created against another **User**'s **Destination
+  account**, changing their **Balance** without their agreement.
+- The rule rejecting a **Transfer** when the **Source account** **Balance** is too low is
+  correct between your own **Accounts** and probably wrong for a cross-user record, because
+  the real payment already happened elsewhere.

@@ -6,10 +6,21 @@ Financial tracker and advisor.
 
 ```bash
 docker compose up -d                          # PostgreSQL on :5432
-dotnet run --project src/Xpense/Xpense.API    # migrates on startup, serves http://localhost:4000
+
+dotnet ef database update \
+  --project src/Xpense/Xpense.Persistence \
+  --startup-project src/Xpense/Xpense.Persistence
+
+dotnet run --project src/Xpense/Xpense.API    # serves http://localhost:4000
 ```
 
-Swagger UI is at the root in Development.
+Migrations are a deployment step and deliberately do not run on startup, so the
+schema has to exist before the API boots. Integration tests are unaffected —
+`PostgresFixture` migrates its own template database.
+
+Swagger UI is at the root in Development, and its generated document is the
+machine-readable API contract. There is no hand-maintained OpenAPI file; see
+[ADR 0003](docs/adr/0003-generated-openapi-is-the-contract.md).
 
 ## Tests
 
@@ -39,7 +50,7 @@ Vertical slices: one endpoint per file, holding its route, request, validation a
 ```
 src/Xpense/
   Xpense.API/          slices, shared contracts, exception handlers, infrastructure
-  Xpense.Domain/       entities, value objects, enums, exceptions, MoneyTransfer
+  Xpense.Domain/       entities, value objects, enums, exceptions
   Xpense.Persistence/  DbContext, type configuration, migrations, OptionResolver
   Xpense.Tests/        ApiEndpointTests (canonical), Unit, Architecture
 ```

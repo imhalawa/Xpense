@@ -2,6 +2,12 @@
 
 How Xpense.API is organised, and why.
 
+> [04-trade-offs.md](04-trade-offs.md) and [05-migration-log.md](05-migration-log.md) are records of
+> the slicing migration and describe the codebase as it was then. Since that migration, `Transfer`
+> and `TransferLeg` were deleted and the `/transfers` resource folded into `/transactions` — so
+> anything those two files say about transfers is history, not current behaviour. See
+> [../model-rename-pass.md](../model-rename-pass.md).
+
 ## The idea in one sentence
 
 A feature's route, request shape, validation and handler live in **one file**, because those four things change together.
@@ -37,7 +43,7 @@ None of that is abstraction. It is indirection with an abstraction's file count.
 
 This is **not** "no architecture". Slices are a statement about *where code lives*, not about whether design matters. Three rules keep it from degrading:
 
-1. **A slice owns its endpoint, not the domain.** Money movement, invariants and anything with real rules stays in the domain layer and gets called by the slice. `MoneyTransfer` is the worked example — see [03-what-stays-shared.md](03-what-stays-shared.md).
+1. **A slice owns its endpoint, not the domain.** Money movement, invariants and anything with real rules stays in the domain layer and gets called by the slice. The `Transaction` factories are the worked example — see [03-what-stays-shared.md](03-what-stays-shared.md).
 2. **Slices do not call each other.** If two slices need the same thing it moves down — to `Xpense.API/Contracts/` for a shared HTTP contract, or to `Xpense.Domain` for a shared rule. It never becomes slice-to-slice.
 3. **Duplication is allowed, and is the point.** Two slices writing similar EF queries is cheaper than one shared query that four features are afraid to change. This is a deliberate trade of DRY for independence.
 
@@ -61,7 +67,7 @@ src/Xpense/
         UpdateTag.cs
         DeleteTag.cs
       Accounts/ ...
-  Xpense.Domain/           entities, value objects, enums, exceptions, MoneyTransfer
+  Xpense.Domain/           entities, value objects, enums, exceptions
   Xpense.Persistence/      DbContext, type configuration, migrations, OptionResolver
 ```
 

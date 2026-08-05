@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
@@ -14,28 +14,34 @@ using Xpense.Persistence;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
 using Xpense.Domain.Exceptions;
-using Xpense.Domain.ValueObjects;
 using Xpense.Domain.Options;
+using Xpense.Domain.ValueObjects;
 
 namespace Xpense.API.Features.Transactions;
 
 /// <summary>
-/// One endpoint for both directions. The old code had DepositTransactionUseCase and
-/// WithdrawTransactionUseCase, which were identical apart from Deposit vs Withdraw and
-/// Credit vs Debit -- roughly 60 duplicated lines to express a two-line difference.
+/// One endpoint for all three kinds. Which sides the caller names decides the kind, so there is no
+/// type field to contradict them: naming only a destination is income, only a source is expense,
+/// both is a transfer. This replaced a separate /transfers resource over the same entity.
+/// <para>
+/// The caller must name at least one account. The default-account fallback that the old
+/// income/expense endpoint had is gone: it relied on a type field to know which side the default
+/// account stood in for, and that field no longer exists.
+/// </para>
 /// </summary>
 public sealed class CreateTransaction : IEndpoint
 {
     public sealed record Request(
-        string Type,
         MoneyRequest Amount,
-        string AccountNumber,
-        int CategoryId,
-        OptionRequest Merchant,
-        IReadOnlyList<OptionRequest> Tags,
+        string? SourceAccountNumber,
+        string? DestinationAccountNumber,
+        int? CategoryId,
+        OptionRequest? Merchant,
+        IReadOnlyList<OptionRequest>? Tags,
+        string? Reason,
         DateTimeOffset? OccurredAt);
 
-    public sealed record MoneyRequest(long Cents, string Currency);
+    public sealed record MoneyRequest(long MinorUnits, string Currency);
 
     public sealed record OptionRequest(int? Id, string Label, bool Create);
 
@@ -43,29 +49,62 @@ public sealed class CreateTransaction : IEndpoint
     {
         public Validator()
         {
-            RuleFor(request => request.Type)
-                .Must(type => TryParseKind(type, out _))
-                .WithMessage("The type must be either 'income' or 'expense'.");
-
             RuleFor(request => request.Amount)
                 .NotNull().WithMessage("The amount is required.");
 
             When(request => request.Amount is not null, () =>
             {
-                RuleFor(request => request.Amount.Cents)
-                    .GreaterThan(0).WithMessage("The amount in cents must be positive.");
+                RuleFor(request => request.Amount.MinorUnits)
+                    .GreaterThan(0).WithMessage("The amount in minor units must be positive.");
 
                 RuleFor(request => request.Amount.Currency)
                     .Must(currency => CurrencyParser.TryParse(currency, out _))
                     .WithMessage("The currency must be a supported currency name.");
             });
 
-            RuleFor(request => request.CategoryId)
-                .GreaterThan(0).WithMessage("The categoryId must reference an existing category.");
+            RuleFor(request => request)
+                .Must(request => Names(request.SourceAccountNumber) || Names(request.DestinationAccountNumber))
+                .WithMessage(
+                    "At least one of sourceAccountNumber and destinationAccountNumber is required.")
+                .WithName(nameof(Request.SourceAccountNumber));
 
-            RuleFor(request => request.Merchant)
-                .NotNull().WithMessage("The merchant is required.");
+            // A transaction with one account inside Xpense has a counterparty outside it, which the
+            // merchant names, and a spending class. A transfer has neither: no shop, no spending.
+            When(IsOneSided, () =>
+            {
+                RuleFor(request => request.CategoryId)
+                    .NotNull().WithMessage("The categoryId is required unless both accounts are named.")
+                    .GreaterThan(0).WithMessage("The categoryId must reference an existing category.");
+
+                RuleFor(request => request.Merchant)
+                    .NotNull().WithMessage("The merchant is required unless both accounts are named.");
+            });
+
+            When(IsTransfer, () =>
+            {
+                RuleFor(request => request.CategoryId)
+                    .Null().WithMessage("A transfer between two accounts cannot have a category.");
+
+                RuleFor(request => request.Merchant)
+                    .Null().WithMessage("A transfer between two accounts cannot have a merchant.");
+
+                // Also guarded in the domain. That is not redundancy to remove: this produces a
+                // good 400 for a bad request, and the domain guard makes the move impossible
+                // through any future caller.
+                RuleFor(request => request.DestinationAccountNumber)
+                    .Must((request, destination) =>
+                        !string.Equals(request.SourceAccountNumber, destination, StringComparison.Ordinal))
+                    .WithMessage("Source and destination accounts must be different.");
+            });
         }
+
+        private static bool IsOneSided(Request request) =>
+            Names(request.SourceAccountNumber) ^ Names(request.DestinationAccountNumber);
+
+        private static bool IsTransfer(Request request) =>
+            Names(request.SourceAccountNumber) && Names(request.DestinationAccountNumber);
+
+        private static bool Names(string? accountNumber) => !string.IsNullOrWhiteSpace(accountNumber);
     }
 
     public static void Map(IEndpointRouteBuilder app) =>
@@ -80,66 +119,87 @@ public sealed class CreateTransaction : IEndpoint
         CancellationToken ct)
     {
         // The validator already rejected anything else.
-        TryParseKind(request.Type, out var isIncome);
         CurrencyParser.TryParse(request.Amount.Currency, out var currency);
 
-        var account = await ResolveAccount(db, request.AccountNumber, ct);
+        var amount = Money.OfMinorUnits(request.Amount.MinorUnits, currency);
+        var occurredAt = request.OccurredAt?.UtcDateTime ?? DateTime.UtcNow;
 
+        var source = await FindAccount(db, request.SourceAccountNumber, ct);
+        var destination = await FindAccount(db, request.DestinationAccountNumber, ct);
+        var resolvedTags = await ResolveTags(tags, request.Tags, ct);
+
+        // Serializable because every kind reads a balance and writes it back. The old transfer
+        // endpoint isolated this and the old income/expense endpoint did not; one path means one
+        // answer, and the safer one is the correct one.
+        await using var scope = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+
+        try
+        {
+            var transaction = source is not null && destination is not null
+                ? Domain.Entities.Transaction.Transfer(source, destination, amount, request.Reason, resolvedTags, occurredAt)
+                : await OneSided(db, merchants, request, source, destination, amount, resolvedTags, occurredAt, ct);
+
+            db.Transactions.Add(transaction);
+
+            if (await db.SaveChangesAsync(ct) < 1)
+                throw Failure(request, amount, destination is not null);
+
+            await scope.CommitAsync(ct);
+
+            return TypedResults.Created(
+                http.ResourceUri($"/api/v1/transactions/{transaction.Id}"),
+                TransactionResponse.Of(transaction));
+        }
+        catch
+        {
+            await scope.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    private static async Task<Transaction> OneSided(
+        XpenseDbContext db,
+        OptionResolver<Merchant> merchants,
+        Request request,
+        Account? source,
+        Account? destination,
+        Money amount,
+        List<Tag>? tags,
+        DateTime occurredAt,
+        CancellationToken ct)
+    {
         var category = await db.Categories
             .Include(item => item.Priority)
             .FirstOrDefaultAsync(item => item.Id == request.CategoryId, ct)
-            ?? throw new CategoryNotFoundException(request.CategoryId);
+            ?? throw new CategoryNotFoundException(request.CategoryId!.Value);
 
-        // Deposit/Withdraw reject an amount whose currency differs from the account's, so a
-        // USD transaction against a EUR account fails here rather than moving the wrong number.
-        var amount = Money.OfCents(request.Amount.Cents, currency);
-        if (isIncome)
-            account.Deposit(amount);
-        else
-            account.Withdraw(amount);
+        var merchant = await merchants.Resolve(ToMerchantOption(request.Merchant!), ct)
+                       ?? throw new MerchantNotFoundException(request.Merchant!.Label);
 
-        var merchant = await merchants.Resolve(ToOption(request.Merchant), ct)
-                       ?? throw new MerchantNotFoundException(request.Merchant.Label);
-
-        var transaction = new Transaction
-        {
-            Amount = request.Amount.Cents,
-            Currency = currency,
-            Category = category,
-            Account = account,
-            CreatedOn = request.OccurredAt?.UtcDateTime ?? DateTime.UtcNow,
-            Tags = await ResolveTags(tags, request.Tags, ct),
-            Merchant = merchant,
-            TransactionType = isIncome ? TransactionType.Credit : TransactionType.Debit
-        };
-
-        db.Transactions.Add(transaction);
-
-        if (await db.SaveChangesAsync(ct) < 1)
-        {
-            throw isIncome
-                ? new DepositCreationFailedException(amount.ToDecimal(), request.AccountNumber)
-                : new WithdrawCreationFailedException(amount.ToDecimal(), request.AccountNumber);
-        }
-
-        return TypedResults.Created(
-            http.ResourceUri($"/api/v1/transactions/{transaction.Id}"),
-            TransactionResponse.Of(transaction));
+        // Deposit and Withdraw reject an amount whose currency differs from the account's, so a USD
+        // transaction against a EUR account fails here rather than moving the wrong number.
+        return destination is not null
+            ? Domain.Entities.Transaction.Income(destination, amount, category, merchant, tags, occurredAt)
+            : Domain.Entities.Transaction.Expense(source!, amount, category, merchant, tags, occurredAt);
     }
 
-    private static async Task<Account> ResolveAccount(XpenseDbContext db, string accountNumber, CancellationToken ct)
+    private static Exception Failure(Request request, Money amount, bool isIncome) =>
+        isIncome
+            ? new DepositCreationFailedException(amount.ToDecimal(), request.DestinationAccountNumber!)
+            : new WithdrawCreationFailedException(amount.ToDecimal(), request.SourceAccountNumber!);
+
+    private static async Task<Account?> FindAccount(XpenseDbContext db, string? accountNumber, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(accountNumber))
-            return await db.Accounts.FirstOrDefaultAsync(account => account.IsDefaultAccount, ct)
-                   ?? throw new DefaultAccountNotFoundException();
+            return null;
 
         return await db.Accounts.FirstOrDefaultAsync(account => account.AccountNumber == accountNumber, ct)
                ?? throw new AccountNotFoundException(accountNumber);
     }
 
-    private static async Task<List<Tag>> ResolveTags(
+    private static async Task<List<Tag>?> ResolveTags(
         OptionResolver<Tag> resolver,
-        IReadOnlyList<OptionRequest> requested,
+        IReadOnlyList<OptionRequest>? requested,
         CancellationToken ct)
     {
         if (requested is null)
@@ -155,16 +215,9 @@ public sealed class CreateTransaction : IEndpoint
         return resolved;
     }
 
-    private static MerchantOption ToOption(OptionRequest option) =>
+    private static MerchantOption ToMerchantOption(OptionRequest option) =>
         new() { Id = option.Id, Label = option.Label, Create = option.Create };
 
     private static TagOption ToTagOption(OptionRequest option) =>
         new() { Id = option.Id, Label = option.Label, Create = option.Create };
-
-    private static bool TryParseKind(string type, out bool isIncome)
-    {
-        isIncome = string.Equals(type, "income", StringComparison.OrdinalIgnoreCase);
-        return isIncome || string.Equals(type, "expense", StringComparison.OrdinalIgnoreCase);
-    }
-
 }

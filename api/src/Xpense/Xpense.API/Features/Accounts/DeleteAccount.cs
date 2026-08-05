@@ -14,18 +14,18 @@ namespace Xpense.API.Features.Accounts;
 public sealed class DeleteAccount : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapDelete("/api/v1/accounts/{id:int}", Handle).WithName(nameof(DeleteAccount));
+        app.MapDelete("/api/v1/accounts/{accountNumber}", Handle).WithName(nameof(DeleteAccount));
 
-    private static async Task<NoContent> Handle(int id, XpenseDbContext db, CancellationToken ct)
+    private static async Task<NoContent> Handle(string accountNumber, XpenseDbContext db, CancellationToken ct)
     {
-        var account = await db.Accounts.FirstOrDefaultAsync(a => a.Id == id, ct)
-                      ?? throw new AccountNotFoundException(id);
+        var account = await db.Accounts.FirstOrDefaultAsync(a => a.AccountNumber == accountNumber, ct)
+                      ?? throw new AccountNotFoundException(accountNumber);
 
         account.MarkAsDeleted();
         account.Touch();
 
         if (await db.SaveChangesAsync(ct) < 1)
-            throw new AccountDeletionFailedException(id);
+            throw new AccountDeletionFailedException(account.Id);
 
         return TypedResults.NoContent();
     }

@@ -35,7 +35,9 @@ public sealed class ListTransactions : IEndpoint
         var totalPages = totalItems / pageSize + (totalItems % pageSize > 0 ? 1 : 0);
 
         var transactions = await query
-            .OrderByDescending(transaction => transaction.CreatedOn)
+            // Ordered by when the money moved, not when the row was written. Those were the same
+            // column until OccurredAt became one of its own.
+            .OrderByDescending(transaction => transaction.OccurredAt)
             .Skip(pageSize * (page - 1))
             .Take(pageSize)
             .ToListAsync(ct);
