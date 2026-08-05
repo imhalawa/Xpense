@@ -1,7 +1,7 @@
 # Model rename pass
 
-Decided and implemented 2026-08-04, on `refactor/model-rename-pass`. Written down so the
-decisions do not have to be made twice.
+Decided and implemented 2026-08-04, merged as PR #44. Written down so the decisions do not
+have to be made twice.
 
 The language itself lives in [UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md).
 The reasoning behind the model change is in
