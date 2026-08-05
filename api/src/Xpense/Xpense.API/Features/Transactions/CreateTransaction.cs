@@ -124,10 +124,6 @@ public sealed class CreateTransaction : IEndpoint
         var amount = Money.OfMinorUnits(request.Amount.MinorUnits, currency);
         var occurredAt = request.OccurredAt?.UtcDateTime ?? DateTime.UtcNow;
 
-        var source = await FindAccount(db, request.SourceAccountNumber, ct);
-        var destination = await FindAccount(db, request.DestinationAccountNumber, ct);
-        var resolvedTags = await ResolveTags(tags, request.Tags, ct);
-
         // Serializable because every kind reads a balance and writes it back. The old transfer
         // endpoint isolated this and the old income/expense endpoint did not; one path means one
         // answer, and the safer one is the correct one.
@@ -135,6 +131,14 @@ public sealed class CreateTransaction : IEndpoint
 
         try
         {
+            // Loaded inside the transaction, not before it. Postgres only detects conflicts on
+            // reads made within the transaction, so a balance read outside it leaves the
+            // insufficient-funds guard unprotected: two concurrent transfers from one account would
+            // both see the old balance, both pass the check, and both commit.
+            var source = await FindAccount(db, request.SourceAccountNumber, ct);
+            var destination = await FindAccount(db, request.DestinationAccountNumber, ct);
+            var resolvedTags = await ResolveTags(tags, request.Tags, ct);
+
             var transaction = source is not null && destination is not null
                 ? Domain.Entities.Transaction.Transfer(source, destination, amount, request.Reason, resolvedTags, occurredAt)
                 : await OneSided(db, merchants, request, source, destination, amount, resolvedTags, occurredAt, ct);
@@ -142,7 +146,7 @@ public sealed class CreateTransaction : IEndpoint
             db.Transactions.Add(transaction);
 
             if (await db.SaveChangesAsync(ct) < 1)
-                throw Failure(request, amount, destination is not null);
+                throw Failure(request, amount, transaction.Kind);
 
             await scope.CommitAsync(ct);
 
@@ -183,10 +187,15 @@ public sealed class CreateTransaction : IEndpoint
             : Domain.Entities.Transaction.Expense(source!, amount, category, merchant, tags, occurredAt);
     }
 
-    private static Exception Failure(Request request, Money amount, bool isIncome) =>
-        isIncome
-            ? new DepositCreationFailedException(amount.ToDecimal(), request.DestinationAccountNumber!)
-            : new WithdrawCreationFailedException(amount.ToDecimal(), request.SourceAccountNumber!);
+    /// <summary>
+    /// Defensive: adding an entity and saving returns at least one write or throws. Reported against
+    /// the side the money was heading for, so a transfer names its destination rather than being
+    /// mislabelled as a plain deposit.
+    /// </summary>
+    private static Exception Failure(Request request, Money amount, TransactionKind kind) =>
+        kind == TransactionKind.Expense
+            ? new WithdrawCreationFailedException(amount.ToDecimal(), request.SourceAccountNumber!)
+            : new DepositCreationFailedException(amount.ToDecimal(), request.DestinationAccountNumber!);
 
     private static async Task<Account?> FindAccount(XpenseDbContext db, string? accountNumber, CancellationToken ct)
     {
