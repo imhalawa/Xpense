@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xpense.Persistence;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
+using Xpense.Domain.ValueObjects;
 using Xpense.Tests.Infrastructure;
 
 namespace Xpense.Tests.Integration;
@@ -742,8 +743,10 @@ public class ApiEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var summary = document.RootElement;
         summary.TryGetProperty("data", out _).Should().BeFalse();
-        summary.GetProperty("total").GetProperty("minorUnits").GetInt64().Should().Be(1250);
-        summary.GetProperty("total").GetProperty("currency").GetString().Should().Be("EUR");
+        var totals = summary.GetProperty("totals");
+        totals.GetArrayLength().Should().Be(1);
+        totals[0].GetProperty("minorUnits").GetInt64().Should().Be(1250);
+        totals[0].GetProperty("currency").GetString().Should().Be("EUR");
         var expenses = summary.GetProperty("expenses");
         expenses.GetArrayLength().Should().Be(1);
         expenses[0].GetProperty("category").GetProperty("label").GetString().Should().Be("Food");
@@ -763,7 +766,236 @@ public class ApiEndpointTests
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        document.RootElement.GetProperty("total").GetProperty("minorUnits").GetInt64().Should().Be(1250);
+        var totals = document.RootElement.GetProperty("totals");
+        totals.GetArrayLength().Should().Be(1);
+        totals[0].GetProperty("minorUnits").GetInt64().Should().Be(1250);
+    }
+
+    /// <summary>
+    /// This used to label the whole day with the first expense's currency and add every minor unit
+    /// together, so 12.50 EUR and 7.00 USD reported as 19.50 EUR -- money created by addition.
+    /// </summary>
+    [Test]
+    public async Task Get_spending_by_category_never_sums_across_currencies()
+    {
+        await SeedTodayExpensesInTwoCurrencies();
+
+        var response = await client.GetAsync("/api/v1/analytics/spending/by-category");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        var totals = document.RootElement.GetProperty("totals");
+        totals.GetArrayLength().Should().Be(2);
+        totals.EnumerateArray()
+            .Select(total => (total.GetProperty("currency").GetString(), total.GetProperty("minorUnits").GetInt64()))
+            .Should().BeEquivalentTo([("EUR", 1250L), ("USD", 700L)]);
+
+        // One category, two currencies, so two lines -- never one line holding a nonsense sum.
+        var expenses = document.RootElement.GetProperty("expenses");
+        expenses.GetArrayLength().Should().Be(2);
+        expenses.EnumerateArray()
+            .Select(expense => expense.GetProperty("amount").GetProperty("minorUnits").GetInt64())
+            .Should().NotContain(1950);
+    }
+
+    // ---------------------------------------------------------------- priorities
+
+    /// <summary>
+    /// Also proves the SeedPriorities migration ran: these five rows come from the schema, not from
+    /// anything this test wrote.
+    /// </summary>
+    [Test]
+    public async Task Get_priorities_returns_the_reference_data_seeded_by_the_migration()
+    {
+        var response = await client.GetAsync("/api/v1/priorities");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetArrayLength().Should().Be(5);
+        document.RootElement.EnumerateArray()
+            .Select(priority => priority.GetProperty("label").GetString())
+            .Should().Equal("Extreme", "High", "Medium", "Low", "None");
+    }
+
+    // ---------------------------------------------------------------- budgets
+
+    [Test]
+    public async Task Post_budgets_returns_the_created_resource_at_its_id_route()
+    {
+        var categoryId = await SeedCategoryReturningId();
+
+        var response = await client.PostAsync("/api/v1/budgets", NewBudgetBody(categoryId, 30000, "Monthly"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().Be(new Uri("http://localhost/api/v1/budgets/1"));
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("recurrence").GetString().Should().Be("Monthly");
+        document.RootElement.GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(30000);
+        document.RootElement.GetProperty("category").GetProperty("label").GetString().Should().Be("Food");
+        document.RootElement.GetProperty("startsOn").GetString().Should().Be(FirstOfThisMonth());
+    }
+
+    /// <summary>
+    /// A budget that does not repeat has exactly one window, so it has to say where that window ends.
+    /// Guarded by the validator here and by Budget.For underneath it.
+    /// </summary>
+    [Test]
+    public async Task Post_budgets_rejects_a_one_off_with_no_end()
+    {
+        var categoryId = await SeedCategoryReturningId();
+
+        var response = await client.PostAsync("/api/v1/budgets", NewBudgetBody(categoryId, 30000, "None"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
+    }
+
+    [Test]
+    public async Task Get_budgets_reports_spent_and_remaining_for_the_period_holding_today()
+    {
+        await SeedBudgetWithTodaysExpense(limitMinorUnits: 30000, spentMinorUnits: 1250);
+
+        var response = await client.GetAsync("/api/v1/budgets");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var period = document.RootElement[0].GetProperty("period");
+        period.GetProperty("name").GetString().Should().Be($"{DateTime.UtcNow:yyyy-MM}");
+        period.GetProperty("spent").GetProperty("minorUnits").GetInt64().Should().Be(1250);
+        period.GetProperty("remaining").GetProperty("minorUnits").GetInt64().Should().Be(28750);
+        period.GetProperty("exceeded").GetBoolean().Should().BeFalse();
+        period.GetProperty("uncounted").GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task Get_budgets_by_id_marks_a_budget_exceeded_and_reports_a_negative_remaining()
+    {
+        await SeedBudgetWithTodaysExpense(limitMinorUnits: 1000, spentMinorUnits: 1250);
+
+        var response = await client.GetAsync("/api/v1/budgets/1");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var period = document.RootElement.GetProperty("period");
+        period.GetProperty("spent").GetProperty("minorUnits").GetInt64().Should().Be(1250);
+        period.GetProperty("remaining").GetProperty("minorUnits").GetInt64().Should().Be(-250);
+        period.GetProperty("exceeded").GetBoolean().Should().BeTrue();
+    }
+
+    /// <summary>
+    /// A budget counts one currency. Spending the same category in another is reported as uncounted
+    /// rather than converted or, worse, added in.
+    /// </summary>
+    [Test]
+    public async Task Get_budgets_reports_spending_in_other_currencies_as_uncounted()
+    {
+        await SeedBudgetWithTodaysExpense(limitMinorUnits: 30000, spentMinorUnits: 1250, alsoSpendUsd: 700);
+
+        var response = await client.GetAsync("/api/v1/budgets/1");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var period = document.RootElement.GetProperty("period");
+        period.GetProperty("spent").GetProperty("minorUnits").GetInt64().Should().Be(1250);
+        var uncounted = period.GetProperty("uncounted");
+        uncounted.GetArrayLength().Should().Be(1);
+        uncounted[0].GetProperty("currency").GetString().Should().Be("USD");
+        uncounted[0].GetProperty("minorUnits").GetInt64().Should().Be(700);
+    }
+
+    /// <summary>
+    /// Spending means expenses. A transfer has no category to count against, and income is not
+    /// spending -- the same rule the analytics slice follows.
+    /// </summary>
+    [Test]
+    public async Task Get_budgets_counts_neither_income_nor_transfers()
+    {
+        await SeedBudgetWithTodaysExpense(
+            limitMinorUnits: 30000, spentMinorUnits: 1250, alsoSeedIncomeAndTransfer: true);
+
+        var response = await client.GetAsync("/api/v1/budgets/1");
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("period").GetProperty("spent")
+            .GetProperty("minorUnits").GetInt64().Should().Be(1250);
+    }
+
+    /// <summary>
+    /// Two budgets on one category are two intentions, and Xpense reports both without arbitrating.
+    /// See docs/adr/0007-budgets-are-independent-of-one-another.md.
+    /// </summary>
+    [Test]
+    public async Task Get_budgets_reports_every_budget_on_a_category_without_choosing_between_them()
+    {
+        var categoryId = await SeedCategoryReturningId();
+        await client.PostAsync("/api/v1/budgets", NewBudgetBody(categoryId, 30000, "Monthly"));
+        await client.PostAsync("/api/v1/budgets", NewBudgetBody(categoryId, 10000, "Weekly"));
+
+        var response = await client.GetAsync("/api/v1/budgets");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetArrayLength().Should().Be(2);
+        document.RootElement.EnumerateArray()
+            .Select(budget => budget.GetProperty("period").GetProperty("name").GetString())
+            .Should().BeEquivalentTo([$"{DateTime.UtcNow:yyyy-MM}", IsoWeekName(DateTime.UtcNow)]);
+    }
+
+    [Test]
+    public async Task Get_budgets_reports_no_period_for_a_one_off_whose_window_has_passed()
+    {
+        var categoryId = await SeedCategoryReturningId();
+
+        await client.PostAsync("/api/v1/budgets", JsonBody(
+            $"{{\"categoryId\":{categoryId},\"amount\":{{\"minorUnits\":20000,\"currency\":\"EUR\"}},"
+            + "\"recurrence\":\"None\",\"startsOn\":\"2020-01-01\",\"endsOn\":\"2020-01-31\"}"));
+
+        var response = await client.GetAsync("/api/v1/budgets");
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement[0].GetProperty("period").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Test]
+    public async Task Delete_budgets_hides_it_from_the_collection()
+    {
+        var categoryId = await SeedCategoryReturningId();
+        await client.PostAsync("/api/v1/budgets", NewBudgetBody(categoryId, 30000, "Monthly"));
+
+        var deleted = await client.DeleteAsync("/api/v1/budgets/1");
+
+        deleted.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        using var document = JsonDocument.Parse(await (await client.GetAsync("/api/v1/budgets")).Content.ReadAsStringAsync());
+        document.RootElement.GetArrayLength().Should().Be(0);
+    }
+
+    /// <summary>
+    /// A budget on a category nobody can see measures nothing anyone can ask about. Without this,
+    /// the global query filter hides the category and budget reads meet a null one.
+    /// </summary>
+    [Test]
+    public async Task Delete_categories_also_deletes_the_budgets_pointing_at_it()
+    {
+        var categoryId = await SeedCategoryReturningId();
+        await client.PostAsync("/api/v1/budgets", NewBudgetBody(categoryId, 30000, "Monthly"));
+
+        var deleted = await client.DeleteAsync($"/api/v1/categories/{categoryId}");
+
+        deleted.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var response = await client.GetAsync("/api/v1/budgets");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task Get_budgets_by_id_returns_a_problem_document_for_an_unknown_id()
+    {
+        var response = await client.GetAsync("/api/v1/budgets/404");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
     }
 
     // ---------------------------------------------------------------- error contract
@@ -902,6 +1134,28 @@ public class ApiEndpointTests
     private static StringContent NewTagBody(string label) =>
         JsonBody($"{{\"label\":\"{label}\",\"bgColorHex\":\"#ffffff\",\"fgColorHex\":\"#000000\"}}");
 
+    /// <summary>
+    /// Starts on the first of the current month so the budget is measuring today whatever day the
+    /// suite runs. A "None" recurrence deliberately gets no endsOn, which is what makes it invalid.
+    /// </summary>
+    private static StringContent NewBudgetBody(int categoryId, long minorUnits, string recurrence) =>
+        JsonBody(
+            $"{{\"categoryId\":{categoryId},\"amount\":{{\"minorUnits\":{minorUnits},\"currency\":\"EUR\"}},"
+            + $"\"recurrence\":\"{recurrence}\",\"startsOn\":\"{FirstOfThisMonth()}\"}}");
+
+    private static string FirstOfThisMonth()
+    {
+        var now = DateTime.UtcNow;
+        return new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).ToString("yyyy-MM-dd");
+    }
+
+    /// <summary>
+    /// The ISO week year is not always the calendar year -- 2027-01-01 sits in week 53 of 2026 -- so
+    /// the expected name is built the same way the domain builds it.
+    /// </summary>
+    private static string IsoWeekName(DateTime instant) =>
+        $"{System.Globalization.ISOWeek.GetYear(instant):0000}-W{System.Globalization.ISOWeek.GetWeekOfYear(instant):00}";
+
     private XpenseDbContext NewDbContext(out IServiceScope scope)
     {
         scope = factory.Services.CreateScope();
@@ -1014,6 +1268,93 @@ public class ApiEndpointTests
         static DateTimeOffset At(int hour) => new(2026, 7, 26, hour, 0, 0, TimeSpan.Zero);
     }
 
+    private async Task<int> SeedCategoryReturningId()
+    {
+        var dbContext = NewDbContext(out var scope);
+        using (scope)
+        {
+            var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = DateTime.UtcNow };
+            var category = new Category { Label = "Food", Priority = priority, CreatedAt = DateTime.UtcNow };
+            dbContext.AddRange(priority, category);
+            await dbContext.SaveChangesAsync();
+            return category.Id;
+        }
+    }
+
+    /// <summary>
+    /// One monthly EUR budget on Food, plus today's spending against it. Optionally spends the same
+    /// category in USD, and optionally adds income and a transfer that must not be counted.
+    /// </summary>
+    private async Task SeedBudgetWithTodaysExpense(
+        long limitMinorUnits,
+        long spentMinorUnits,
+        long alsoSpendUsd = 0,
+        bool alsoSeedIncomeAndTransfer = false)
+    {
+        var dbContext = NewDbContext(out var scope);
+        using (scope)
+        {
+            var now = DateTime.UtcNow;
+            var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = now };
+            var account = NewAccount(SourceNumber, "Cash", 0, isDefault: true);
+            var other = NewAccount(DestinationNumber, "Savings", 0);
+            var category = new Category { Label = "Food", Priority = priority, CreatedAt = now };
+            var merchant = new Merchant { Label = "Grocer", CreatedAt = now };
+            dbContext.AddRange(priority, account, other, category, merchant);
+            await dbContext.SaveChangesAsync();
+
+            dbContext.Budgets.Add(Budget.For(
+                category,
+                Money.OfMinorUnits(limitMinorUnits, Currency.EUR),
+                Recurrence.Monthly,
+                new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+                endsOn: null));
+
+            dbContext.Transactions.Add(NewExpense(spentMinorUnits, now, account, category, merchant));
+
+            if (alsoSpendUsd > 0)
+                dbContext.Transactions.Add(
+                    NewExpense(alsoSpendUsd, now, account, category, merchant, Currency.USD));
+
+            if (alsoSeedIncomeAndTransfer)
+            {
+                dbContext.Transactions.Add(NewIncome(9999, now, account, category, merchant));
+                dbContext.Transactions.Add(new Transaction
+                {
+                    AmountMinorUnits = 5555,
+                    Currency = Currency.EUR,
+                    SourceAccount = account,
+                    DestinationAccount = other,
+                    Tags = [],
+                    OccurredAt = now,
+                    CreatedAt = now
+                });
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>Same category, same day, two currencies -- the case that used to be added together.</summary>
+    private async Task SeedTodayExpensesInTwoCurrencies()
+    {
+        var dbContext = NewDbContext(out var scope);
+        using (scope)
+        {
+            var now = DateTime.UtcNow;
+            var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = now };
+            var account = NewAccount(SourceNumber, "Cash", 0, isDefault: true);
+            var category = new Category { Label = "Food", Priority = priority, CreatedAt = now };
+            var merchant = new Merchant { Label = "Grocer", CreatedAt = now };
+            dbContext.AddRange(priority, account, category, merchant);
+            await dbContext.SaveChangesAsync();
+
+            dbContext.Transactions.Add(NewExpense(1250, now, account, category, merchant));
+            dbContext.Transactions.Add(NewExpense(700, now, account, category, merchant, Currency.USD));
+            await dbContext.SaveChangesAsync();
+        }
+    }
+
     private async Task SeedTodayExpense(bool alsoSeedIncomeAndTransfer = false)
     {
         var dbContext = NewDbContext(out var scope);
@@ -1072,10 +1413,11 @@ public class ApiEndpointTests
         DateTimeOffset occurredAt,
         Account source,
         Category category,
-        Merchant merchant) => new()
+        Merchant merchant,
+        Currency currency = Currency.EUR) => new()
     {
         AmountMinorUnits = amountMinorUnits,
-        Currency = Currency.EUR,
+        Currency = currency,
         SourceAccount = source,
         Category = category,
         Merchant = merchant,
