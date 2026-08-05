@@ -7,8 +7,8 @@ namespace Xpense.Tests.Unit;
 public class MoneyTests
 {
     [Test]
-    public void ToDecimal_converts_cents_to_decimal_currency_units()
+    public void ToDecimal_converts_minor_units_to_decimal_currency_units()
     {
-        Money.OfCents(1234).ToDecimal().Should().Be(12.34m);
+        Money.OfMinorUnits(1234).ToDecimal().Should().Be(12.34m);
     }
 }

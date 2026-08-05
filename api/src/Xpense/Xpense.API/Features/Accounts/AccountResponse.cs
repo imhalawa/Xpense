@@ -1,26 +1,25 @@
-using System;
 using Xpense.API.Contracts;
 using Xpense.Domain.Entities;
 
 namespace Xpense.API.Features.Accounts;
 
+/// <summary>
+/// The account number is the public identifier; the database key is deliberately not exposed, so
+/// nothing can start depending on it. See docs/adr/0002-account-number-is-the-public-identifier.md.
+/// </summary>
 public sealed record AccountResponse(
-    int Id,
     string AccountNumber,
     string Label,
     MoneyResponse Balance,
     bool IsDefault,
-    long? CreatedOn,
-    long? LastUpdated)
+    string CreatedAt,
+    string? UpdatedAt)
 {
     public static AccountResponse Of(Account account) => new(
-        account.Id,
         account.AccountNumber,
-        account.Name,
+        account.Label,
         MoneyResponse.Of(account.Balance),
-        account.IsDefaultAccount,
-        new DateTimeOffset(account.CreatedOn).ToUnixTimeSeconds(),
-        account.LastUpdated.HasValue
-            ? new DateTimeOffset(account.LastUpdated.Value).ToUnixTimeSeconds()
-            : null);
+        account.IsDefault,
+        Timestamps.Iso(account.CreatedAt),
+        Timestamps.Iso(account.UpdatedAt));
 }

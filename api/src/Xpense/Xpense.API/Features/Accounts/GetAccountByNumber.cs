@@ -11,15 +11,20 @@ using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.Features.Accounts;
 
-public sealed class GetAccountById : IEndpoint
+public sealed class GetAccountByNumber : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapGet("/api/v1/accounts/{id:int}", Handle).WithName(nameof(GetAccountById));
+        app.MapGet("/api/v1/accounts/{accountNumber}", Handle).WithName(nameof(GetAccountByNumber));
 
-    private static async Task<Ok<AccountResponse>> Handle(int id, XpenseDbContext db, CancellationToken ct)
+    private static async Task<Ok<AccountResponse>> Handle(
+        string accountNumber,
+        XpenseDbContext db,
+        CancellationToken ct)
     {
-        var account = await db.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, ct)
-                      ?? throw new AccountNotFoundException(id);
+        var account = await db.Accounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.AccountNumber == accountNumber, ct)
+            ?? throw new AccountNotFoundException(accountNumber);
 
         return TypedResults.Ok(AccountResponse.Of(account));
     }

@@ -16,6 +16,6 @@ public class MerchantOption : IOption<Merchant>
     public Merchant ToEntity() => new()
     {
         Label = Label,
-        CreatedOn = DateTime.UtcNow
+        CreatedAt = DateTime.UtcNow
     };
 }

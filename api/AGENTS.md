@@ -12,7 +12,7 @@ src/Xpense/
     Contracts/                         response contracts shared by 2+ features
     Infrastructure/                    IEndpoint, discovery, validation filter
     ExceptionHandlers/                 one handler per exception type -> RFC 7807
-  Xpense.Domain/                       entities, value objects, enums, exceptions, MoneyTransfer
+  Xpense.Domain/                       entities, value objects, enums, exceptions
   Xpense.Persistence/                  DbContext, type configuration, migrations, OptionResolver
   Xpense.Tests/                        ApiEndpointTests (canonical), Unit, Architecture
 ```

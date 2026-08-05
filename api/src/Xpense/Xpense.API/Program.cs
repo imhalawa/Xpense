@@ -38,9 +38,10 @@ if (!app.Environment.IsEnvironment("Testing"))
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<XpenseDbContext>();
 
-    // Migrate, not EnsureCreated: EnsureCreated builds the schema without recording any
-    // migration history, which then makes `dotnet ef database update` fail against it.
-    context.Database.Migrate();
+    // Migrations are a deployment step, run by CD against the database before the app starts.
+    // They deliberately do not run here: an app that migrates on boot applies schema changes from
+    // whichever instance starts first, with no gate and no way to stage an expand/contract change.
+    // Locally, run `dotnet ef database update` before starting the API.
     Seeder.Seed<Priority>(context, "Priorities.json");
 }
 

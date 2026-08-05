@@ -25,7 +25,7 @@ public sealed class InsufficientFundsExceptionHandler(IProblemDetailsService pro
 
         var problemDetails = new ValidationProblemDetails(new Dictionary<string, string[]>
         {
-            ["amount.cents"] = [insufficientFunds.Message]
+            ["amount.minorUnits"] = [insufficientFunds.Message]
         })
         {
             Status = StatusCodes.Status400BadRequest,

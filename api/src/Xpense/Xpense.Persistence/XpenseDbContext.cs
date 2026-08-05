@@ -9,20 +9,13 @@ namespace Xpense.Persistence
 {
     public class XpenseDbContext : DbContext
     {
-        private readonly DbContextOptions<XpenseDbContext> options;
-
         public XpenseDbContext() { }
 
-        public XpenseDbContext(DbContextOptions<XpenseDbContext> options) : base(options)
-        {
-            this.options = options;
-        }
+        public XpenseDbContext(DbContextOptions<XpenseDbContext> options) : base(options) { }
 
         public virtual DbSet<Account> Accounts { get; set; }
         public virtual DbSet<Merchant> Merchants { get; set; }
         public virtual DbSet<Transaction> Transactions { get; set; }
-        public virtual DbSet<Transfer> Transfers { get; set; }
-        public virtual DbSet<TransferLeg> TransferLegs { get; set; }
         public virtual DbSet<Category> Categories { get; set; }
         public virtual DbSet<Priority> Priorities { get; set; }
         public virtual DbSet<Tag> Tags { get; set; }
@@ -83,11 +76,6 @@ namespace Xpense.Persistence
                 else if (property.ClrType == typeof(DateTime?))
                     property.SetValueConverter(nullableUtc);
             }
-        }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            base.OnConfiguring(optionsBuilder);
         }
 
         private void ConfigureDecimalColumnsStore(ModelBuilder modelBuilder, int precision, int scale)

@@ -1,5 +1,11 @@
 # Multi-currency
 
+> The rules below still hold. The code and payload examples do not: they predate the model rename
+> pass, so they show `MoneyTransfer`, `BalanceCents`, `Money.OfCents`, `POST /api/v1/transfers` and
+> a `cents` wire field. Current names are `Transaction.Transfer`, `BalanceMinorUnits`,
+> `Money.OfMinorUnits`, `POST /api/v1/transactions` and `minorUnits`. See
+> [model-rename-pass.md](model-rename-pass.md).
+
 Xpense holds money in several currencies. It does **not** convert between them.
 
 That distinction is the whole design. Every currency-mixing operation is rejected with a 400

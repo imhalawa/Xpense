@@ -1,10 +1,17 @@
-﻿namespace Xpense.Domain.Entities
+namespace Xpense.Domain.Entities
 {
     public class BaseEntity
     {
         public int Id { get; set; }
-        public DateTime CreatedOn { get; set; }
-        public DateTime? LastUpdated { get; set; }
+
+        /// <summary>
+        /// When Xpense wrote this row. Never set from a request -- a client says when the money
+        /// moved, which is <see cref="Transaction.OccurredAt"/>.
+        /// </summary>
+        public DateTime CreatedAt { get; set; }
+
+        public DateTime? UpdatedAt { get; set; }
+
         public bool IsDeleted { get; set; }
 
         public void MarkAsDeleted()
@@ -14,7 +21,7 @@
 
         public void Touch()
         {
-            LastUpdated = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
         }
     }
 }

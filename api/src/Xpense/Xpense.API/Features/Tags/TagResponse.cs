@@ -1,4 +1,4 @@
-using System;
+using Xpense.API.Contracts;
 using Xpense.Domain.Entities;
 
 namespace Xpense.API.Features.Tags;
@@ -11,16 +11,14 @@ public sealed record TagResponse(
     string Label,
     string BgColorHex,
     string FgColorHex,
-    long? CreatedOn,
-    long? LastUpdated)
+    string CreatedAt,
+    string? UpdatedAt)
 {
     public static TagResponse Of(Tag tag) => new(
         tag.Id,
         tag.Label,
         tag.BgColorHex,
         tag.FgColorHex,
-        new DateTimeOffset(tag.CreatedOn).ToUnixTimeSeconds(),
-        tag.LastUpdated.HasValue
-            ? new DateTimeOffset(tag.LastUpdated.Value).ToUnixTimeSeconds()
-            : null);
+        Timestamps.Iso(tag.CreatedAt),
+        Timestamps.Iso(tag.UpdatedAt));
 }

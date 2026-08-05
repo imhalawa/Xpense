@@ -68,14 +68,14 @@ public static class IoC
                 new OpenApiInfo
                 {
                     Version = "v1",
-                    Title = "Xpense",
-                    Description = "Financial Tracking Services and Advisory",
+                    Title = "Xpense.API",
+                    Description = "Financial Tracker and advisor",
                     // TODO: Add Terms of Use
                     Contact = new OpenApiContact
                     {
                         Name = "Mohamed Halawa",
                         Email = "imhalawa@outlook.com",
-                        Url = new Uri("https://halawa.dev/about")
+                        Url = new Uri("https://www.halawa.dev")
                     },
                 });
 

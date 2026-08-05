@@ -25,16 +25,16 @@ public sealed class CreateAccount : IEndpoint
     /// The opening balance carries a currency, and that currency denominates the account for
     /// its whole life. There is no way to create an account without saying what it holds.
     /// </summary>
-    public sealed record Request(string Name, MoneyRequest Balance);
+    public sealed record Request(string Label, MoneyRequest Balance);
 
-    public sealed record MoneyRequest(long Cents, string Currency);
+    public sealed record MoneyRequest(long MinorUnits, string Currency);
 
     public sealed class Validator : AbstractValidator<Request>
     {
         public Validator()
         {
-            RuleFor(request => request.Name)
-                .NotEmpty().WithMessage("The name is required.")
+            RuleFor(request => request.Label)
+                .NotEmpty().WithMessage("The label is required.")
                 .MaximumLength(200);
 
             RuleFor(request => request.Balance)
@@ -42,7 +42,7 @@ public sealed class CreateAccount : IEndpoint
 
             When(request => request.Balance is not null, () =>
             {
-                RuleFor(request => request.Balance.Cents)
+                RuleFor(request => request.Balance.MinorUnits)
                     .GreaterThanOrEqualTo(0).WithMessage("The opening balance cannot be negative.");
 
                 RuleFor(request => request.Balance.Currency)
@@ -65,21 +65,21 @@ public sealed class CreateAccount : IEndpoint
 
         var account = new Account
         {
-            Name = request.Name,
-            BalanceCents = request.Balance.Cents,
+            Label = request.Label,
+            BalanceMinorUnits = request.Balance.MinorUnits,
             Currency = currency,
             AccountNumber = await NextAccountNumber(db, ct),
-            IsDefaultAccount = !await db.Accounts.AnyAsync(a => a.IsDefaultAccount, ct),
-            CreatedOn = DateTime.UtcNow
+            IsDefault = !await db.Accounts.AnyAsync(a => a.IsDefault, ct),
+            CreatedAt = DateTime.UtcNow
         };
 
         db.Accounts.Add(account);
 
         if (await db.SaveChangesAsync(ct) < 1)
-            throw new AccountCreationFailedException(request.Name);
+            throw new AccountCreationFailedException(request.Label);
 
         return TypedResults.Created(
-            http.ResourceUri($"/api/v1/accounts/{account.Id}"),
+            http.ResourceUri($"/api/v1/accounts/{account.AccountNumber}"),
             AccountResponse.Of(account));
     }
 
@@ -87,6 +87,12 @@ public sealed class CreateAccount : IEndpoint
     /// AccountRepository.GetNextAccountNumber called Max() on the parsed numbers, which threw
     /// InvalidOperationException on an empty table -- creating the very first account crashed.
     /// Tests never caught it because they always seeded an account first.
+    /// <para>
+    /// ponytail: still loads every number to take the maximum. That races under concurrent creates
+    /// and grows with the table, and it makes the public identifier guessable -- which starts to
+    /// matter once a cross-user transfer can write to an account named by number. Both belong with
+    /// the ownership work; see docs/model-rename-pass.md.
+    /// </para>
     /// </summary>
     private static async Task<string> NextAccountNumber(XpenseDbContext db, CancellationToken ct)
     {

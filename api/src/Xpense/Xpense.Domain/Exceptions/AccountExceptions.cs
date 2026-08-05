@@ -14,13 +14,6 @@ public class AccountNotFoundException : NotFoundException
 }
 
 /// <summary>
-/// The caller omitted an account and no default exists. This is a 400 rather than a 404:
-/// nothing was looked up by identity, and the caller fixes it by naming an account.
-/// </summary>
-public class DefaultAccountNotFoundException(Exception? innerException = null)
-    : DomainRuleViolationException("Account was not specified and no default account was found!", innerException);
-
-/// <summary>
 /// An amount was applied to an account denominated in a different currency. Xpense holds
 /// multiple currencies but does not convert between them, so this is a 400, not a conversion.
 /// </summary>

@@ -15,14 +15,14 @@ namespace Xpense.API.Features.Categories;
 
 public sealed class UpdateCategory : IEndpoint
 {
-    public sealed record Request(string Name, int PriorityId);
+    public sealed record Request(string Label, int PriorityId);
 
     public sealed class Validator : AbstractValidator<Request>
     {
         public Validator()
         {
-            RuleFor(request => request.Name)
-                .NotEmpty().WithMessage("The name is required.")
+            RuleFor(request => request.Label)
+                .NotEmpty().WithMessage("The label is required.")
                 .MaximumLength(200);
 
             RuleFor(request => request.PriorityId)
@@ -45,7 +45,7 @@ public sealed class UpdateCategory : IEndpoint
         var category = await db.Categories.FirstOrDefaultAsync(item => item.Id == id, ct)
                        ?? throw new CategoryNotFoundException(id);
 
-        category.Label = request.Name;
+        category.Label = request.Label;
         category.Priority = priority;
         category.Touch();
 

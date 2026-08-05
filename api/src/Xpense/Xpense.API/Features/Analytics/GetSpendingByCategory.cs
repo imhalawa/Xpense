@@ -27,29 +27,34 @@ public sealed class GetSpendingByCategory : IEndpoint
         // Timestamps are stored UTC, so "today" is a UTC day.
         var today = DateTime.UtcNow.Date;
 
-        var transactions = await db.Transactions
+        // Expenses only, and the filter has to be expressed as columns because Kind is computed.
+        // Transfers would have no category to group by, and income is not spending -- it used to be
+        // counted here, because nothing filtered by direction at all.
+        var expensesToday = await db.Transactions
             .AsNoTracking()
             .Include(transaction => transaction.Category)
             .ThenInclude(category => category.Priority)
-            .Where(transaction => transaction.CreatedOn.Date == today)
+            .Where(transaction => transaction.SourceAccountId != null
+                                  && transaction.DestinationAccountId == null
+                                  && transaction.OccurredAt.Date == today)
             .ToListAsync(ct);
 
-        if (transactions.Count == 0)
+        if (expensesToday.Count == 0)
             return TypedResults.Ok(new SpendingByCategoryResponse([], new MoneyResponse(0, nameof(Currency.EUR))));
 
-        var currency = transactions[0].Currency.ToString();
+        var currency = expensesToday[0].Currency.ToString();
 
-        var expenses = transactions
-            .GroupBy(transaction => transaction.Category)
+        var byCategory = expensesToday
+            .GroupBy(transaction => transaction.Category!)
             .Select(group => new CategorySpendingResponse(
                 group.Key.Id,
                 CategoryResponse.Of(group.Key),
-                new MoneyResponse(group.Sum(transaction => transaction.Amount), currency)))
+                new MoneyResponse(group.Sum(transaction => transaction.AmountMinorUnits), currency)))
             .ToArray();
 
-        var total = new MoneyResponse(transactions.Sum(transaction => transaction.Amount), currency);
+        var total = new MoneyResponse(expensesToday.Sum(transaction => transaction.AmountMinorUnits), currency);
 
-        return TypedResults.Ok(new SpendingByCategoryResponse(expenses, total));
+        return TypedResults.Ok(new SpendingByCategoryResponse(byCategory, total));
     }
 }
 
@@ -61,5 +66,3 @@ public sealed record CategorySpendingResponse(
     int Id,
     CategoryResponse Category,
     MoneyResponse Amount);
-
-public sealed record MoneyResponse(long Cents, string Currency);
