@@ -15,7 +15,15 @@ src/Xpense/
   Xpense.Domain/                       entities, value objects, enums, exceptions
   Xpense.Persistence/                  DbContext, type configuration, migrations, OptionResolver
   Xpense.Tests/                        ApiEndpointTests (canonical), Unit, Architecture
+
+docker/<service>/Dockerfile            one per service: api, migrations, postgres
+docker-compose.yml                     postgres -> migrations -> api, in that order
 ```
+
+Migrations never run at application startup, and reference data lives in migrations rather than in a
+startup seeder. Both are load-bearing: see [ADR 0004](docs/adr/0004-migrations-are-a-deployment-step.md)
+and [ADR 0005](docs/adr/0005-reference-data-lives-in-migrations.md) before adding code that writes to
+the database during boot.
 
 ## Rules
 
@@ -25,6 +33,8 @@ These are enforced by `Xpense.Tests/Architecture/SliceIsolationTests.cs`. Breaki
 2. **Slices never reference each other.** Not the request, not the handler, not the response. Anything shared moves to `Xpense.API/Contracts/` (HTTP contracts) or `Xpense.Domain` (domain concepts).
 3. **Slices never catch domain exceptions.** Throw; `ExceptionHandlers/` owns the HTTP mapping. A `try/catch` for a domain exception in a slice is a bug.
 4. **Endpoints implement `IEndpoint`** with a `public static void Map(IEndpointRouteBuilder)` and live under `Features/`. Discovery is a startup scan — there is no registration step.
+
+`GET /health` is the one deliberate exception: it is mapped directly in `Program.cs` because it is infrastructure, not a feature. It has no request, no contract to version and no slice to belong to. The architecture tests allow it — they constrain types under `Xpense.API.Features.*` and types implementing `IEndpoint`, and it is neither. Do not treat it as precedent for a second one.
 
 ## Conventions
 

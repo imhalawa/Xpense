@@ -59,6 +59,15 @@ public static class IoC
         services.AddExceptionHandler<FallbackExceptionHandler>();
     }
 
+    /// <summary>
+    /// One probe, and it asks the only question worth asking: can this process reach Postgres.
+    /// A liveness/readiness split would be machinery for an orchestrator this project does not have.
+    /// </summary>
+    public static void AddHealthProbe(this IServiceCollection services)
+    {
+        services.AddHealthChecks().AddDbContextCheck<XpenseDbContext>();
+    }
+
     public static void ConfigureSwagger(this IServiceCollection services)
     {
         services.AddSwaggerGen(options =>

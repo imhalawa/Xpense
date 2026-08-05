@@ -1,0 +1,23 @@
+# The build context is the repository root, so this file is what keeps it to source. Host bin/obj
+# are the important entries: copying them in is slow and can leave stale assemblies in the publish
+# output, which is the kind of bug that only reproduces inside the image.
+**/bin/
+**/obj/
+
+.git/
+.github/
+.vs/
+.vscode/
+.idea/
+.worktrees/
+
+# Never let a secret into the build context.
+.env
+
+docs/
+backups/
+TestResults/
+CoverageReport/
+*.md
+*.binlog
+.DS_Store

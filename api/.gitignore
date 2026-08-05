@@ -405,3 +405,8 @@ CoverageReport/
 
 # macOS
 .DS_Store
+
+# Docker: the compose password lives here, and pg_dump output lands here. Neither belongs in git.
+# `Backup*/` above does not match lowercase `backups/`.
+.env
+backups/

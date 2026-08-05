@@ -1,12 +1,9 @@
 using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Xpense.API.Extensions;
 using Xpense.API.Infrastructure;
-using Xpense.Persistence;
-using Xpense.Domain.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,21 +26,14 @@ builder.Services.ConfigurePersistence(builder.Configuration);
 builder.Services.AddDomainServices();
 builder.Services.AddRequestValidation();
 builder.Services.AddExceptionHandlers();
+builder.Services.AddHealthProbe();
 
 var app = builder.Build();
 
-if (!app.Environment.IsEnvironment("Testing"))
-{
-    using var scope = app.Services.CreateScope();
-    var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<XpenseDbContext>();
-
-    // Migrations are a deployment step, run by CD against the database before the app starts.
-    // They deliberately do not run here: an app that migrates on boot applies schema changes from
-    // whichever instance starts first, with no gate and no way to stage an expand/contract change.
-    // Locally, run `dotnet ef database update` before starting the API.
-    Seeder.Seed<Priority>(context, "Priorities.json");
-}
+// Nothing touches the database during startup. Migrations are a deployment step, applied by the
+// one-shot `migrations` container before this one starts, and the Priority reference data is part
+// of that schema rather than a boot-time write. See docs/adr/0004 and docs/adr/0005.
+// Locally, run `dotnet ef database update` before starting the API.
 
 // First in the pipeline so it wraps everything downstream. The registered IExceptionHandlers
 // decide the status and body; anything unclaimed falls through to FallbackExceptionHandler.
@@ -61,6 +51,10 @@ app.UseCors(policy =>
 
 // Every slice, discovered by scanning for IEndpoint. There is no per-feature registration.
 app.MapEndpoints();
+
+// Deliberately not a slice: /health is infrastructure, not a feature, and has no contract to
+// version. It is the one route mapped outside Features/ -- see the carve-out in AGENTS.md.
+app.MapHealthChecks("/health");
 
 // Enable Swagger & Swagger UI
 if (app.Environment.IsDevelopment())
