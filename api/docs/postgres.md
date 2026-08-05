@@ -5,17 +5,30 @@ Xpense runs on PostgreSQL via Npgsql. It was previously SQL Server with SQLite i
 ## Running locally
 
 ```bash
-docker compose up -d                                   # postgres:17-alpine on :5432
-dotnet run --project src/Xpense/Xpense.API             # migrates on startup, then serves :4000
+cp .env.example .env                                   # compose has no fallback password
+docker compose up -d postgres                          # on 127.0.0.1:5432
+dotnet dotnet-ef database update --project Xpense.Persistence --startup-project Xpense.Persistence
+dotnet run --project src/Xpense/Xpense.API             # serves :4000
 ```
 
-`appsettings.Development.json` points at the compose database. Other environments supply
+`appsettings.Development.json` points at the compose database, and `.env.example` uses the
+password it expects, so the two agree out of the box. Other environments supply
 `ConnectionStrings__DefaultConnection` as an environment variable — nothing else ships a
-connection string, so a missing one fails loudly instead of silently reaching localhost.
+connection string, so a missing one fails loudly instead of silently reaching localhost. The
+containerized API gets that variable from compose, which is why the hardcoded `Host=localhost`
+in the Development file does not need changing: environment variables outrank appsettings.
 
-Startup calls `Database.Migrate()`, not `EnsureCreated()`. `EnsureCreated` builds the schema
+**Nothing migrates at startup.** The application does not call `Database.Migrate()`; migrations
+are applied by their own step, either `database update` above or the one-shot `migrations`
+container. [ADR 0004](adr/0004-migrations-are-a-deployment-step.md) has the argument.
+
+`EnsureCreated()` is not used either, and not just because migrations exist: it builds the schema
 without recording migration history, which then makes `dotnet ef database update` fail against
 that database.
+
+Reference data is part of the schema rather than a startup write — the five **Priority** rows come
+from `HasData` in `PriorityEntityTypeConfiguration`, applied by the `SeedPriorities` migration. See
+[ADR 0005](adr/0005-reference-data-lives-in-migrations.md).
 
 ## Migrations
 
@@ -26,12 +39,20 @@ placeholder.
 
 ```bash
 cd src/Xpense
-dotnet ef migrations add <Name> --project Xpense.Persistence --startup-project Xpense.Persistence
-dotnet ef database update      --project Xpense.Persistence --startup-project Xpense.Persistence
+dotnet tool restore                                                                        # once
+dotnet dotnet-ef migrations add <Name> --project Xpense.Persistence --startup-project Xpense.Persistence
+dotnet dotnet-ef database update       --project Xpense.Persistence --startup-project Xpense.Persistence
 ```
 
+`dotnet-ef` is a **local** tool pinned in `.config/dotnet-tools.json`, hence `dotnet dotnet-ef`
+rather than `dotnet ef`. The version has to match the EF runtime: a globally installed 8.x tool
+refuses to run against EF 10, and the manifest is the one place that version is stated — the
+`migrations` image restores the same manifest.
+
 `XpenseContextFactory` supplies the design-time connection string. It is only opened for
-`database update`; scaffolding a migration just needs it to parse.
+`database update`; scaffolding a migration just needs it to parse. It hardcodes `Host=localhost`,
+which is correct on the host and meaningless inside a container, so the migration bundle is always
+handed `--connection` explicitly.
 
 Tables live in the `Xpense` schema, not `public`, so `\dt` alone shows nothing — use
 `\dt "Xpense".*`.

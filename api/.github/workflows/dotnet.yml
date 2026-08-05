@@ -49,6 +49,26 @@ jobs:
           -targetdir:CoverageReport \
           -reporttypes:'MarkdownSummaryGithub;Html'
         cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+    # The inner dev loop runs the API on the host, so nothing there exercises the images. This step
+    # is the compensating check: it builds them and boots the whole stack. The class of bug it
+    # catches is the one that built fine and died on first container boot -- a seeder reading a file
+    # `dotnet publish` never copied, a connection string pointing at localhost from inside a
+    # container, migrations that never ran.
+    - name: Smoke-test the compose stack
+      run: |
+        cp .env.example .env
+        sed -i 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-not-a-secret/' .env
+        docker compose up -d --build
+        # Poll rather than `--wait`: the migrations service exits by design, and polling the health
+        # endpoint asserts the thing we actually care about.
+        curl -fsS --retry 30 --retry-delay 2 --retry-all-errors http://localhost:4000/health
+    - name: Compose logs
+      if: ${{ !cancelled() }}
+      run: docker compose logs --no-color
+    - name: Tear down
+      if: ${{ !cancelled() }}
+      run: docker compose down -v
+
     - name: Upload dotnet test results
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v4

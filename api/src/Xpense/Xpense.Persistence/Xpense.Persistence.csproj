@@ -7,14 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Seeds\PrioritySeeds.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Seeds\PrioritySeeds.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <!-- Npgsql floors EF at 10.0.4; without pinning Relational too, NuGet resolves it to
          10.0.4 against a 10.0.10 core and the app fails at runtime with a missing
