@@ -23,6 +23,7 @@ public sealed record BudgetResponse(
     string Recurrence,
     string StartsOn,
     string? EndsOn,
+    int? AlertThresholdPercent,
     BudgetPeriodResponse? Period,
     string CreatedAt,
     string? UpdatedAt)
@@ -34,6 +35,7 @@ public sealed record BudgetResponse(
         budget.Recurrence.ToString(),
         Day(budget.StartsOn),
         budget.EndsOn is null ? null : Day(budget.EndsOn.Value),
+        budget.AlertThresholdPercent,
         period,
         Timestamps.Iso(budget.CreatedAt),
         Timestamps.Iso(budget.UpdatedAt));

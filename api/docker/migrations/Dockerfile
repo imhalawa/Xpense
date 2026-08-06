@@ -7,6 +7,7 @@ COPY src/Xpense/Xpense.sln ./
 COPY src/Xpense/Xpense.Domain/Xpense.Domain.csproj Xpense.Domain/
 COPY src/Xpense/Xpense.Persistence/Xpense.Persistence.csproj Xpense.Persistence/
 COPY src/Xpense/Xpense.API/Xpense.API.csproj Xpense.API/
+COPY src/Xpense/Xpense.Notifications/Xpense.Notifications.csproj Xpense.Notifications/
 COPY src/Xpense/Xpense.Tests/Xpense.Tests.csproj Xpense.Tests/
 RUN dotnet restore Xpense.sln
 

@@ -58,5 +58,19 @@ services:
       retries: 5
       start_period: 15s
 
+  notifications:
+    build:
+      context: .
+      dockerfile: docker/notifications/Dockerfile
+    image: xpense-notifications:local
+    container_name: xpense-notifications
+    restart: unless-stopped
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: *connection
+
 volumes:
   xpense-postgres-data:

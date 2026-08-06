@@ -45,6 +45,8 @@ jobs:
         sed -i 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-not-a-secret/' .env
         docker compose up -d --build
         curl -fsS --retry 30 --retry-delay 2 --retry-all-errors http://localhost:4000/health
+        test "$(docker inspect -f '{{.State.Running}}' xpense-notifications)" = "true"
+        docker compose logs notifications --no-color | grep -q "Event pump started"
     - name: Compose logs
       if: ${{ !cancelled() }}
       run: docker compose logs --no-color

@@ -7,6 +7,8 @@ namespace Xpense.Domain.Entities;
 
 public class Budget : BaseEntity
 {
+    public const int DefaultAlertThreshold = 75;
+
     public long AmountMinorUnits { get; set; }
 
     public Currency Currency { get; set; }
@@ -23,6 +25,13 @@ public class Budget : BaseEntity
 
     public DateTime? EndsOn { get; set; }
 
+    public int? AlertThresholdPercent { get; set; }
+
+    public Money? AlertThreshold =>
+        AlertThresholdPercent is null
+            ? null
+            : Money.OfMinorUnits(AmountMinorUnits * AlertThresholdPercent.Value / 100, Currency);
+
     private DateTime LifeToExclusive => EndsOn?.AddDays(1) ?? DateTime.MaxValue;
 
     public static Budget For(
@@ -30,7 +39,8 @@ public class Budget : BaseEntity
         Money amount,
         Recurrence recurrence,
         DateTime startsOn,
-        DateTime? endsOn)
+        DateTime? endsOn,
+        int? alertThresholdPercent = DefaultAlertThreshold)
     {
         if (amount.MinorUnits <= 0)
             throw new InvalidBudgetException("A budget amount must be positive.");
@@ -45,23 +55,39 @@ public class Budget : BaseEntity
             Recurrence = recurrence,
             StartsOn = from,
             EndsOn = to,
+            AlertThresholdPercent = RequireValidThreshold(alertThresholdPercent),
             CreatedAt = DateTime.UtcNow
         };
     }
 
-    public void Restate(Money amount, Recurrence recurrence, DateTime startsOn, DateTime? endsOn)
+    public void Restate(
+        Money amount,
+        Recurrence recurrence,
+        DateTime startsOn,
+        DateTime? endsOn,
+        int? alertThresholdPercent = DefaultAlertThreshold)
     {
         if (amount.MinorUnits <= 0)
             throw new InvalidBudgetException("A budget amount must be positive.");
 
         var (from, to) = RequireValidWindow(recurrence, startsOn, endsOn);
+        var threshold = RequireValidThreshold(alertThresholdPercent);
 
         AmountMinorUnits = amount.MinorUnits;
         Currency = amount.Currency;
         Recurrence = recurrence;
         StartsOn = from;
         EndsOn = to;
+        AlertThresholdPercent = threshold;
         Touch();
+    }
+
+    private static int? RequireValidThreshold(int? percent)
+    {
+        if (percent is not null && percent is < 1 or > 100)
+            throw new InvalidBudgetException("An alert threshold must be between 1 and 100 percent.");
+
+        return percent;
     }
 
     private static (DateTime From, DateTime? To) RequireValidWindow(

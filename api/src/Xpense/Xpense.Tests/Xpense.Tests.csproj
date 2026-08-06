@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Xpense.API\Xpense.API.csproj" />
+    <ProjectReference Include="..\Xpense.Notifications\Xpense.Notifications.csproj" />
   </ItemGroup>
 
 </Project>

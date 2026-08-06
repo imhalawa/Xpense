@@ -7,9 +7,13 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xpense.Persistence;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
+using Xpense.Domain.Events;
 using Xpense.Domain.ValueObjects;
+using Xpense.Notifications;
+using Xpense.Notifications.Rules;
 using Xpense.Tests.Infrastructure;
 
 namespace Xpense.Tests.Integration;
@@ -928,6 +932,129 @@ public class ApiEndpointTests
 
 
     [Test]
+    public async Task Recording_an_expense_that_exceeds_a_budget_produces_a_notification()
+    {
+        var categoryId = await SeedCategoryReturningId();
+        await SeedAccount();
+        await client.PostAsync("/api/v1/budgets", NewBudgetBody(categoryId, 1000, "Monthly"));
+
+        var recorded = await client.PostAsync("/api/v1/transactions", JsonBody(
+            $"{{\"amount\":{{\"minorUnits\":1500,\"currency\":\"EUR\"}},"
+            + $"\"sourceAccountNumber\":\"{SourceNumber}\",\"categoryId\":{categoryId},"
+            + "\"merchant\":{\"label\":\"Grocer\",\"create\":true}}"));
+
+        recorded.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        await ProcessEvents();
+
+        var response = await client.GetAsync("/api/v1/notifications");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var page = document.RootElement;
+        page.GetProperty("totalItems").GetInt32().Should().Be(1);
+        page.GetProperty("unreadItems").GetInt32().Should().Be(1);
+
+        var notification = page.GetProperty("notifications")[0];
+        notification.GetProperty("kind").GetString().Should().Be("BudgetExceeded");
+        notification.GetProperty("title").GetString().Should().Be("Food is over budget");
+        notification.GetProperty("readAt").ValueKind.Should().Be(JsonValueKind.Null);
+
+        var payload = notification.GetProperty("payload");
+        payload.ValueKind.Should().Be(JsonValueKind.Object);
+        payload.GetProperty("exceededByMinorUnits").GetInt64().Should().Be(500);
+    }
+
+    [Test]
+    public async Task Get_notifications_filters_to_unread_and_reports_both_totals()
+    {
+        await SeedNotifications(unread: 2, read: 1);
+
+        var response = await client.GetAsync("/api/v1/notifications?unread=true");
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var page = document.RootElement;
+        page.GetProperty("totalItems").GetInt32().Should().Be(2, "only the unread ones were requested");
+        page.GetProperty("unreadItems").GetInt32().Should().Be(2);
+        page.GetProperty("notifications").GetArrayLength().Should().Be(2);
+    }
+
+    [Test]
+    public async Task Get_notifications_rejects_a_page_size_above_the_ceiling()
+    {
+        var response = await client.GetAsync("/api/v1/notifications?pageSize=1000000");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
+    }
+
+    [Test]
+    public async Task Get_unread_count_returns_just_the_number()
+    {
+        await SeedNotifications(unread: 3, read: 2);
+
+        var response = await client.GetAsync("/api/v1/notifications/unread-count");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("unread").GetInt32().Should().Be(3);
+    }
+
+    [Test]
+    public async Task Patch_notification_read_marks_it_and_returns_it()
+    {
+        await SeedNotifications(unread: 1, read: 0);
+
+        var response = await client.PatchAsync("/api/v1/notifications/1/read", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("readAt").GetString().Should().NotBeNullOrEmpty();
+    }
+
+    [Test]
+    public async Task Patch_notification_read_is_idempotent()
+    {
+        await SeedNotifications(unread: 1, read: 0);
+
+        var first = await client.PatchAsync("/api/v1/notifications/1/read", null);
+        using var firstDocument = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
+        var firstReadAt = firstDocument.RootElement.GetProperty("readAt").GetString();
+
+        var second = await client.PatchAsync("/api/v1/notifications/1/read", null);
+
+        second.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var secondDocument = JsonDocument.Parse(await second.Content.ReadAsStringAsync());
+        secondDocument.RootElement.GetProperty("readAt").GetString().Should().Be(firstReadAt);
+    }
+
+    [Test]
+    public async Task Post_notifications_read_all_marks_only_the_unread_ones()
+    {
+        await SeedNotifications(unread: 3, read: 2);
+
+        var response = await client.PostAsync("/api/v1/notifications/read-all", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("marked").GetInt32().Should().Be(3, "the read two keep their own timestamps");
+
+        var count = await client.GetAsync("/api/v1/notifications/unread-count");
+        using var countDocument = JsonDocument.Parse(await count.Content.ReadAsStringAsync());
+        countDocument.RootElement.GetProperty("unread").GetInt32().Should().Be(0);
+    }
+
+    [Test]
+    public async Task Patch_notification_read_returns_a_problem_document_for_an_unknown_id()
+    {
+        var response = await client.PatchAsync("/api/v1/notifications/404/read", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
+    }
+
+
+    [Test]
     public async Task Unknown_account_returns_problem_details_not_an_envelope()
     {
         var response = await client.GetAsync("/api/v1/accounts/4242424242");
@@ -1167,6 +1294,43 @@ public class ApiEndpointTests
         }
 
         static DateTimeOffset At(int hour) => new(2026, 7, 26, hour, 0, 0, TimeSpan.Zero);
+    }
+
+    private async Task ProcessEvents()
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+
+        IEventDispatcher dispatcher = new EventDispatcher<TransactionRecorded>(
+            [new BudgetExceededRule(dbContext)]);
+
+        var processor = new EventProcessor(dbContext, [dispatcher], NullLogger<EventProcessor>.Instance);
+
+        await processor.ProcessBatch();
+    }
+
+    private async Task SeedNotifications(int unread, int read)
+    {
+        var dbContext = NewDbContext(out var scope);
+        using (scope)
+        {
+            for (var index = 0; index < unread + read; index++)
+            {
+                dbContext.Notifications.Add(new Notification
+                {
+                    EventId = Guid.CreateVersion7(),
+                    Kind = NotificationKind.BudgetExceeded,
+                    Title = $"Notification {index + 1}",
+                    Message = "Something happened.",
+                    Payload = $"{{\"index\":{index}}}",
+                    PayloadHash = index.ToString().PadLeft(64, '0'),
+                    ReadAt = index < unread ? null : DateTime.UtcNow.AddDays(-1),
+                    CreatedAt = DateTime.UtcNow.AddMinutes(-index)
+                });
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
     }
 
     private async Task<int> SeedCategoryReturningId()

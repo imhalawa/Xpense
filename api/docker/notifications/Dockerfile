@@ -12,9 +12,9 @@ COPY src/Xpense/Xpense.Tests/Xpense.Tests.csproj Xpense.Tests/
 RUN dotnet restore Xpense.sln
 
 COPY src/Xpense/ ./
-RUN dotnet publish Xpense.API/Xpense.API.csproj -c Release -o /app --no-restore
+RUN dotnet publish Xpense.Notifications/Xpense.Notifications.csproj -c Release -o /app --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0-alpine AS final
 WORKDIR /app
 
 RUN adduser -D -u 1001 xpense
@@ -22,5 +22,4 @@ USER xpense
 
 COPY --from=build /app ./
 
-EXPOSE 8080
-ENTRYPOINT ["dotnet", "Xpense.API.dll"]
+ENTRYPOINT ["dotnet", "Xpense.Notifications.dll"]
