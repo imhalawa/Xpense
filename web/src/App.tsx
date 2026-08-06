@@ -3,7 +3,7 @@ import "@fontsource/lato/400.css";
 import "@fontsource/lato/700.css";
 import "./App.css";
 
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router";
 import Dashboard from "./pages/Dashboard/Dashboard.tsx";
 import Transactions from "./pages/Transactions/Transactions.tsx";
 import Settings from "./pages/Settings/Settings.tsx";

@@ -9,7 +9,7 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink } from "react-router";
 import * as React from "react";
 import { Activity, ArrowLeftRight, Ellipsis, EllipsisVertical, Settings } from "lucide-react";
 import { DateCalendar } from "@mui/x-date-pickers";

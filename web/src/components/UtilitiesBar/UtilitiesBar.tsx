@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import SideBar from "../SideBar/SideBar";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import TransactionsUtilities from "./TransactionsUtilities/TransactionsUtilities";
 import { Slide } from "@mui/material";
 

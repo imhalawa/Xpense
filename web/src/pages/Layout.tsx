@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { Box, Container, Grid, useMediaQuery, useTheme } from "@mui/material";
 import NavigationBar from "../components/NavigationBar/NavigationBar.tsx";
 import UtilitiesBar from "../components/UtilitiesBar/UtilitiesBar.tsx";

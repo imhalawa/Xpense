@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import { Divider, List, ListItemButton, ListItemIcon } from "@mui/material";
 import { Activity, ArrowLeftRight, ListCollapse, Settings } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 
 interface MiniSideBarProps {
   visible: boolean;
