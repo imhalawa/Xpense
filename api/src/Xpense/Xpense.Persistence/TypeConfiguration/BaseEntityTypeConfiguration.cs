@@ -10,7 +10,7 @@ namespace Xpense.Persistence.TypeConfiguration
 
         public virtual void Configure(EntityTypeBuilder<T> builder)
         {
-            builder.HasKey(e => e.Id);
+            builder.HasKey(entity => entity.Id);
         }
     }
 }

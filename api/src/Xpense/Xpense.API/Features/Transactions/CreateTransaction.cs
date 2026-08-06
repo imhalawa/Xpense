@@ -112,11 +112,11 @@ public sealed class CreateTransaction : IEndpoint
 
     private static async Task<Created<TransactionResponse>> Handle(
         Request request,
-        XpenseDbContext db,
+        XpenseDbContext dbContext,
         OptionResolver<Merchant> merchants,
         OptionResolver<Tag> tags,
-        HttpContext http,
-        CancellationToken ct)
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
     {
         // The validator already rejected anything else.
         CurrencyParser.TryParse(request.Amount.Currency, out var currency);
@@ -127,7 +127,7 @@ public sealed class CreateTransaction : IEndpoint
         // Serializable because every kind reads a balance and writes it back. The old transfer
         // endpoint isolated this and the old income/expense endpoint did not; one path means one
         // answer, and the safer one is the correct one.
-        await using var scope = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        await using var scope = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
         try
         {
@@ -135,34 +135,34 @@ public sealed class CreateTransaction : IEndpoint
             // reads made within the transaction, so a balance read outside it leaves the
             // insufficient-funds guard unprotected: two concurrent transfers from one account would
             // both see the old balance, both pass the check, and both commit.
-            var source = await FindAccount(db, request.SourceAccountNumber, ct);
-            var destination = await FindAccount(db, request.DestinationAccountNumber, ct);
-            var resolvedTags = await ResolveTags(tags, request.Tags, ct);
+            var source = await FindAccount(dbContext, request.SourceAccountNumber, cancellationToken);
+            var destination = await FindAccount(dbContext, request.DestinationAccountNumber, cancellationToken);
+            var resolvedTags = await ResolveTags(tags, request.Tags, cancellationToken);
 
             var transaction = source is not null && destination is not null
                 ? Domain.Entities.Transaction.Transfer(source, destination, amount, request.Reason, resolvedTags, occurredAt)
-                : await OneSided(db, merchants, request, source, destination, amount, resolvedTags, occurredAt, ct);
+                : await OneSided(dbContext, merchants, request, source, destination, amount, resolvedTags, occurredAt, cancellationToken);
 
-            db.Transactions.Add(transaction);
+            dbContext.Transactions.Add(transaction);
 
-            if (await db.SaveChangesAsync(ct) < 1)
+            if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
                 throw Failure(request, amount, transaction.Kind);
 
-            await scope.CommitAsync(ct);
+            await scope.CommitAsync(cancellationToken);
 
             return TypedResults.Created(
-                http.ResourceUri($"/api/v1/transactions/{transaction.Id}"),
+                httpContext.ResourceUri($"/api/v1/transactions/{transaction.Id}"),
                 TransactionResponse.Of(transaction));
         }
         catch
         {
-            await scope.RollbackAsync(ct);
+            await scope.RollbackAsync(cancellationToken);
             throw;
         }
     }
 
     private static async Task<Transaction> OneSided(
-        XpenseDbContext db,
+        XpenseDbContext dbContext,
         OptionResolver<Merchant> merchants,
         Request request,
         Account? source,
@@ -170,14 +170,14 @@ public sealed class CreateTransaction : IEndpoint
         Money amount,
         List<Tag>? tags,
         DateTime occurredAt,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
-        var category = await db.Categories
+        var category = await dbContext.Categories
             .Include(item => item.Priority)
-            .FirstOrDefaultAsync(item => item.Id == request.CategoryId, ct)
+            .FirstOrDefaultAsync(item => item.Id == request.CategoryId, cancellationToken)
             ?? throw new CategoryNotFoundException(request.CategoryId!.Value);
 
-        var merchant = await merchants.Resolve(ToMerchantOption(request.Merchant!), ct)
+        var merchant = await merchants.Resolve(ToMerchantOption(request.Merchant!), cancellationToken)
                        ?? throw new MerchantNotFoundException(request.Merchant!.Label);
 
         // Deposit and Withdraw reject an amount whose currency differs from the account's, so a USD
@@ -197,19 +197,19 @@ public sealed class CreateTransaction : IEndpoint
             ? new WithdrawCreationFailedException(amount.ToDecimal(), request.SourceAccountNumber!)
             : new DepositCreationFailedException(amount.ToDecimal(), request.DestinationAccountNumber!);
 
-    private static async Task<Account?> FindAccount(XpenseDbContext db, string? accountNumber, CancellationToken ct)
+    private static async Task<Account?> FindAccount(XpenseDbContext dbContext, string? accountNumber, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(accountNumber))
             return null;
 
-        return await db.Accounts.FirstOrDefaultAsync(account => account.AccountNumber == accountNumber, ct)
+        return await dbContext.Accounts.FirstOrDefaultAsync(account => account.AccountNumber == accountNumber, cancellationToken)
                ?? throw new AccountNotFoundException(accountNumber);
     }
 
     private static async Task<List<Tag>?> ResolveTags(
         OptionResolver<Tag> resolver,
         IReadOnlyList<OptionRequest>? requested,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         if (requested is null)
             return null;
@@ -217,7 +217,7 @@ public sealed class CreateTransaction : IEndpoint
         List<Tag> resolved = [];
         foreach (var option in requested)
         {
-            if (await resolver.Resolve(ToTagOption(option), ct) is { } tag)
+            if (await resolver.Resolve(ToTagOption(option), cancellationToken) is { } tag)
                 resolved.Add(tag);
         }
 

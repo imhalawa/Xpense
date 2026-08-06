@@ -38,6 +38,8 @@ These are enforced by `Xpense.Tests/Architecture/SliceIsolationTests.cs`. Breaki
 
 ## Style
 
+- **Spell names out.** `cancellationToken`, not `ct`. `dbContext`, not `db`. `httpContext`, not `http`. Lambda parameters are named for what they hold, and for *their own* type -- in relationship configuration the two sides differ, so `HasOne(transaction => transaction.Category).WithMany(category => category.Transactions)`. `app` in `Map(IEndpointRouteBuilder app)` is the one exception, being the framework's own name for that thing.
+- **Constants first.** `const` and `static readonly` go at the top of the type, before fields, properties and methods.
 - **Validation messages are prose, not identifiers.** "The category must be a valid selection", never "The categoryId must reference an existing category". The ProblemDetails error dictionary is already keyed by the camelCase field, which is how a client attaches an error to an input, so the message is free to read like a sentence. Domain words stay: "minor units" is the term, per [`UBIQUITOUS_LANGUAGE.md`](UBIQUITOUS_LANGUAGE.md).
 
 ## Conventions

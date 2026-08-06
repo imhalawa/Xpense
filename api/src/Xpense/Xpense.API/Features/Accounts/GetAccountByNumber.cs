@@ -18,12 +18,12 @@ public sealed class GetAccountByNumber : IEndpoint
 
     private static async Task<Ok<AccountResponse>> Handle(
         string accountNumber,
-        XpenseDbContext db,
-        CancellationToken ct)
+        XpenseDbContext dbContext,
+        CancellationToken cancellationToken)
     {
-        var account = await db.Accounts
+        var account = await dbContext.Accounts
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.AccountNumber == accountNumber, ct)
+            .FirstOrDefaultAsync(account => account.AccountNumber == accountNumber, cancellationToken)
             ?? throw new AccountNotFoundException(accountNumber);
 
         return TypedResults.Ok(AccountResponse.Of(account));

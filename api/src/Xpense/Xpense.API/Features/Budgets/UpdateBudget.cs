@@ -70,13 +70,13 @@ public sealed class UpdateBudget : IEndpoint
     private static async Task<Ok<BudgetResponse>> Handle(
         int id,
         Request request,
-        XpenseDbContext db,
-        CancellationToken ct)
+        XpenseDbContext dbContext,
+        CancellationToken cancellationToken)
     {
-        var budget = await db.Budgets
+        var budget = await dbContext.Budgets
             .Include(item => item.Category)
             .ThenInclude(category => category!.Priority)
-            .FirstOrDefaultAsync(item => item.Id == id, ct)
+            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken)
             ?? throw new BudgetNotFoundException(id);
 
         CurrencyParser.TryParse(request.Amount.Currency, out var currency);
@@ -88,7 +88,7 @@ public sealed class UpdateBudget : IEndpoint
             request.StartsOn.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
             request.EndsOn?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new BudgetUpdateFailedException(id);
 
         return TypedResults.Ok(BudgetResponse.Of(budget, null));

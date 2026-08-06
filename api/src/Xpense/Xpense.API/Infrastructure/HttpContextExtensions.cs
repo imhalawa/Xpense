@@ -14,6 +14,6 @@ public static class HttpContextExtensions
     /// every create slice goes through here rather than each one deciding.
     /// </para>
     /// </summary>
-    public static string ResourceUri(this HttpContext http, string path) =>
-        UriHelper.BuildAbsolute(http.Request.Scheme, http.Request.Host, path: path);
+    public static string ResourceUri(this HttpContext httpContext, string path) =>
+        UriHelper.BuildAbsolute(httpContext.Request.Scheme, httpContext.Request.Host, path: path);
 }

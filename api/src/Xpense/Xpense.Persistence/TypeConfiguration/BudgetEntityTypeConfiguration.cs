@@ -12,19 +12,19 @@ public class BudgetEntityTypeConfiguration : BaseEntityTypeConfiguration<Budget>
         builder.Metadata.SetSchema(XpenseSchema);
 
         // Amount is projected from AmountMinorUnits and Currency, not stored.
-        builder.Ignore(e => e.Amount);
+        builder.Ignore(budget => budget.Amount);
 
         // Budget (M) - Category (1). No collection on Category: nothing needs to walk that way, and
         // adding one would put a navigation on Category that only this feature reads. Restrict
         // because a category is soft-deleted rather than removed -- DeleteCategory soft-deletes the
         // budgets pointing at it in the same operation.
-        builder.HasOne(e => e.Category)
+        builder.HasOne(budget => budget.Category)
             .WithMany()
-            .HasForeignKey(e => e.CategoryId)
+            .HasForeignKey(budget => budget.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Every read starts from a category and a window.
-        builder.HasIndex(e => new { e.CategoryId, e.StartsOn });
+        builder.HasIndex(budget => new { budget.CategoryId, budget.StartsOn });
 
         // The factory enforces these too. That is not redundancy to remove: a migration, a script or
         // a future caller can write a row without going through it.

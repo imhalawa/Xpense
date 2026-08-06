@@ -25,14 +25,14 @@ public sealed class ListPriorities : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapGet("/api/v1/priorities", Handle).WithName(nameof(ListPriorities));
 
-    private static async Task<Ok<PriorityResponse[]>> Handle(XpenseDbContext db, CancellationToken ct)
+    private static async Task<Ok<PriorityResponse[]>> Handle(XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
         // By id, which is seed order: Extreme, High, Medium, Low, None. Weight would put None first,
         // because None weighs 0 and Extreme weighs 1.
-        var priorities = await db.Priorities
+        var priorities = await dbContext.Priorities
             .AsNoTracking()
             .OrderBy(priority => priority.Id)
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         return TypedResults.Ok(priorities.Select(PriorityResponse.Of).ToArray());
     }

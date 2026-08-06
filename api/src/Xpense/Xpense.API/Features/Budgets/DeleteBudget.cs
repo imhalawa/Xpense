@@ -16,15 +16,15 @@ public sealed class DeleteBudget : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapDelete("/api/v1/budgets/{id:int}", Handle).WithName(nameof(DeleteBudget));
 
-    private static async Task<NoContent> Handle(int id, XpenseDbContext db, CancellationToken ct)
+    private static async Task<NoContent> Handle(int id, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
-        var budget = await db.Budgets.FirstOrDefaultAsync(item => item.Id == id, ct)
+        var budget = await dbContext.Budgets.FirstOrDefaultAsync(item => item.Id == id, cancellationToken)
                      ?? throw new BudgetNotFoundException(id);
 
         budget.MarkAsDeleted();
         budget.Touch();
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new BudgetDeletionFailedException(id);
 
         return TypedResults.NoContent();

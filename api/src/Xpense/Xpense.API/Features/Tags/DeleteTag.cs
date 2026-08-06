@@ -16,9 +16,9 @@ public sealed class DeleteTag : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapDelete("/api/v1/tags/{id:int}", Handle).WithName(nameof(DeleteTag));
 
-    private static async Task<NoContent> Handle(int id, XpenseDbContext db, CancellationToken ct)
+    private static async Task<NoContent> Handle(int id, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
-        var tag = await db.Tags.FirstOrDefaultAsync(t => t.Id == id, ct)
+        var tag = await dbContext.Tags.FirstOrDefaultAsync(tag => tag.Id == id, cancellationToken)
                   ?? throw new TagNotFoundException(id);
 
         // Soft delete: the global query filter hides IsDeleted rows. Preserved from the
@@ -26,7 +26,7 @@ public sealed class DeleteTag : IEndpoint
         tag.MarkAsDeleted();
         tag.Touch();
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new TagDeletionFailedException(id);
 
         return TypedResults.NoContent();

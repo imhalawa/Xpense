@@ -35,9 +35,9 @@ public sealed class CreateTag : IEndpoint
 
     private static async Task<Created<TagResponse>> Handle(
         Request request,
-        XpenseDbContext db,
-        HttpContext http,
-        CancellationToken ct)
+        XpenseDbContext dbContext,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
     {
         var tag = new Tag
         {
@@ -47,11 +47,11 @@ public sealed class CreateTag : IEndpoint
             CreatedAt = DateTime.UtcNow
         };
 
-        db.Tags.Add(tag);
+        dbContext.Tags.Add(tag);
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new TagCreationFailedException(tag.Label);
 
-        return TypedResults.Created(http.ResourceUri($"/api/v1/tags/{tag.Id}"), TagResponse.Of(tag));
+        return TypedResults.Created(httpContext.ResourceUri($"/api/v1/tags/{tag.Id}"), TagResponse.Of(tag));
     }
 }

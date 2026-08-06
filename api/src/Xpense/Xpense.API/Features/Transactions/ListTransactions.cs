@@ -21,17 +21,17 @@ public sealed class ListTransactions : IEndpoint
         app.MapGet("/api/v1/transactions", Handle).WithName(nameof(ListTransactions));
 
     private static async Task<Ok<TransactionPageResponse>> Handle(
-        XpenseDbContext db,
-        CancellationToken ct,
+        XpenseDbContext dbContext,
+        CancellationToken cancellationToken,
         int page = DefaultPage,
         int pageSize = DefaultPageSize)
     {
         if (page <= 0 || pageSize <= 0)
             throw new InvalidFilteredResultParams(page, pageSize);
 
-        var query = db.WithDetails().AsNoTracking();
+        var query = dbContext.WithDetails().AsNoTracking();
 
-        var totalItems = await query.CountAsync(ct);
+        var totalItems = await query.CountAsync(cancellationToken);
         var totalPages = totalItems / pageSize + (totalItems % pageSize > 0 ? 1 : 0);
 
         var transactions = await query
@@ -40,7 +40,7 @@ public sealed class ListTransactions : IEndpoint
             .OrderByDescending(transaction => transaction.OccurredAt)
             .Skip(pageSize * (page - 1))
             .Take(pageSize)
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         return TypedResults.Ok(new TransactionPageResponse(
             transactions.Select(TransactionResponse.Of).ToArray(),

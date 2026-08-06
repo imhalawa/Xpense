@@ -11,11 +11,13 @@ namespace Xpense.Persistence.TypeConfiguration
             base.Configure(builder);
             builder.Metadata.SetSchema(XpenseSchema);
 
-            builder.Property(e => e.Label).HasMaxLength(100).IsRequired();
-            builder.HasIndex(e => e.Label).IsUnique();
+            builder.Property(category => category.Label).HasMaxLength(100).IsRequired();
+            builder.HasIndex(category => category.Label).IsUnique();
 
             // Category (1) - Transaction (M) 
-            builder.HasMany(e => e.Transactions).WithOne(e => e.Category).HasForeignKey(e => e.CategoryId);
+            builder.HasMany(category => category.Transactions)
+                .WithOne(transaction => transaction.Category)
+                .HasForeignKey(transaction => transaction.CategoryId);
         }
     }
 }
