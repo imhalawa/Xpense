@@ -6,15 +6,6 @@ using Entities = Xpense.Domain.Entities;
 
 namespace Xpense.Tests.Unit;
 
-/// <summary>
-/// Replaces MoneyTransferTests. The rules that move money now live on the entity as three static
-/// factories, one per kind, so income and expense are guarded here too -- previously only transfers
-/// were, and the other two were protected by an endpoint validator alone.
-/// <para>
-/// No persistence dependency, so these are genuine unit tests. Rollback behaviour is covered by the
-/// integration tests that assert no balance changes survive a rejected transaction.
-/// </para>
-/// </summary>
 [TestFixture]
 public class TransactionTests
 {
@@ -108,7 +99,6 @@ public class TransactionTests
         var act = () => Entities.Transaction.Transfer(
             source, destination, Money.OfMinorUnits(100), null, null, OccurredAt);
 
-        // No conversion exists, so this cannot be honoured rather than merely being unsupported.
         act.Should().Throw<InvalidTransactionException>()
             .WithMessage("*different currencies*");
         source.BalanceMinorUnits.Should().Be(2000);
@@ -186,11 +176,6 @@ public class TransactionTests
         destination.BalanceMinorUnits.Should().Be(1000);
     }
 
-    /// <summary>
-    /// Kind reads the navigations as well as the foreign keys, because a transaction built by a
-    /// factory carries navigations and no keys until EF saves it. Reading only the keys would report
-    /// every unsaved transaction as income.
-    /// </summary>
     [Test]
     public void Kind_is_correct_before_the_transaction_is_saved()
     {

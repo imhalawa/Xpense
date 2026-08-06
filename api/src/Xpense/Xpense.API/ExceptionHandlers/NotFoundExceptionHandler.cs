@@ -7,7 +7,6 @@ using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.ExceptionHandlers;
 
-/// <summary>Handles <see cref="NotFoundException"/>. A resource was looked up by identity and does not exist.</summary>
 public sealed class NotFoundExceptionHandler(IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
     public ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)

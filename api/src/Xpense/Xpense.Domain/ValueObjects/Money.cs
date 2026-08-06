@@ -5,10 +5,6 @@ namespace Xpense.Domain.ValueObjects
 {
     public class Money(long minorUnits, Currency currency)
     {
-        /// <summary>
-        /// The amount as a whole number of the currency's smallest indivisible unit. Deliberately
-        /// not "cents": that holds for EUR and USD and is wrong for the first currency without them.
-        /// </summary>
         public long MinorUnits { get; } = minorUnits;
 
         public Currency Currency { get; } = currency;
@@ -47,10 +43,6 @@ namespace Xpense.Domain.ValueObjects
 
         public static bool operator >=(Money lhs, Money rhs) => Compare(lhs, rhs) >= 0;
 
-        /// <summary>
-        /// Comparing amounts in different currencies is meaningless, so it throws rather than
-        /// quietly returning an answer based on the raw numbers.
-        /// </summary>
         private static int Compare(Money lhs, Money rhs)
         {
             RequireSameCurrency(lhs, rhs);
@@ -63,8 +55,5 @@ namespace Xpense.Domain.ValueObjects
                 throw new IncompatibleCurrencyOperationException();
         }
 
-        // ponytail: no Money*Money or Money/Money. Multiplying two amounts yields money-squared
-        // and dividing yields a dimensionless ratio -- neither is a Money. Add Money*decimal
-        // scaling if a caller ever actually needs it.
     }
 }

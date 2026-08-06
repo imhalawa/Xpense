@@ -8,11 +8,6 @@ using Xpense.Persistence;
 
 namespace Xpense.Tests.Infrastructure;
 
-/// <summary>
-/// Hosts the API against a throwaway Postgres database created by
-/// <see cref="Integration.PostgresFixture"/>. The schema is already applied by the template, so
-/// nothing here creates tables.
-/// </summary>
 public sealed class WebApiTestFactory : WebApplicationFactory<Program>
 {
     private readonly string connectionString;
@@ -35,12 +30,6 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
         });
     }
 
-    /// <summary>
-    /// AddDbContext registers more than DbContextOptions&lt;T&gt;: it also registers the
-    /// non-generic DbContextOptions and, from EF 9 onwards, IDbContextOptionsConfiguration&lt;T&gt;.
-    /// Leaving any of them behind means two providers stay registered, which EF 10 rejects
-    /// outright ("Only a single database provider can be registered").
-    /// </summary>
     private static void RemoveProductionDbContext(IServiceCollection services)
     {
         var doomed = services

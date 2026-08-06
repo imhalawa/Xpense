@@ -6,16 +6,6 @@ using Xpense.API.Infrastructure;
 
 namespace Xpense.Tests.Architecture;
 
-/// <summary>
-/// The move to vertical slices gave up a compiler-enforced boundary: Xpense.Domain literally
-/// could not reference the API project, so a whole class of mistake was impossible. Slice
-/// isolation is only a convention, and a convention in a README is a weaker constraint than a
-/// build error -- for people and for AI agents alike.
-/// <para>
-/// These tests put that enforcement back. See
-/// docs/vertical-slicing-architecture/06-ai-assisted-development.md.
-/// </para>
-/// </summary>
 [TestFixture]
 public class SliceIsolationTests
 {
@@ -30,13 +20,6 @@ public class SliceIsolationTests
     [OneTimeTearDown]
     public void Dispose() => module?.Dispose();
 
-    /// <summary>
-    /// Contracts returned by more than one feature live in <c>Xpense.API.Contracts</c>, which is
-    /// outside Features and therefore always allowed. Analytics embeds a category, so
-    /// CategoryResponse cannot live inside the Categories feature without creating exactly the
-    /// slice-to-slice dependency this test forbids; MoneyResponse and Timestamps are there for the
-    /// same reason.
-    /// </summary>
     [Test]
     public void No_slice_references_a_type_from_another_feature()
     {
@@ -104,14 +87,9 @@ public class SliceIsolationTests
 
     private static bool IsInAFeature(TypeDefinition type) => type.FullName.StartsWith(FeaturesRoot);
 
-    /// <summary>"Xpense.API.Features.Tags.CreateTag/Request" -> "Tags".</summary>
     private static string FeatureOf(string fullName) =>
         fullName[FeaturesRoot.Length..].Split('.', '/')[0];
 
-    /// <summary>
-    /// Every type this type mentions: base type, interfaces, field and property types, method
-    /// signatures, and anything referenced from IL bodies.
-    /// </summary>
     private static IEnumerable<string> ReferencedTypeNames(TypeDefinition type)
     {
         if (type.BaseType is not null) yield return type.BaseType.FullName;

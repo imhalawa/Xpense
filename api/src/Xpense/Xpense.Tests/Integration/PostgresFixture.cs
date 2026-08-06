@@ -5,20 +5,6 @@ using Xpense.Persistence;
 
 namespace Xpense.Tests.Integration;
 
-/// <summary>
-/// One Postgres container for the whole integration run.
-/// <para>
-/// Integration tests used to run on SQLite in-memory, which is fast but is not the provider
-/// that ships. Postgres enforces things SQLite does not -- most relevantly it rejects a
-/// DateTime whose Kind is not Utc for a `timestamp with time zone` column, which is exactly the
-/// class of bug the UTC work was about.
-/// </para>
-/// <para>
-/// Per-test isolation comes from cloning a template database rather than migrating each time:
-/// CREATE DATABASE ... TEMPLATE is a file copy and costs a few milliseconds, where re-running
-/// migrations for every test would dominate the suite.
-/// </para>
-/// </summary>
 [SetUpFixture]
 public sealed class PostgresFixture
 {
@@ -40,8 +26,6 @@ public sealed class PostgresFixture
 
         await ExecuteOnMaintenanceDatabase($"CREATE DATABASE {TemplateDatabase}");
 
-        // Apply the real migrations once. If the Postgres migration is broken, the whole
-        // integration suite fails here rather than in a confusing place later.
         var options = new DbContextOptionsBuilder<XpenseDbContext>()
             .UseNpgsql(ConnectionStringFor(TemplateDatabase))
             .Options;
@@ -49,7 +33,6 @@ public sealed class PostgresFixture
         await using (var context = new XpenseDbContext(options))
             await context.Database.MigrateAsync();
 
-        // A template cannot be cloned while anything is connected to it.
         NpgsqlConnection.ClearAllPools();
     }
 
@@ -62,7 +45,6 @@ public sealed class PostgresFixture
             await container.DisposeAsync();
     }
 
-    /// <summary>Clones the migrated template and returns a connection string for the copy.</summary>
     public static async Task<string> CreateDatabase()
     {
         var name = $"xpense_test_{Interlocked.Increment(ref databaseCounter)}";

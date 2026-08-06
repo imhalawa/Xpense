@@ -36,8 +36,17 @@ These are enforced by `Xpense.Tests/Architecture/SliceIsolationTests.cs`. Breaki
 
 `GET /health` is the one deliberate exception: it is mapped directly in `Program.cs` because it is infrastructure, not a feature. It has no request, no contract to version and no slice to belong to. The architecture tests allow it — they constrain types under `Xpense.API.Features.*` and types implementing `IEndpoint`, and it is neither. Do not treat it as precedent for a second one.
 
+## Pinned packages
+
+Three versions are held deliberately. Bumping any of them needs a reason.
+
+- **FluentAssertions stays on 6.x.** Version 8 moved to a commercial Xceed licence.
+- **`Microsoft.EntityFrameworkCore.Relational` is pinned explicitly.** Npgsql floors it at `[10.0.4, 11.0.0)`, so without a pin NuGet resolves 10.0.4 against a 10.0.10 core and the app fails at runtime with a missing assembly. See [`docs/postgres.md`](docs/postgres.md).
+- **`dotnet-ef` is a local tool** in `.config/dotnet-tools.json`, matching the EF runtime. A globally installed 8.x tool refuses to run against EF 10.
+
 ## Style
 
+- **No comments.** Not in C#, Dockerfiles, YAML, XML or shell. The one exception is `<summary>` on `*Request` and `*Response` records, because Swagger renders those into the OpenAPI document that [ADR 0003](docs/adr/0003-generated-openapi-is-the-contract.md) makes authoritative. Write code that says what it does and put reasoning in the commit message, an ADR, or `docs/`. Parser directives that only look like comments stay: `# syntax=` in a Dockerfile, `#!` in a script.
 - **Spell names out.** `cancellationToken`, not `ct`. `dbContext`, not `db`. `httpContext`, not `http`. Lambda parameters are named for what they hold, and for *their own* type -- in relationship configuration the two sides differ, so `HasOne(transaction => transaction.Category).WithMany(category => category.Transactions)`. `app` in `Map(IEndpointRouteBuilder app)` is the one exception, being the framework's own name for that thing.
 - **Constants first.** `const` and `static readonly` go at the top of the type, before fields, properties and methods.
 - **Validation messages are prose, not identifiers.** "The category must be a valid selection", never "The categoryId must reference an existing category". The ProblemDetails error dictionary is already keyed by the camelCase field, which is how a client attaches an error to an input, so the message is free to read like a sentence. Domain words stay: "minor units" is the term, per [`UBIQUITOUS_LANGUAGE.md`](UBIQUITOUS_LANGUAGE.md).

@@ -9,10 +9,6 @@ public class DepositCreationFailedException(decimal amount, string accountNumber
 public class WithdrawCreationFailedException(decimal amount, string accountNumber, Exception? innerException = null)
     : PersistenceFailedException($"Failed Attempt to withdraw amount {amount} from account {accountNumber}", innerException);
 
-/// <summary>
-/// A transaction was asked for that cannot exist: a non-positive amount, or a transfer whose two
-/// accounts are the same or are denominated in different currencies.
-/// </summary>
 public class InvalidTransactionException(string message) : DomainRuleViolationException(message);
 
 public class InsufficientFundsForTransferException(int accountId, object balance, object amount)

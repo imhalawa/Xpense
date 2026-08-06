@@ -15,10 +15,8 @@ public class AccountEntityTypeConfiguration : BaseEntityTypeConfiguration<Accoun
         builder.Property(account => account.AccountNumber).HasMaxLength(10).IsRequired().IsFixedLength();
         builder.Property(account => account.Currency).IsRequired();
 
-        // Balance is projected from BalanceMinorUnits + Currency, not stored.
         builder.Ignore(account => account.Balance);
 
-        // AccountNumber is the public identifier, so it has to be unique.
         builder.HasIndex(account => account.AccountNumber).IsUnique();
     }
 }

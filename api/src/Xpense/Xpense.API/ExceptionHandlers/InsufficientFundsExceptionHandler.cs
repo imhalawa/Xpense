@@ -9,11 +9,6 @@ using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.ExceptionHandlers;
 
-/// <summary>
-/// Special case ahead of <see cref="DomainRuleViolationExceptionHandler"/>. Still a 400, but
-/// the failure is attributable to a specific field, so it is reported as a field error rather
-/// than a flat problem detail.
-/// </summary>
 public sealed class InsufficientFundsExceptionHandler(IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)

@@ -15,10 +15,6 @@ using Xpense.Persistence;
 
 namespace Xpense.API.Features.Budgets;
 
-/// <summary>
-/// Restates a budget's limit and window. The category is not among them: a budget for a different
-/// category is a different budget, the same way an account's currency is fixed for its life.
-/// </summary>
 public sealed class UpdateBudget : IEndpoint
 {
     public sealed record Request(

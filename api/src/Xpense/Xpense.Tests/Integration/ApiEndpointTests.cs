@@ -14,11 +14,6 @@ using Xpense.Tests.Infrastructure;
 
 namespace Xpense.Tests.Integration;
 
-/// <summary>
-/// The canonical HTTP contract suite. Every endpoint, every error shape, one file.
-/// Each test gets its own Postgres database, cloned from the migrated template that
-/// <see cref="PostgresFixture"/> builds once per run.
-/// </summary>
 [TestFixture]
 public class ApiEndpointTests
 {
@@ -43,7 +38,6 @@ public class ApiEndpointTests
         factory?.Dispose();
     }
 
-    // ---------------------------------------------------------------- collections
 
     [TestCase("/api/v1/accounts", "Cash")]
     [TestCase("/api/v1/categories", "Food")]
@@ -64,7 +58,6 @@ public class ApiEndpointTests
         document.RootElement[0].GetProperty("label").GetString().Should().Be(expectedLabel);
     }
 
-    // ---------------------------------------------------------------- accounts
 
     [Test]
     public async Task Post_accounts_returns_the_created_resource_at_its_account_number_route()
@@ -81,7 +74,6 @@ public class ApiEndpointTests
         document.RootElement.GetProperty("accountNumber").GetString().Should().Be("1000000001");
         document.RootElement.GetProperty("label").GetString().Should().Be("Savings");
 
-        // The database key is not part of the contract, so it must not leak into the body.
         document.RootElement.TryGetProperty("id", out _).Should().BeFalse();
     }
 
@@ -128,7 +120,6 @@ public class ApiEndpointTests
         document.RootElement.GetProperty("updatedAt").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
-    // ---------------------------------------------------------------- categories
 
     [Test]
     public async Task Post_categories_returns_the_created_resource_at_its_id_route()
@@ -175,7 +166,6 @@ public class ApiEndpointTests
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
-    // ---------------------------------------------------------------- tags
 
     [Test]
     public async Task Post_tags_returns_the_created_resource_at_its_id_route()
@@ -210,7 +200,6 @@ public class ApiEndpointTests
         var createResponse = await client.PostAsync("/api/v1/tags", NewTagBody("Travel"));
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        // "label" on update as well as create -- it used to be "name" on update only.
         var updateResponse = await client.PutAsync(
             "/api/v1/tags/1",
             JsonBody("{\"label\":\"Holiday\",\"bgColorHex\":\"#123456\",\"fgColorHex\":\"#abcdef\"}"));
@@ -222,10 +211,6 @@ public class ApiEndpointTests
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
-    // ---------------------------------------------------------------- transactions
-    //
-    // One resource, three kinds. Which sides the caller names decides the kind, so there is no
-    // type field: only a destination is income, only a source is expense, both is a transfer.
 
     [Test]
     public async Task Post_income_creates_a_direct_resource_and_uses_the_get_by_id_location()
@@ -268,11 +253,6 @@ public class ApiEndpointTests
         (await GetAccountBalance(seeded.AccountNumber)).Should().Be(1234);
     }
 
-    /// <summary>
-    /// OccurredAt and CreatedAt are separate facts. A transaction dated in the past keeps that date
-    /// while still recording when the row was written -- they were the same column until now, so a
-    /// backdated entry made it impossible to tell when anything was entered.
-    /// </summary>
     [Test]
     public async Task Post_transaction_keeps_the_supplied_occurrence_time_and_stamps_its_own_created_time()
     {
@@ -369,7 +349,6 @@ public class ApiEndpointTests
     [Test]
     public async Task Get_transactions_without_query_params_pages_by_default()
     {
-        // Used to bind page/pageSize to 0, fail FilterQuery.IsValid() and surface as a 500.
         var response = await client.GetAsync("/api/v1/transactions");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -455,15 +434,10 @@ public class ApiEndpointTests
         response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
     }
 
-    // ---------------------------------------------------------------- transfers
-    //
-    // A transfer is a transaction with both sides named. There is no /transfers resource and no
-    // leg rows: the legs held nothing the parent did not already hold.
 
     [Test]
     public async Task Post_creates_an_atomic_transfer_naming_both_accounts()
     {
-        // Both accounts in USD: proves a non-default currency works end to end.
         var accounts = await SeedTransferAccounts(2000, 300, Currency.USD, Currency.USD);
         var occurredAt = new DateTimeOffset(2026, 7, 26, 9, 30, 0, TimeSpan.Zero);
 
@@ -489,7 +463,6 @@ public class ApiEndpointTests
         transfer.GetProperty("reason").GetString().Should().Be("Shared rent");
         transfer.GetProperty("occurredAt").GetDateTimeOffset().Should().Be(occurredAt);
 
-        // A transfer is money you still own, so it has no spending class and no external party.
         transfer.GetProperty("categoryId").ValueKind.Should().Be(JsonValueKind.Null);
         transfer.GetProperty("merchant").ValueKind.Should().Be(JsonValueKind.Null);
 
@@ -597,7 +570,6 @@ public class ApiEndpointTests
         response.Headers.Location.Should().NotBeNull();
         response.Headers.Location!.ToString().Should().MatchRegex("/api/v1/transactions/[1-9][0-9]*$");
 
-        // The header has to actually resolve -- a Location pointing at a 404 is worse than none.
         var followed = await client.GetAsync(response.Headers.Location);
         followed.StatusCode.Should().Be(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await followed.Content.ReadAsStringAsync());
@@ -608,8 +580,6 @@ public class ApiEndpointTests
     [Test]
     public async Task Transfer_rolls_back_entirely_when_persistence_fails()
     {
-        // Needs a host whose persistence layer fails, so it builds its own rather than using
-        // the fixture's. Replaces the old test that injected a failing ITransferRepository.
         using var failing = new WebApiTestFactory(
             await PostgresFixture.CreateDatabase(),
             new FailOnSaveInterceptor<Transaction>());
@@ -642,11 +612,6 @@ public class ApiEndpointTests
         (await verifyDb.Transactions.CountAsync()).Should().Be(0);
     }
 
-    // ---------------------------------------------------------------- multi-currency
-    //
-    // Accounts are denominated. Xpense holds several currencies but never converts between
-    // them, so anything that would mix currencies is rejected rather than silently moving the
-    // wrong quantity of money -- which is what happened when Balance was a bare decimal.
 
     [Test]
     public async Task Accounts_can_be_created_in_different_currencies()
@@ -677,7 +642,7 @@ public class ApiEndpointTests
 
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new
         {
-            amount = new { minorUnits = 500, currency = "USD" },  // the account is EUR
+            amount = new { minorUnits = 500, currency = "USD" },
             sourceAccountNumber = seeded.AccountNumber,
             categoryId = seeded.CategoryId,
             merchant = new { label = "Coffee Shop", create = true }
@@ -689,7 +654,6 @@ public class ApiEndpointTests
         document.RootElement.GetProperty("detail").GetString()
             .Should().Contain("EUR").And.Contain("USD");
 
-        // Rejected before anything moved.
         (await GetAccountBalance(seeded.AccountNumber)).Should().Be(2000);
     }
 
@@ -730,7 +694,6 @@ public class ApiEndpointTests
         await AssertBalancesUnchanged(accounts, 2000, 300);
     }
 
-    // ---------------------------------------------------------------- analytics
 
     [Test]
     public async Task Get_spending_by_category_returns_the_current_summary_directly()
@@ -753,10 +716,6 @@ public class ApiEndpointTests
         expenses[0].GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(1250);
     }
 
-    /// <summary>
-    /// Spending means expenses. Transfers have no category to group by, and income is not spending
-    /// -- nothing filtered by direction before, so both would have been counted.
-    /// </summary>
     [Test]
     public async Task Get_spending_by_category_counts_neither_income_nor_transfers()
     {
@@ -771,10 +730,6 @@ public class ApiEndpointTests
         totals[0].GetProperty("minorUnits").GetInt64().Should().Be(1250);
     }
 
-    /// <summary>
-    /// This used to label the whole day with the first expense's currency and add every minor unit
-    /// together, so 12.50 EUR and 7.00 USD reported as 19.50 EUR -- money created by addition.
-    /// </summary>
     [Test]
     public async Task Get_spending_by_category_never_sums_across_currencies()
     {
@@ -791,7 +746,6 @@ public class ApiEndpointTests
             .Select(total => (total.GetProperty("currency").GetString(), total.GetProperty("minorUnits").GetInt64()))
             .Should().BeEquivalentTo([("EUR", 1250L), ("USD", 700L)]);
 
-        // One category, two currencies, so two lines -- never one line holding a nonsense sum.
         var expenses = document.RootElement.GetProperty("expenses");
         expenses.GetArrayLength().Should().Be(2);
         expenses.EnumerateArray()
@@ -799,12 +753,7 @@ public class ApiEndpointTests
             .Should().NotContain(1950);
     }
 
-    // ---------------------------------------------------------------- priorities
 
-    /// <summary>
-    /// Also proves the SeedPriorities migration ran: these five rows come from the schema, not from
-    /// anything this test wrote.
-    /// </summary>
     [Test]
     public async Task Get_priorities_returns_the_reference_data_seeded_by_the_migration()
     {
@@ -818,7 +767,6 @@ public class ApiEndpointTests
             .Should().Equal("Extreme", "High", "Medium", "Low", "None");
     }
 
-    // ---------------------------------------------------------------- budgets
 
     [Test]
     public async Task Post_budgets_returns_the_created_resource_at_its_id_route()
@@ -836,10 +784,6 @@ public class ApiEndpointTests
         document.RootElement.GetProperty("startsOn").GetString().Should().Be(FirstOfThisMonth());
     }
 
-    /// <summary>
-    /// A budget that does not repeat has exactly one window, so it has to say where that window ends.
-    /// Guarded by the validator here and by Budget.For underneath it.
-    /// </summary>
     [Test]
     public async Task Post_budgets_rejects_a_one_off_with_no_end()
     {
@@ -883,10 +827,6 @@ public class ApiEndpointTests
         period.GetProperty("exceeded").GetBoolean().Should().BeTrue();
     }
 
-    /// <summary>
-    /// A budget counts one currency. Spending the same category in another is reported as uncounted
-    /// rather than converted or, worse, added in.
-    /// </summary>
     [Test]
     public async Task Get_budgets_reports_spending_in_other_currencies_as_uncounted()
     {
@@ -904,10 +844,6 @@ public class ApiEndpointTests
         uncounted[0].GetProperty("minorUnits").GetInt64().Should().Be(700);
     }
 
-    /// <summary>
-    /// Spending means expenses. A transfer has no category to count against, and income is not
-    /// spending -- the same rule the analytics slice follows.
-    /// </summary>
     [Test]
     public async Task Get_budgets_counts_neither_income_nor_transfers()
     {
@@ -921,10 +857,6 @@ public class ApiEndpointTests
             .GetProperty("minorUnits").GetInt64().Should().Be(1250);
     }
 
-    /// <summary>
-    /// Two budgets on one category are two intentions, and Xpense reports both without arbitrating.
-    /// See docs/adr/0007-budgets-are-independent-of-one-another.md.
-    /// </summary>
     [Test]
     public async Task Get_budgets_reports_every_budget_on_a_category_without_choosing_between_them()
     {
@@ -970,10 +902,6 @@ public class ApiEndpointTests
         document.RootElement.GetArrayLength().Should().Be(0);
     }
 
-    /// <summary>
-    /// A budget on a category nobody can see measures nothing anyone can ask about. Without this,
-    /// the global query filter hides the category and budget reads meet a null one.
-    /// </summary>
     [Test]
     public async Task Delete_categories_also_deletes_the_budgets_pointing_at_it()
     {
@@ -998,11 +926,6 @@ public class ApiEndpointTests
         response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
     }
 
-    // ---------------------------------------------------------------- error contract
-    //
-    // Before the exception handlers landed the API produced four different error shapes: two
-    // envelope variants (one camelCase, one PascalCase), bare 404s with no body, and real
-    // problem details. Nothing caught it because tests only asserted status codes.
 
     [Test]
     public async Task Unknown_account_returns_problem_details_not_an_envelope()
@@ -1018,7 +941,6 @@ public class ApiEndpointTests
         root.GetProperty("title").GetString().Should().Be("Resource not found");
         root.GetProperty("detail").GetString().Should().Contain("4242424242");
 
-        // The old Response<T> envelope leaked these two keys; they must never come back.
         root.TryGetProperty("statusCode", out _).Should().BeFalse();
         root.TryGetProperty("data", out _).Should().BeFalse();
     }
@@ -1031,7 +953,6 @@ public class ApiEndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemJson);
 
-        // Previously a bare NotFoundResult with an empty body.
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         document.RootElement.GetProperty("detail").GetString().Should().Contain("424242");
     }
@@ -1074,13 +995,11 @@ public class ApiEndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
-        // FluentValidation reports "BgColorHex"; the contract is camelCase.
         document.RootElement.GetProperty("errors")
             .TryGetProperty("bgColorHex", out var colourErrors).Should().BeTrue();
         colourErrors[0].GetString().Should().Contain("hex colour");
     }
 
-    // ---------------------------------------------------------------- removed legacy routes
 
     [TestCase("/api/category")]
     [TestCase("/api/tag")]
@@ -1092,10 +1011,6 @@ public class ApiEndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    /// <summary>
-    /// The account number addresses an account; the database key does not. "1" matches the route
-    /// pattern but is nobody's account number, so it resolves to a 404 rather than to account 1.
-    /// </summary>
     [TestCase("/api/account")]
     [TestCase("/api/account/1000000000")]
     [TestCase("/api/v1/accounts/1")]
@@ -1127,17 +1042,12 @@ public class ApiEndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // ---------------------------------------------------------------- helpers
 
     private static StringContent JsonBody(string json) => new(json, Encoding.UTF8, "application/json");
 
     private static StringContent NewTagBody(string label) =>
         JsonBody($"{{\"label\":\"{label}\",\"bgColorHex\":\"#ffffff\",\"fgColorHex\":\"#000000\"}}");
 
-    /// <summary>
-    /// Starts on the first of the current month so the budget is measuring today whatever day the
-    /// suite runs. A "None" recurrence deliberately gets no endsOn, which is what makes it invalid.
-    /// </summary>
     private static StringContent NewBudgetBody(int categoryId, long minorUnits, string recurrence) =>
         JsonBody(
             $"{{\"categoryId\":{categoryId},\"amount\":{{\"minorUnits\":{minorUnits},\"currency\":\"EUR\"}},"
@@ -1149,10 +1059,6 @@ public class ApiEndpointTests
         return new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).ToString("yyyy-MM-dd");
     }
 
-    /// <summary>
-    /// The ISO week year is not always the calendar year -- 2027-01-01 sits in week 53 of 2026 -- so
-    /// the expected name is built the same way the domain builds it.
-    /// </summary>
     private static string IsoWeekName(DateTime instant) =>
         $"{System.Globalization.ISOWeek.GetYear(instant):0000}-W{System.Globalization.ISOWeek.GetWeekOfYear(instant):00}";
 
@@ -1209,16 +1115,11 @@ public class ApiEndpointTests
         }
     }
 
-    /// <summary>
-    /// One row per collection resource, so the collection assertions are real. Previously only
-    /// an account was seeded and the category/tag/merchant cases passed against an empty array.
-    /// </summary>
     private async Task SeedOneOfEachResource()
     {
         var dbContext = NewDbContext(out var scope);
         using (scope)
         {
-            // Link via navigation, not a hard-coded PriorityId, so EF orders the inserts.
             var priority = new Priority { Label = "Normal", Weight = 1, CreatedAt = DateTime.UtcNow };
             dbContext.Priorities.Add(priority);
             dbContext.Accounts.Add(NewAccount(SourceNumber, "Cash", 0, isDefault: true));
@@ -1281,10 +1182,6 @@ public class ApiEndpointTests
         }
     }
 
-    /// <summary>
-    /// One monthly EUR budget on Food, plus today's spending against it. Optionally spends the same
-    /// category in USD, and optionally adds income and a transfer that must not be counted.
-    /// </summary>
     private async Task SeedBudgetWithTodaysExpense(
         long limitMinorUnits,
         long spentMinorUnits,
@@ -1335,7 +1232,6 @@ public class ApiEndpointTests
         }
     }
 
-    /// <summary>Same category, same day, two currencies -- the case that used to be added together.</summary>
     private async Task SeedTodayExpensesInTwoCurrencies()
     {
         var dbContext = NewDbContext(out var scope);

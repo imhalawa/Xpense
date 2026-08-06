@@ -7,10 +7,6 @@ using Serilog;
 
 namespace Xpense.API.ExceptionHandlers;
 
-/// <summary>
-/// Last handler in the chain. Anything not claimed by a more specific handler becomes a 500
-/// with a generic detail so internals never reach the client.
-/// </summary>
 public sealed class FallbackExceptionHandler(
     IProblemDetailsService problemDetailsService,
     ILogger logger) : IExceptionHandler

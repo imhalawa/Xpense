@@ -1,9 +1,5 @@
 namespace Xpense.Domain.Exceptions;
 
-/// <summary>
-/// A budget was asked for that breaks its own rules -- a non-positive amount, an end before its
-/// start, or a one-off with no end at all.
-/// </summary>
 public class InvalidBudgetException(string message, Exception? innerException = null)
     : DomainRuleViolationException(message, innerException);
 

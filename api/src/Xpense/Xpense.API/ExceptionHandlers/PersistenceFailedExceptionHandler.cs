@@ -8,10 +8,6 @@ using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.ExceptionHandlers;
 
-/// <summary>
-/// Handles <see cref="PersistenceFailedException"/>. A write we expected to succeed did not.
-/// The caller cannot fix this, so the detail stays generic and the cause goes to the log.
-/// </summary>
 public sealed class PersistenceFailedExceptionHandler(
     IProblemDetailsService problemDetailsService,
     ILogger logger) : IExceptionHandler
