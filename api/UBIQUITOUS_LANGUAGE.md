@@ -158,6 +158,48 @@ belong to a **Budget** and not to a **Category**, so each **Budget** answers onl
 no rule decides which of two applies. Keeping a set of **Budgets** coherent is the user's
 business, not Xpense's.
 
+## Notifications
+
+| Term                  | Definition                                                                                   | Aliases to avoid                        |
+| --------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------- |
+| **Event**             | A fact that something happened in Xpense, published once and never changed afterwards         | Message, command, trigger, hook, signal |
+| **Event attributes**  | The metadata identifying an **Event**: which one it is, what kind, when, and what raised it    | Header, envelope, metadata              |
+| **Event body**        | The facts particular to one kind of **Event**                                                 | Payload, data, content, args            |
+| **Notification**      | Something a **User** should be told about, decided from an **Event**                          | Alert, message, toast, push, reminder    |
+| **Notification kind** | What class of thing a **Notification** tells you about                                        | Type, category, severity                |
+| **Notification rule** | The thing that decides, from one **Event**, whether a **Notification** of one kind is warranted | Handler, policy, trigger, checker      |
+| **Alert threshold**   | The share of a **Budget** at which it is worth saying something, before the limit is reached   | Warning level, soft limit, buffer       |
+| **Read**              | That the recipient has seen a **Notification**                                                | Seen, acknowledged, dismissed, archived |
+
+**Event** and **Notification** are not the same thing and must not be used for each other. An
+**Event** is a fact, stated by whichever part of Xpense the thing happened in, and it is
+published whether or not anyone cares. A **Notification** is a judgement that somebody should
+be told, made after the fact by whatever consumes **Events**. Most **Events** produce no
+**Notification** at all.
+
+That separation is the point. The part of Xpense that records a **Transaction** does not know
+what is worth telling anyone, and nothing it does depends on the answer.
+
+An **Event** is immutable and is never edited or withdrawn. A correction is a new **Event**, the
+same way a mistaken **Transaction** is corrected by recording another one rather than by
+rewriting history.
+
+A **Notification** carries both the facts it was built from and text rendering them. The facts
+are what it is: they are what a client acts on, links from, or groups by. The rendered text
+exists so that anything which only needs to show the **Notification** can do so without
+knowing what kind it is.
+
+Each **Notification kind** is decided by its own **Notification rule**, which knows nothing
+about any other rule. One **Event** may satisfy several rules and so produce several
+**Notifications**, or satisfy none and produce nothing.
+
+An **Alert threshold** belongs to a **Budget** and defaults to three quarters of it. A
+**Budget** may have none, meaning it says nothing until the limit itself is passed.
+
+Xpense tells you about the *crossing*, not the state. Passing the **Alert threshold** and
+passing the limit are each said once, because each is a thing that happened; spending further
+while already over is also a thing that happened, so it is said again.
+
 ## Relationships
 
 - An **Account** is denominated in exactly one **Currency**, fixed for its life
@@ -171,6 +213,10 @@ business, not Xpense's.
 - A **Budget** covers exactly one **Category** and is denominated in one **Currency**
 - A **Category** has zero or more **Budgets**, which need not agree with each other
 - A **Budget** counts **Expenses** only, never **Income** and never **Transfers**
+- A **Budget** has zero or one **Alert threshold**
+- An **Event** has exactly one **Event body** and one set of **Event attributes**
+- An **Event** produces zero or more **Notifications**, one per **Notification rule** it satisfies
+- A **Notification** names the one **Event** it came from
 
 ## Example dialogue
 

@@ -27,6 +27,10 @@ public class BudgetEntityTypeConfiguration : BaseEntityTypeConfiguration<Budget>
             table.HasCheckConstraint(
                 "CK_Budget_Ends_On_Or_After_Start",
                 """ "EndsOn" IS NULL OR "EndsOn" >= "StartsOn" """);
+
+            table.HasCheckConstraint(
+                "CK_Budget_Alert_Threshold_Percent",
+                """ "AlertThresholdPercent" IS NULL OR ("AlertThresholdPercent" BETWEEN 1 AND 100) """);
         });
 
     }

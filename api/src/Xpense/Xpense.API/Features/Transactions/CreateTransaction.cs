@@ -13,6 +13,7 @@ using Xpense.API.Infrastructure;
 using Xpense.Persistence;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
+using Xpense.Domain.Events;
 using Xpense.Domain.Exceptions;
 using Xpense.Domain.Options;
 using Xpense.Domain.ValueObjects;
@@ -100,6 +101,7 @@ public sealed class CreateTransaction : IEndpoint
         XpenseDbContext dbContext,
         OptionResolver<Merchant> merchants,
         OptionResolver<Tag> tags,
+        IEventBus events,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
@@ -125,6 +127,9 @@ public sealed class CreateTransaction : IEndpoint
             if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
                 throw Failure(request, amount, transaction.Kind);
 
+            await events.Emit(Event.Of(Recorded(transaction), occurredAt), cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
             await scope.CommitAsync(cancellationToken);
 
             return TypedResults.Created(
@@ -137,6 +142,20 @@ public sealed class CreateTransaction : IEndpoint
             throw;
         }
     }
+
+    private static TransactionRecorded Recorded(Transaction transaction) =>
+        new(
+            transaction.Id,
+            transaction.Kind,
+            transaction.AmountMinorUnits,
+            transaction.Currency,
+            transaction.OccurredAt,
+            transaction.CategoryId,
+            transaction.MerchantId,
+            transaction.SourceAccount?.AccountNumber,
+            transaction.SourceAccount?.BalanceMinorUnits,
+            transaction.DestinationAccount?.AccountNumber,
+            transaction.DestinationAccount?.BalanceMinorUnits);
 
     private static async Task<Transaction> OneSided(
         XpenseDbContext dbContext,

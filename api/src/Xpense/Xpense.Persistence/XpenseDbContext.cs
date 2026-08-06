@@ -20,6 +20,8 @@ namespace Xpense.Persistence
         public virtual DbSet<Priority> Priorities { get; set; }
         public virtual DbSet<Tag> Tags { get; set; }
         public virtual DbSet<Budget> Budgets { get; set; }
+        public virtual DbSet<EventRecord> Events { get; set; }
+        public virtual DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

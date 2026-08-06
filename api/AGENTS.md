@@ -14,11 +14,14 @@ src/Xpense/
     ExceptionHandlers/                 one handler per exception type -> RFC 7807
   Xpense.Domain/                       entities, value objects, enums, exceptions
   Xpense.Persistence/                  DbContext, type configuration, migrations, OptionResolver
+  Xpense.Notifications/                the worker: rules, the event processor, the pump
   Xpense.Tests/                        ApiEndpointTests (canonical), Unit, Architecture
 
-docker/<service>/Dockerfile            one per service: api, migrations, postgres
-docker-compose.yml                     postgres -> migrations -> api, in that order
+docker/<service>/Dockerfile            one per service: api, migrations, notifications, postgres
+docker-compose.yml                     postgres -> migrations -> api + notifications, in that order
 ```
+
+Every `docker/*/Dockerfile` restores the whole solution, so adding a project means adding its `.csproj` to each of them. Miss one and all three builds fail, not just the new one.
 
 Migrations never run at application startup, and reference data lives in migrations rather than in a
 startup seeder. Both are load-bearing: see [ADR 0004](docs/adr/0004-migrations-are-a-deployment-step.md)
@@ -35,6 +38,16 @@ These are enforced by `Xpense.Tests/Architecture/SliceIsolationTests.cs`. Breaki
 4. **Endpoints implement `IEndpoint`** with a `public static void Map(IEndpointRouteBuilder)` and live under `Features/`. Discovery is a startup scan — there is no registration step.
 
 `GET /health` is the one deliberate exception: it is mapped directly in `Program.cs` because it is infrastructure, not a feature. It has no request, no contract to version and no slice to belong to. The architecture tests allow it — they constrain types under `Xpense.API.Features.*` and types implementing `IEndpoint`, and it is neither. Do not treat it as precedent for a second one.
+
+## Events and notifications
+
+Producers state facts and never decide what is worth telling anyone. `IEventBus.Emit` inserts an event through the caller's `DbContext`, so it commits with whatever the caller is writing -- it does **not** save, and a caller that never saves has emitted nothing.
+
+- **The `Events` table is the queue.** No broker. [ADR 0008](docs/adr/0008-the-events-table-is-the-queue.md).
+- **Budgets never touch the write path.** [ADR 0006](docs/adr/0006-a-budget-reports-and-never-blocks.md).
+- **One notification kind per rule**, in its own file under `Xpense.Notifications/Rules/`, discovered by a scan. A rule may not reference another rule, and rules duplicate each other's queries on purpose -- `NotificationRuleIsolationTests` enforces both.
+- **Event bodies hold primitives, enums and ids only.** No entity, no `Money`. A body is a wire format read back long after it was written; `EventContractTests` enforces this.
+- **A rule's payload must contain nothing time-varying.** It is hashed to deduplicate notifications, so a timestamp inside one makes every redelivery look new.
 
 ## Pinned packages
 

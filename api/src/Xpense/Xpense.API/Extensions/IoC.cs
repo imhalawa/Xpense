@@ -1,14 +1,15 @@
 using FluentValidation;
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using Xpense.API.ExceptionHandlers;
 using Xpense.API.Infrastructure;
+using Xpense.Domain.Events;
 using Xpense.Persistence;
 
 namespace Xpense.API.Extensions;
@@ -28,6 +29,8 @@ public static class IoC
     public static void AddDomainServices(this IServiceCollection services)
     {
         services.AddScoped(typeof(OptionResolver<>));
+
+        services.AddScoped<IEventBus, EventBus>();
     }
 
     public static void AddRequestValidation(this IServiceCollection services)
@@ -57,7 +60,6 @@ public static class IoC
         services.AddSwaggerGen(options =>
         {
             options.CustomSchemaIds(SchemaId);
-
             options.SwaggerDoc(
                 "v1",
                 new OpenApiInfo

@@ -8,12 +8,16 @@ its dependencies run on one machine.
 docker/
   api/Dockerfile           sdk:10.0 build -> aspnet:10.0-alpine, non-root
   migrations/Dockerfile    sdk:10.0 -> EF migration bundle -> runtime-deps:10.0-alpine
+  notifications/Dockerfile sdk:10.0 build -> runtime:10.0-alpine, non-root
   postgres/
     Dockerfile             postgres:17-alpine + config + backup script
     postgresql.conf        overrides only
     backup.sh              pg_dump to /backups
 docker-compose.yml
 ```
+
+All three .NET Dockerfiles restore the **whole solution**, so every project's `.csproj` has to be copied
+in each of them. Adding a project and forgetting one breaks all three builds, not only the new one.
 
 ## First run
 
@@ -27,8 +31,8 @@ The order is enforced, not hoped for:
 1. `postgres` starts and becomes healthy — `pg_isready`, not "the container exists".
 2. `migrations` runs the EF bundle against it and exits 0. It is not a server; `docker compose ps`
    not listing it is success.
-3. `api` starts, gated on `service_completed_successfully`, so it never meets a schema that is not
-   there yet.
+3. `api` and `notifications` start, both gated on `service_completed_successfully`, so neither meets a
+   schema that is not there yet.
 
 Swagger UI is at http://localhost:4000, and `GET /health` reports whether the API can reach
 Postgres.
