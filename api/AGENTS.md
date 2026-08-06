@@ -36,6 +36,10 @@ These are enforced by `Xpense.Tests/Architecture/SliceIsolationTests.cs`. Breaki
 
 `GET /health` is the one deliberate exception: it is mapped directly in `Program.cs` because it is infrastructure, not a feature. It has no request, no contract to version and no slice to belong to. The architecture tests allow it — they constrain types under `Xpense.API.Features.*` and types implementing `IEndpoint`, and it is neither. Do not treat it as precedent for a second one.
 
+## Style
+
+- **Validation messages are prose, not identifiers.** "The category must be a valid selection", never "The categoryId must reference an existing category". The ProblemDetails error dictionary is already keyed by the camelCase field, which is how a client attaches an error to an input, so the message is free to read like a sentence. Domain words stay: "minor units" is the term, per [`UBIQUITOUS_LANGUAGE.md`](UBIQUITOUS_LANGUAGE.md).
+
 ## Conventions
 
 - **Requests nest inside their slice** (`CreateTag.Request`), even when two look alike today. Responses are shared per feature or in `Contracts/`, because a resource should look the same however you fetched it.

@@ -1,20 +1,12 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
 name: .NET
 
 on:
   push:
     branches: [ "main" ]
-  # Every branch, not just those targeting main. Stacked pull requests are based on
-  # their parent branch, so a main-only filter silently skips CI for all but the
-  # bottom of a stack.
   pull_request:
     branches: [ "**" ]
 
 env:
-  # The solution lives under src/Xpense, not the repository root. Without this every
-  # dotnet command failed with MSB1003.
   SOLUTION: src/Xpense/Xpense.sln
 
 jobs:
@@ -32,8 +24,6 @@ jobs:
       run: dotnet restore $SOLUTION
     - name: Build
       run: dotnet build $SOLUTION --no-restore
-    # Integration tests start a real PostgreSQL container via Testcontainers.
-    # ubuntu-latest ships a running Docker daemon, so no service container is needed.
     - name: Test
       run: >
         dotnet test $SOLUTION --no-build
@@ -49,18 +39,11 @@ jobs:
           -targetdir:CoverageReport \
           -reporttypes:'MarkdownSummaryGithub;Html'
         cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
-    # The inner dev loop runs the API on the host, so nothing there exercises the images. This step
-    # is the compensating check: it builds them and boots the whole stack. The class of bug it
-    # catches is the one that built fine and died on first container boot -- a seeder reading a file
-    # `dotnet publish` never copied, a connection string pointing at localhost from inside a
-    # container, migrations that never ran.
     - name: Smoke-test the compose stack
       run: |
         cp .env.example .env
         sed -i 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-not-a-secret/' .env
         docker compose up -d --build
-        # Poll rather than `--wait`: the migrations service exits by design, and polling the health
-        # endpoint asserts the thing we actually care about.
         curl -fsS --retry 30 --retry-delay 2 --retry-all-errors http://localhost:4000/health
     - name: Compose logs
       if: ${{ !cancelled() }}

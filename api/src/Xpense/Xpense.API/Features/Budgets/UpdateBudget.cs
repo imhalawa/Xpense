@@ -57,7 +57,7 @@ public sealed class UpdateBudget : IEndpoint
 
             RuleFor(request => request.EndsOn)
                 .Must((request, endsOn) => endsOn is null || endsOn >= request.StartsOn)
-                .WithMessage("The endsOn date cannot be before startsOn.");
+                .WithMessage("The end date cannot be before the start date.");
         }
 
         private static bool IsOneOff(string recurrence) =>
