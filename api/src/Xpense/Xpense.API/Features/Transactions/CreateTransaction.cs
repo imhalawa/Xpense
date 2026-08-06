@@ -19,16 +19,6 @@ using Xpense.Domain.ValueObjects;
 
 namespace Xpense.API.Features.Transactions;
 
-/// <summary>
-/// One endpoint for all three kinds. Which sides the caller names decides the kind, so there is no
-/// type field to contradict them: naming only a destination is income, only a source is expense,
-/// both is a transfer. This replaced a separate /transfers resource over the same entity.
-/// <para>
-/// The caller must name at least one account. The default-account fallback that the old
-/// income/expense endpoint had is gone: it relied on a type field to know which side the default
-/// account stood in for, and that field no longer exists.
-/// </para>
-/// </summary>
 public sealed class CreateTransaction : IEndpoint
 {
     public sealed record Request(
@@ -68,8 +58,6 @@ public sealed class CreateTransaction : IEndpoint
                     "Either a source account or a destination account is required.")
                 .WithName(nameof(Request.SourceAccountNumber));
 
-            // A transaction with one account inside Xpense has a counterparty outside it, which the
-            // merchant names, and a spending class. A transfer has neither: no shop, no spending.
             When(IsOneSided, () =>
             {
                 RuleFor(request => request.CategoryId)
@@ -88,9 +76,6 @@ public sealed class CreateTransaction : IEndpoint
                 RuleFor(request => request.Merchant)
                     .Null().WithMessage("A transfer between two accounts cannot have a merchant.");
 
-                // Also guarded in the domain. That is not redundancy to remove: this produces a
-                // good 400 for a bad request, and the domain guard makes the move impossible
-                // through any future caller.
                 RuleFor(request => request.DestinationAccountNumber)
                     .Must((request, destination) =>
                         !string.Equals(request.SourceAccountNumber, destination, StringComparison.Ordinal))
@@ -118,23 +103,15 @@ public sealed class CreateTransaction : IEndpoint
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        // The validator already rejected anything else.
         CurrencyParser.TryParse(request.Amount.Currency, out var currency);
 
         var amount = Money.OfMinorUnits(request.Amount.MinorUnits, currency);
         var occurredAt = request.OccurredAt?.UtcDateTime ?? DateTime.UtcNow;
 
-        // Serializable because every kind reads a balance and writes it back. The old transfer
-        // endpoint isolated this and the old income/expense endpoint did not; one path means one
-        // answer, and the safer one is the correct one.
         await using var scope = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
         try
         {
-            // Loaded inside the transaction, not before it. Postgres only detects conflicts on
-            // reads made within the transaction, so a balance read outside it leaves the
-            // insufficient-funds guard unprotected: two concurrent transfers from one account would
-            // both see the old balance, both pass the check, and both commit.
             var source = await FindAccount(dbContext, request.SourceAccountNumber, cancellationToken);
             var destination = await FindAccount(dbContext, request.DestinationAccountNumber, cancellationToken);
             var resolvedTags = await ResolveTags(tags, request.Tags, cancellationToken);
@@ -180,18 +157,11 @@ public sealed class CreateTransaction : IEndpoint
         var merchant = await merchants.Resolve(ToMerchantOption(request.Merchant!), cancellationToken)
                        ?? throw new MerchantNotFoundException(request.Merchant!.Label);
 
-        // Deposit and Withdraw reject an amount whose currency differs from the account's, so a USD
-        // transaction against a EUR account fails here rather than moving the wrong number.
         return destination is not null
             ? Domain.Entities.Transaction.Income(destination, amount, category, merchant, tags, occurredAt)
             : Domain.Entities.Transaction.Expense(source!, amount, category, merchant, tags, occurredAt);
     }
 
-    /// <summary>
-    /// Defensive: adding an entity and saving returns at least one write or throws. Reported against
-    /// the side the money was heading for, so a transfer names its destination rather than being
-    /// mislabelled as a plain deposit.
-    /// </summary>
     private static Exception Failure(Request request, Money amount, TransactionKind kind) =>
         kind == TransactionKind.Expense
             ? new WithdrawCreationFailedException(amount.ToDecimal(), request.SourceAccountNumber!)

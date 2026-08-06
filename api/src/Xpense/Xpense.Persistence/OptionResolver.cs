@@ -4,15 +4,6 @@ using Xpense.Domain.Options;
 
 namespace Xpense.Persistence;
 
-/// <summary>
-/// Resolves a client-supplied merchant or tag to a persisted entity: match by id, fall back to
-/// label, undelete a soft-deleted row, or create when the caller asked for it.
-/// <para>
-/// This survived the move to vertical slices as a shared service rather than being inlined,
-/// because the rules are subtle, two features depend on them, and getting them wrong silently
-/// duplicates merchants. It used to be OptionRepository&lt;T&gt;.GetOrCreateIfMissing.
-/// </para>
-/// </summary>
 public sealed class OptionResolver<TEntity>(XpenseDbContext dbContext)
     where TEntity : BaseEntity, IOptionEntity
 {
@@ -21,7 +12,6 @@ public sealed class OptionResolver<TEntity>(XpenseDbContext dbContext)
     public async Task<TEntity?> Resolve<TModel>(TModel model, CancellationToken cancellationToken = default)
         where TModel : IOption<TEntity>
     {
-        // Nothing to look up and no permission to create.
         if (!model.Create && !model.Id.HasValue)
             return null;
 
@@ -48,7 +38,6 @@ public sealed class OptionResolver<TEntity>(XpenseDbContext dbContext)
         return null;
     }
 
-    /// <summary>Soft-deleted rows are hidden by the global filter, so look past it and undelete.</summary>
     private async Task<TEntity?> Restore<TModel>(TModel model, CancellationToken cancellationToken)
         where TModel : IOption<TEntity>
     {

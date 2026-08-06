@@ -12,12 +12,10 @@ namespace Xpense.Persistence.TypeConfiguration
             base.Configure(builder);
             builder.Metadata.SetSchema(XpenseSchema);
 
-            // Merchant names must be unique
             builder.HasIndex(merchant => merchant.Label).IsUnique();
 
             builder.Property(merchant => merchant.Label).HasMaxLength(100).IsRequired();
 
-            //  Merchant (M) - Transaction (1)
             builder.HasMany(merchant => merchant.Transactions)
                 .WithOne(transaction => transaction.Merchant)
                 .HasForeignKey(transaction => transaction.MerchantId);

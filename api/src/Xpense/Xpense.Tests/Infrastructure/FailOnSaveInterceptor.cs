@@ -3,15 +3,6 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Xpense.Tests.Infrastructure;
 
-/// <summary>
-/// Forces the persistence layer to fail for a chosen entity type.
-/// <para>
-/// The old suite proved transfer atomicity by injecting a failing ITransferRepository. That
-/// injection point disappeared with the repository layer, so the equivalent now happens one
-/// level down: an EF interceptor that throws when the entity is about to be written. The
-/// slice's transaction scope should roll everything back.
-/// </para>
-/// </summary>
 public sealed class FailOnSaveInterceptor<TEntity> : SaveChangesInterceptor
     where TEntity : class
 {

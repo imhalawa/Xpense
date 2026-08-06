@@ -6,15 +6,9 @@ using Entities = Xpense.Domain.Entities;
 
 namespace Xpense.Tests.Unit;
 
-/// <summary>
-/// Period arithmetic and the budget's own invariants. No persistence, so these are genuine unit
-/// tests; what a budget actually measures against real transactions is covered by the integration
-/// suite.
-/// </summary>
 [TestFixture]
 public class BudgetTests
 {
-    // A Thursday, comfortably inside week 32 of 2026 and the month of August.
     private static readonly DateTime InAugust = new(2026, 8, 6, 14, 0, 0, DateTimeKind.Utc);
 
     [Test]
@@ -28,10 +22,6 @@ public class BudgetTests
         period.ToExclusive.Should().Be(new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc));
     }
 
-    /// <summary>
-    /// A period runs to the start of the next one and no further, so the two never both claim an
-    /// instant and no instant falls between them.
-    /// </summary>
     [Test]
     public void A_period_excludes_its_end_and_includes_its_start()
     {
@@ -42,11 +32,6 @@ public class BudgetTests
         period.Contains(new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc)).Should().BeFalse();
     }
 
-    /// <summary>
-    /// The whole month, not the part after the budget began. Activity is decided by the period
-    /// overlapping the budget's life rather than by the instant being inside it -- otherwise asking
-    /// about the 3rd and asking about the 20th would give two different answers for one period.
-    /// </summary>
     [Test]
     public void A_monthly_budget_starting_mid_month_still_measures_the_whole_month()
     {
@@ -72,10 +57,6 @@ public class BudgetTests
         period.ToExclusive.Should().Be(new DateTime(2026, 8, 10, 0, 0, 0, DateTimeKind.Utc));
     }
 
-    /// <summary>
-    /// The ISO week year is not the calendar year at the boundary: 1 January 2027 belongs to week 53
-    /// of 2026. Naming it from the instant's year would produce 2027-W53, a week that does not exist.
-    /// </summary>
     [Test]
     public void A_weekly_period_is_named_by_its_iso_week_year_not_the_calendar_year()
     {
@@ -117,10 +98,6 @@ public class BudgetTests
         budget.PeriodOn(new DateTime(2026, 9, 2, 0, 0, 0, DateTimeKind.Utc)).Should().BeNull();
     }
 
-    /// <summary>
-    /// A one-off has one window, which is its own dates rather than any calendar period, and it is
-    /// named by them. Its end date is inclusive, so the last day still counts.
-    /// </summary>
     [Test]
     public void A_one_off_budget_measures_its_own_window_and_nothing_outside_it()
     {
@@ -171,10 +148,6 @@ public class BudgetTests
         act.Should().Throw<InvalidBudgetException>().WithMessage("*must be positive*");
     }
 
-    /// <summary>
-    /// The dates are dates. A budget starts on a day, so any time of day handed in is dropped rather
-    /// than kept to surprise a later comparison.
-    /// </summary>
     [Test]
     public void A_budget_keeps_only_the_date_part_of_its_window()
     {

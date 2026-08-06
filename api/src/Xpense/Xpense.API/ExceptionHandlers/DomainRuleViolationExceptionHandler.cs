@@ -7,10 +7,6 @@ using Xpense.Domain.Exceptions;
 
 namespace Xpense.API.ExceptionHandlers;
 
-/// <summary>
-/// Handles <see cref="DomainRuleViolationException"/>. The request was well-formed but breaks a
-/// domain rule, so the caller can fix it by changing the request.
-/// </summary>
 public sealed class DomainRuleViolationExceptionHandler(IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
     public ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)

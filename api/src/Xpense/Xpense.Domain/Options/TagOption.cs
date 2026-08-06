@@ -2,9 +2,6 @@ using Xpense.Domain.Entities;
 
 namespace Xpense.Domain.Options;
 
-/// <summary>
-/// A client's reference to a tag. See <see cref="MerchantOption"/> for the naming.
-/// </summary>
 public class TagOption : IOption<Tag>
 {
     public int? Id { get; set; }

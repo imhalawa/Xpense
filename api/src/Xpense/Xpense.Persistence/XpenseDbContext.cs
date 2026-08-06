@@ -30,20 +30,6 @@ namespace Xpense.Persistence
             base.OnModelCreating(modelBuilder);
         }
 
-        /// <summary>
-        /// Every timestamp is stored and returned as UTC.
-        /// <para>
-        /// Reads: relational date columns carry no offset, so EF hands values back as
-        /// <see cref="DateTimeKind.Unspecified"/>. Tagging them UTC stops the DateTimeOffset
-        /// conversions in the response DTOs from silently applying the server's local offset.
-        /// </para>
-        /// <para>
-        /// Writes: Npgsql maps DateTime to `timestamp with time zone` and throws on any Kind
-        /// other than Utc. Local is converted; Unspecified is *tagged*, not converted, because
-        /// in this codebase an untagged value already means UTC -- calling ToUniversalTime on
-        /// it would shift it by the server's offset.
-        /// </para>
-        /// </summary>
         private static void ConfigureUtcDateTimes(ModelBuilder modelBuilder)
         {
             var utc = new ValueConverter<DateTime, DateTime>(

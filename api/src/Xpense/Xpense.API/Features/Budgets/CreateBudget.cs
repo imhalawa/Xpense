@@ -16,11 +16,6 @@ using Xpense.Persistence;
 
 namespace Xpense.API.Features.Budgets;
 
-/// <summary>
-/// States a budget. Nothing checks it against any other budget: several may cover one category at
-/// once and Xpense does not arbitrate, per
-/// docs/adr/0007-budgets-are-independent-of-one-another.md.
-/// </summary>
 public sealed class CreateBudget : IEndpoint
 {
     public sealed record Request(
@@ -56,9 +51,6 @@ public sealed class CreateBudget : IEndpoint
                 .Must(recurrence => RecurrenceParser.TryParse(recurrence, out _))
                 .WithMessage("The recurrence must be one of None, Weekly, Monthly or Yearly.");
 
-            // Both of these are guarded in Budget as well. That is not redundancy to remove: this
-            // produces a good 400 for a bad request, and the domain guard makes the state
-            // unreachable through any future caller.
             RuleFor(request => request.EndsOn)
                 .NotNull()
                 .When(request => IsOneOff(request.Recurrence))
@@ -102,8 +94,6 @@ public sealed class CreateBudget : IEndpoint
         if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new BudgetCreationFailedException(request.CategoryId);
 
-        // A freshly stated budget has measured nothing worth reporting yet, and the caller asked to
-        // create rather than to read, so no period is computed here.
         return TypedResults.Created(
             httpContext.ResourceUri($"/api/v1/budgets/{budget.Id}"),
             BudgetResponse.Of(budget, null));

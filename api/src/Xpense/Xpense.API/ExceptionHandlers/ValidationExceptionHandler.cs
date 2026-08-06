@@ -10,10 +10,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Xpense.API.ExceptionHandlers;
 
-/// <summary>
-/// Handles FluentValidation's <see cref="ValidationException"/>, thrown by
-/// <see cref="Infrastructure.ValidationEndpointFilter"/> when a request DTO fails its validator.
-/// </summary>
 public sealed class ValidationExceptionHandler(IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)

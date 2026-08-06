@@ -18,7 +18,6 @@ namespace Xpense.API.Features.Accounts;
 
 public sealed class CreateAccount : IEndpoint
 {
-    /// <summary>Account number allocated to the very first account.</summary>
     private const long FirstAccountNumber = 1_000_000_000;
 
     /// <summary>
@@ -83,17 +82,6 @@ public sealed class CreateAccount : IEndpoint
             AccountResponse.Of(account));
     }
 
-    /// <summary>
-    /// AccountRepository.GetNextAccountNumber called Max() on the parsed numbers, which threw
-    /// InvalidOperationException on an empty table -- creating the very first account crashed.
-    /// Tests never caught it because they always seeded an account first.
-    /// <para>
-    /// ponytail: still loads every number to take the maximum. That races under concurrent creates
-    /// and grows with the table, and it makes the public identifier guessable -- which starts to
-    /// matter once a cross-user transfer can write to an account named by number. Both belong with
-    /// the ownership work; see docs/model-rename-pass.md.
-    /// </para>
-    /// </summary>
     private static async Task<string> NextAccountNumber(XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
         var numbers = await dbContext.Accounts.Select(account => account.AccountNumber).ToListAsync(cancellationToken);

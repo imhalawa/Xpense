@@ -5,10 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Xpense.API.ExceptionHandlers;
 
-/// <summary>
-/// Shared plumbing for the exception handlers. Each handler decides the status, title and
-/// detail; this writes the RFC 7807 payload so every error response has the same shape.
-/// </summary>
 internal static class ProblemDetailsWriter
 {
     public static async ValueTask<bool> Write(
@@ -35,11 +31,6 @@ internal static class ProblemDetailsWriter
         });
     }
 
-    /// <summary>
-    /// FluentValidation reports PascalCase property paths ("Amount.Cents"); the JSON contract
-    /// is camelCase ("amount.cents"). Convert each dotted segment so the error keys line up
-    /// with the field names the client actually sent.
-    /// </summary>
     public static string ToCamelCasePath(string propertyPath)
     {
         if (string.IsNullOrEmpty(propertyPath))

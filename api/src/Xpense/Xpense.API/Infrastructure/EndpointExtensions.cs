@@ -7,11 +7,6 @@ namespace Xpense.API.Infrastructure;
 
 public static class EndpointExtensions
 {
-    /// <summary>
-    /// Finds every <see cref="IEndpoint"/> in this assembly and invokes its static Map method.
-    /// This replaces the 31 hand-written AddScoped registrations the use-case layer needed:
-    /// adding a slice is now creating one file, with no registration step to forget.
-    /// </summary>
     public static void MapEndpoints(this IEndpointRouteBuilder app)
     {
         var endpoints = typeof(IEndpoint).Assembly

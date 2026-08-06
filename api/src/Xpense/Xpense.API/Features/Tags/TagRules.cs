@@ -4,13 +4,11 @@ namespace Xpense.API.Features.Tags;
 
 internal static class TagColour
 {
-    /// <summary>Colours are accepted with or without a leading '#'; stored without.</summary>
     public static string Normalise(string hex) => hex?.TrimStart('#');
 }
 
 internal static class TagRules
 {
-    /// <summary>Shared by CreateTag and UpdateTag, which both validate the same two colours.</summary>
     public static IRuleBuilderOptions<T, string> HexColour<T>(
         this IRuleBuilder<T, string> rule,
         string fieldName)

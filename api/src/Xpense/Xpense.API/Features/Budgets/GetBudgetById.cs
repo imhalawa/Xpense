@@ -14,14 +14,6 @@ using Xpense.Persistence;
 
 namespace Xpense.API.Features.Budgets;
 
-/// <summary>
-/// One budget and what it has measured over one of its periods.
-/// <para>
-/// Unlike <see cref="ListBudgets"/>, the totals are summed in the database and grouped by currency
-/// there: with a single budget there is one window to ask about, so nothing has to be sorted out in
-/// memory afterwards.
-/// </para>
-/// </summary>
 public sealed class GetBudgetById : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
@@ -62,8 +54,6 @@ public sealed class GetBudgetById : IEndpoint
             })
             .ToListAsync(cancellationToken);
 
-        // Built in the budget's own currency: Money.Zero is EUR, and a EUR zero taken from a USD
-        // limit throws instead of returning the limit untouched.
         var spent = Money.OfMinorUnits(
             totals.SingleOrDefault(total => total.Currency == budget.Currency)?.MinorUnits ?? 0,
             budget.Currency);

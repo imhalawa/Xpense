@@ -21,8 +21,6 @@ public sealed class DeleteTag : IEndpoint
         var tag = await dbContext.Tags.FirstOrDefaultAsync(tag => tag.Id == id, cancellationToken)
                   ?? throw new TagNotFoundException(id);
 
-        // Soft delete: the global query filter hides IsDeleted rows. Preserved from the
-        // repository's Delete, which did exactly this rather than removing the row.
         tag.MarkAsDeleted();
         tag.Touch();
 

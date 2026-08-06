@@ -38,8 +38,6 @@ public sealed class UpdateTag : IEndpoint
         XpenseDbContext dbContext,
         CancellationToken cancellationToken)
     {
-        // The old UpdateTagUseCase dereferenced the entity without a null check and threw
-        // NullReferenceException for a missing id.
         var tag = await dbContext.Tags.FirstOrDefaultAsync(tag => tag.Id == id, cancellationToken)
                   ?? throw new TagNotFoundException(id);
 

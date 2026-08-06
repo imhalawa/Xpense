@@ -14,7 +14,6 @@ namespace Xpense.Persistence.TypeConfiguration
             builder.Property(category => category.Label).HasMaxLength(100).IsRequired();
             builder.HasIndex(category => category.Label).IsUnique();
 
-            // Category (1) - Transaction (M) 
             builder.HasMany(category => category.Transactions)
                 .WithOne(transaction => transaction.Category)
                 .HasForeignKey(transaction => transaction.CategoryId);
