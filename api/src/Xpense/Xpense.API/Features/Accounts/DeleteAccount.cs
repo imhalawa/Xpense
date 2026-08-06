@@ -16,15 +16,15 @@ public sealed class DeleteAccount : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapDelete("/api/v1/accounts/{accountNumber}", Handle).WithName(nameof(DeleteAccount));
 
-    private static async Task<NoContent> Handle(string accountNumber, XpenseDbContext db, CancellationToken ct)
+    private static async Task<NoContent> Handle(string accountNumber, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
-        var account = await db.Accounts.FirstOrDefaultAsync(a => a.AccountNumber == accountNumber, ct)
+        var account = await dbContext.Accounts.FirstOrDefaultAsync(account => account.AccountNumber == accountNumber, cancellationToken)
                       ?? throw new AccountNotFoundException(accountNumber);
 
         account.MarkAsDeleted();
         account.Touch();
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new AccountDeletionFailedException(account.Id);
 
         return TypedResults.NoContent();

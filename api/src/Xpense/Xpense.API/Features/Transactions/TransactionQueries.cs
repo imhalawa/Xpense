@@ -15,8 +15,8 @@ internal static class TransactionQueries
     /// side may be absent -- a null side means the money crossed the system boundary.
     /// </para>
     /// </summary>
-    public static IQueryable<Transaction> WithDetails(this XpenseDbContext db) =>
-        db.Transactions
+    public static IQueryable<Transaction> WithDetails(this XpenseDbContext dbContext) =>
+        dbContext.Transactions
             .Include(transaction => transaction.Category)
             .ThenInclude(category => category.Priority)
             .Include(transaction => transaction.Merchant)

@@ -16,11 +16,11 @@ public sealed class GetTransactionById : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapGet("/api/v1/transactions/{id:int}", Handle).WithName(nameof(GetTransactionById));
 
-    private static async Task<Ok<TransactionResponse>> Handle(int id, XpenseDbContext db, CancellationToken ct)
+    private static async Task<Ok<TransactionResponse>> Handle(int id, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
-        var transaction = await db.WithDetails()
+        var transaction = await dbContext.WithDetails()
             .AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == id, ct)
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
             ?? throw new TransactionNotFoundException(id);
 
         return TypedResults.Ok(TransactionResponse.Of(transaction));

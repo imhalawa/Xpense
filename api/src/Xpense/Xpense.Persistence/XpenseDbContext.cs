@@ -26,7 +26,7 @@ namespace Xpense.Persistence
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
             ConfigureDecimalColumnsStore(modelBuilder, 18, 2);
             ConfigureUtcDateTimes(modelBuilder);
-            ApplyGlobalQueryFilter(modelBuilder, s => !s.IsDeleted);
+            ApplyGlobalQueryFilter(modelBuilder, entity => !entity.IsDeleted);
             base.OnModelCreating(modelBuilder);
         }
 
@@ -83,8 +83,8 @@ namespace Xpense.Persistence
         {
             var decimalColumns = modelBuilder.Model
                 .GetEntityTypes()
-                .SelectMany(t => t.GetProperties())
-                .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?));
+                .SelectMany(entityType => entityType.GetProperties())
+                .Where(property => property.ClrType == typeof(decimal) || property.ClrType == typeof(decimal?));
 
             foreach (var decimalProperty in decimalColumns)
             {

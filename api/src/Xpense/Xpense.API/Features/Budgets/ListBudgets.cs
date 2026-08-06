@@ -30,20 +30,20 @@ public sealed class ListBudgets : IEndpoint
         app.MapGet("/api/v1/budgets", Handle).WithName(nameof(ListBudgets));
 
     private static async Task<Ok<BudgetResponse[]>> Handle(
-        XpenseDbContext db,
-        CancellationToken ct,
+        XpenseDbContext dbContext,
+        CancellationToken cancellationToken,
         DateTimeOffset? on = null)
     {
         // Which period a budget is in depends on a moment. Default to now; `?on=` asks about another.
         var instant = on?.UtcDateTime ?? DateTime.UtcNow;
 
-        var budgets = await db.Budgets
+        var budgets = await dbContext.Budgets
             .AsNoTracking()
             .Include(budget => budget.Category)
             .ThenInclude(category => category!.Priority)
             .OrderBy(budget => budget.CategoryId)
             .ThenBy(budget => budget.Id)
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         var measured = budgets
             .Select(budget => (Budget: budget, Period: budget.PeriodOn(instant)))
@@ -60,7 +60,7 @@ public sealed class ListBudgets : IEndpoint
 
         // Expenses only, and the filter is written as columns because Kind is computed. A transfer
         // has no category to count against, and income is not spending.
-        var expenses = await db.Transactions
+        var expenses = await dbContext.Transactions
             .AsNoTracking()
             .Where(transaction => transaction.SourceAccountId != null
                                   && transaction.DestinationAccountId == null
@@ -73,7 +73,7 @@ public sealed class ListBudgets : IEndpoint
                 transaction.Currency,
                 transaction.OccurredAt,
                 transaction.AmountMinorUnits))
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         var responses = measured
             .Select(entry => entry.Period is null

@@ -18,18 +18,18 @@ The test: **if it would still be true with no HTTP layer at all, it is domain.**
 `CreateTransaction.cs` is the slice. It owns the route, the request, the validator, loading the accounts, category and merchant, and the atomic boundary:
 
 ```csharp
-await using var scope = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+await using var scope = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 try
 {
     var transaction = source is not null && destination is not null
         ? Transaction.Transfer(source, destination, amount, request.Reason, tags, occurredAt)
         : await OneSided(...);   // Transaction.Income or Transaction.Expense
-    db.Transactions.Add(transaction);
-    await db.SaveChangesAsync(ct);
-    await scope.CommitAsync(ct);
+    dbContext.Transactions.Add(transaction);
+    await dbContext.SaveChangesAsync(cancellationToken);
+    await scope.CommitAsync(cancellationToken);
     ...
 }
-catch { await scope.RollbackAsync(ct); throw; }
+catch { await scope.RollbackAsync(cancellationToken); throw; }
 ```
 
 The three static factories on `Transaction` are the domain. Each enforces that the amount is positive and that the currencies agree; `Transfer` additionally enforces that the accounts differ and that the source can cover it. Then they move the balances and build the row. They have no EF dependency and no HTTP dependency, so their tests need neither — `TransactionTests` is a genuine unit test, unlike the SQLite-backed "unit" tests it replaced.

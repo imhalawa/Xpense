@@ -35,12 +35,12 @@ public sealed class UpdateTag : IEndpoint
     private static async Task<Ok<TagResponse>> Handle(
         int id,
         Request request,
-        XpenseDbContext db,
-        CancellationToken ct)
+        XpenseDbContext dbContext,
+        CancellationToken cancellationToken)
     {
         // The old UpdateTagUseCase dereferenced the entity without a null check and threw
         // NullReferenceException for a missing id.
-        var tag = await db.Tags.FirstOrDefaultAsync(t => t.Id == id, ct)
+        var tag = await dbContext.Tags.FirstOrDefaultAsync(tag => tag.Id == id, cancellationToken)
                   ?? throw new TagNotFoundException(id);
 
         tag.Label = request.Label;
@@ -48,7 +48,7 @@ public sealed class UpdateTag : IEndpoint
         tag.FgColorHex = TagColour.Normalise(request.FgColorHex);
         tag.Touch();
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new TagUpdateFailedException(id);
 
         return TypedResults.Ok(TagResponse.Of(tag));

@@ -16,9 +16,9 @@ public sealed class GetTagById : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapGet("/api/v1/tags/{id:int}", Handle).WithName(nameof(GetTagById));
 
-    private static async Task<Ok<TagResponse>> Handle(int id, XpenseDbContext db, CancellationToken ct)
+    private static async Task<Ok<TagResponse>> Handle(int id, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
-        var tag = await db.Tags.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct)
+        var tag = await dbContext.Tags.AsNoTracking().FirstOrDefaultAsync(tag => tag.Id == id, cancellationToken)
                   ?? throw new TagNotFoundException(id);
 
         return TypedResults.Ok(TagResponse.Of(tag));

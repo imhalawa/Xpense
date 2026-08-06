@@ -78,13 +78,13 @@ public sealed class CreateBudget : IEndpoint
 
     private static async Task<Created<BudgetResponse>> Handle(
         Request request,
-        XpenseDbContext db,
-        HttpContext http,
-        CancellationToken ct)
+        XpenseDbContext dbContext,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
     {
-        var category = await db.Categories
+        var category = await dbContext.Categories
             .Include(item => item.Priority)
-            .FirstOrDefaultAsync(item => item.Id == request.CategoryId, ct)
+            .FirstOrDefaultAsync(item => item.Id == request.CategoryId, cancellationToken)
             ?? throw new CategoryNotFoundException(request.CategoryId);
 
         CurrencyParser.TryParse(request.Amount.Currency, out var currency);
@@ -97,15 +97,15 @@ public sealed class CreateBudget : IEndpoint
             request.StartsOn.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
             request.EndsOn?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
 
-        db.Budgets.Add(budget);
+        dbContext.Budgets.Add(budget);
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new BudgetCreationFailedException(request.CategoryId);
 
         // A freshly stated budget has measured nothing worth reporting yet, and the caller asked to
         // create rather than to read, so no period is computed here.
         return TypedResults.Created(
-            http.ResourceUri($"/api/v1/budgets/{budget.Id}"),
+            httpContext.ResourceUri($"/api/v1/budgets/{budget.Id}"),
             BudgetResponse.Of(budget, null));
     }
 }

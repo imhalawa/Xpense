@@ -32,17 +32,17 @@ public sealed class UpdateAccount : IEndpoint
     private static async Task<Ok<AccountResponse>> Handle(
         string accountNumber,
         Request request,
-        XpenseDbContext db,
-        CancellationToken ct)
+        XpenseDbContext dbContext,
+        CancellationToken cancellationToken)
     {
-        var account = await db.Accounts.FirstOrDefaultAsync(a => a.AccountNumber == accountNumber, ct)
+        var account = await dbContext.Accounts.FirstOrDefaultAsync(account => account.AccountNumber == accountNumber, cancellationToken)
                       ?? throw new AccountNotFoundException(accountNumber);
 
         account.Label = request.Label;
         account.IsDefault = request.IsDefault;
         account.Touch();
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new AccountUpdateFailedException(account.Id);
 
         return TypedResults.Ok(AccountResponse.Of(account));

@@ -17,7 +17,7 @@ public sealed class CreateTag : IEndpoint
 
     // 4. The handler.
     private static async Task<Created<TagResponse>> Handle(
-        Request request, XpenseDbContext db, CancellationToken ct) { ... }
+        Request request, XpenseDbContext dbContext, CancellationToken cancellationToken) { ... }
 }
 ```
 

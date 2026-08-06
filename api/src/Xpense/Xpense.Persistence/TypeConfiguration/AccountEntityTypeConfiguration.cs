@@ -11,14 +11,14 @@ public class AccountEntityTypeConfiguration : BaseEntityTypeConfiguration<Accoun
         base.Configure(builder);
         builder.Metadata.SetSchema(XpenseSchema);
 
-        builder.Property(e => e.Label).HasMaxLength(100).IsRequired();
-        builder.Property(e => e.AccountNumber).HasMaxLength(10).IsRequired().IsFixedLength();
-        builder.Property(e => e.Currency).IsRequired();
+        builder.Property(account => account.Label).HasMaxLength(100).IsRequired();
+        builder.Property(account => account.AccountNumber).HasMaxLength(10).IsRequired().IsFixedLength();
+        builder.Property(account => account.Currency).IsRequired();
 
         // Balance is projected from BalanceMinorUnits + Currency, not stored.
-        builder.Ignore(e => e.Balance);
+        builder.Ignore(account => account.Balance);
 
         // AccountNumber is the public identifier, so it has to be unique.
-        builder.HasIndex(e => e.AccountNumber).IsUnique();
+        builder.HasIndex(account => account.AccountNumber).IsUnique();
     }
 }

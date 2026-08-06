@@ -18,9 +18,9 @@ public sealed class ListMerchants : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapGet("/api/v1/merchants", Handle).WithName(nameof(ListMerchants));
 
-    private static async Task<Ok<MerchantResponse[]>> Handle(XpenseDbContext db, CancellationToken ct)
+    private static async Task<Ok<MerchantResponse[]>> Handle(XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
-        var merchants = await db.Merchants.AsNoTracking().ToListAsync(ct);
+        var merchants = await dbContext.Merchants.AsNoTracking().ToListAsync(cancellationToken);
         return TypedResults.Ok(merchants.Select(MerchantResponse.Of).ToArray());
     }
 }

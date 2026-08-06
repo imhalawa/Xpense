@@ -21,8 +21,8 @@ public sealed class GetSpendingByCategory : IEndpoint
             .WithName(nameof(GetSpendingByCategory));
 
     private static async Task<Ok<SpendingByCategoryResponse>> Handle(
-        XpenseDbContext db,
-        CancellationToken ct)
+        XpenseDbContext dbContext,
+        CancellationToken cancellationToken)
     {
         // Timestamps are stored UTC, so "today" is a UTC day.
         var today = DateTime.UtcNow.Date;
@@ -30,14 +30,14 @@ public sealed class GetSpendingByCategory : IEndpoint
         // Expenses only, and the filter has to be expressed as columns because Kind is computed.
         // Transfers would have no category to group by, and income is not spending -- it used to be
         // counted here, because nothing filtered by direction at all.
-        var expensesToday = await db.Transactions
+        var expensesToday = await dbContext.Transactions
             .AsNoTracking()
             .Include(transaction => transaction.Category)
             .ThenInclude(category => category.Priority)
             .Where(transaction => transaction.SourceAccountId != null
                                   && transaction.DestinationAccountId == null
                                   && transaction.OccurredAt.Date == today)
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         // Grouped by currency as well as by category, because nothing converts. This used to label
         // the whole total with expensesToday[0].Currency and sum minor units across every currency

@@ -13,12 +13,14 @@ namespace Xpense.Persistence.TypeConfiguration
             builder.Metadata.SetSchema(XpenseSchema);
 
             // Merchant names must be unique
-            builder.HasIndex(e => e.Label).IsUnique();
+            builder.HasIndex(merchant => merchant.Label).IsUnique();
 
-            builder.Property(e => e.Label).HasMaxLength(100).IsRequired();
+            builder.Property(merchant => merchant.Label).HasMaxLength(100).IsRequired();
 
             //  Merchant (M) - Transaction (1)
-            builder.HasMany(e => e.Transactions).WithOne(e => e.Merchant).HasForeignKey(e => e.MerchantId);
+            builder.HasMany(merchant => merchant.Transactions)
+                .WithOne(transaction => transaction.Merchant)
+                .HasForeignKey(transaction => transaction.MerchantId);
         }
     }
 }

@@ -11,12 +11,12 @@ namespace Xpense.Persistence.TypeConfiguration
             base.Configure(builder);
             builder.Metadata.SetSchema(XpenseSchema);
 
-            builder.HasIndex(e => e.Label).IsUnique();
+            builder.HasIndex(priority => priority.Label).IsUnique();
 
-            builder.Property(e => e.Label).HasMaxLength(100).IsRequired();
+            builder.Property(priority => priority.Label).HasMaxLength(100).IsRequired();
 
             // PriorityId (1) - Category (M)
-            builder.HasMany(p => p.Categories).WithOne(c => c.Priority).HasForeignKey(c => c.PriorityId);
+            builder.HasMany(priority => priority.Categories).WithOne(category => category.Priority).HasForeignKey(category => category.PriorityId);
 
             SeedPriorities(builder);
         }

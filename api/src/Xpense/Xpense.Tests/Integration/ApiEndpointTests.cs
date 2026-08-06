@@ -617,11 +617,11 @@ public class ApiEndpointTests
 
         using (var scope = failing.Services.CreateScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
-            db.Accounts.AddRange(
+            var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+            dbContext.Accounts.AddRange(
                 NewAccount(SourceNumber, "Source", 2000),
                 NewAccount(DestinationNumber, "Destination", 300));
-            await db.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
         }
 
         var response = await failingClient.PostAsJsonAsync("/api/v1/transactions", new
@@ -635,9 +635,9 @@ public class ApiEndpointTests
 
         using var verification = failing.Services.CreateScope();
         var verifyDb = verification.ServiceProvider.GetRequiredService<XpenseDbContext>();
-        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.AccountNumber == SourceNumber))
+        (await verifyDb.Accounts.AsNoTracking().SingleAsync(account => account.AccountNumber == SourceNumber))
             .BalanceMinorUnits.Should().Be(2000);
-        (await verifyDb.Accounts.AsNoTracking().SingleAsync(a => a.AccountNumber == DestinationNumber))
+        (await verifyDb.Accounts.AsNoTracking().SingleAsync(account => account.AccountNumber == DestinationNumber))
             .BalanceMinorUnits.Should().Be(300);
         (await verifyDb.Transactions.CountAsync()).Should().Be(0);
     }

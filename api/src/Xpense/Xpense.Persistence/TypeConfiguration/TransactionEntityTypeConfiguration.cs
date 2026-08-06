@@ -12,37 +12,41 @@ public class TransactionEntityTypeConfiguration : BaseEntityTypeConfiguration<Tr
         builder.Metadata.SetSchema(XpenseSchema);
 
         // Amount and Kind are projected, not stored.
-        builder.Ignore(e => e.Amount);
-        builder.Ignore(e => e.Kind);
+        builder.Ignore(transaction => transaction.Amount);
+        builder.Ignore(transaction => transaction.Kind);
 
-        builder.Property(e => e.Reason).HasMaxLength(500);
+        builder.Property(transaction => transaction.Reason).HasMaxLength(500);
 
         // Two nullable sides. A null side means the money crossed the system boundary; there is no
         // collection navigation on Account because one collection cannot express two foreign keys.
-        builder.HasOne(e => e.SourceAccount)
+        builder.HasOne(transaction => transaction.SourceAccount)
             .WithMany()
-            .HasForeignKey(e => e.SourceAccountId)
+            .HasForeignKey(transaction => transaction.SourceAccountId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(e => e.DestinationAccount)
+        builder.HasOne(transaction => transaction.DestinationAccount)
             .WithMany()
-            .HasForeignKey(e => e.DestinationAccountId)
+            .HasForeignKey(transaction => transaction.DestinationAccountId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Transaction (M) - Category(1), optional: a transfer has no spending class.
-        builder.HasOne(e => e.Category).WithMany(e => e.Transactions).HasForeignKey(e => e.CategoryId);
+        builder.HasOne(transaction => transaction.Category)
+            .WithMany(category => category.Transactions)
+            .HasForeignKey(transaction => transaction.CategoryId);
 
         // Transaction (M) - Merchant(1), optional: a transfer has no external party.
-        builder.HasOne(e => e.Merchant).WithMany(e => e.Transactions).HasForeignKey(e => e.MerchantId);
+        builder.HasOne(transaction => transaction.Merchant)
+            .WithMany(merchant => merchant.Transactions)
+            .HasForeignKey(transaction => transaction.MerchantId);
 
         // Transaction (M) - Tag(M)
         builder
-            .HasMany(e => e.Tags)
-            .WithMany(e => e.Transactions)
+            .HasMany(transaction => transaction.Tags)
+            .WithMany(tag => tag.Transactions)
             .UsingEntity("TransactionTags",
-               l => l.HasOne(typeof(Tag)).WithMany().HasForeignKey("TagId").HasPrincipalKey(nameof(Tag.Id)),
-               r => r.HasOne(typeof(Transaction)).WithMany().HasForeignKey("TransactionId").HasPrincipalKey(nameof(Transaction.Id)),
-               j => j.HasKey("TransactionId", "TagId")
+               tagSide => tagSide.HasOne(typeof(Tag)).WithMany().HasForeignKey("TagId").HasPrincipalKey(nameof(Tag.Id)),
+               transactionSide => transactionSide.HasOne(typeof(Transaction)).WithMany().HasForeignKey("TransactionId").HasPrincipalKey(nameof(Transaction.Id)),
+               joinEntity => joinEntity.HasKey("TransactionId", "TagId")
             );
 
         // The factories on Transaction enforce this, but they are not the only way a row can be

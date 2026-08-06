@@ -57,9 +57,9 @@ public sealed class CreateAccount : IEndpoint
 
     private static async Task<Created<AccountResponse>> Handle(
         Request request,
-        XpenseDbContext db,
-        HttpContext http,
-        CancellationToken ct)
+        XpenseDbContext dbContext,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
     {
         CurrencyParser.TryParse(request.Balance.Currency, out var currency);
 
@@ -68,18 +68,18 @@ public sealed class CreateAccount : IEndpoint
             Label = request.Label,
             BalanceMinorUnits = request.Balance.MinorUnits,
             Currency = currency,
-            AccountNumber = await NextAccountNumber(db, ct),
-            IsDefault = !await db.Accounts.AnyAsync(a => a.IsDefault, ct),
+            AccountNumber = await NextAccountNumber(dbContext, cancellationToken),
+            IsDefault = !await dbContext.Accounts.AnyAsync(account => account.IsDefault, cancellationToken),
             CreatedAt = DateTime.UtcNow
         };
 
-        db.Accounts.Add(account);
+        dbContext.Accounts.Add(account);
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new AccountCreationFailedException(request.Label);
 
         return TypedResults.Created(
-            http.ResourceUri($"/api/v1/accounts/{account.AccountNumber}"),
+            httpContext.ResourceUri($"/api/v1/accounts/{account.AccountNumber}"),
             AccountResponse.Of(account));
     }
 
@@ -94,9 +94,9 @@ public sealed class CreateAccount : IEndpoint
     /// the ownership work; see docs/model-rename-pass.md.
     /// </para>
     /// </summary>
-    private static async Task<string> NextAccountNumber(XpenseDbContext db, CancellationToken ct)
+    private static async Task<string> NextAccountNumber(XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
-        var numbers = await db.Accounts.Select(a => a.AccountNumber).ToListAsync(ct);
+        var numbers = await dbContext.Accounts.Select(account => account.AccountNumber).ToListAsync(cancellationToken);
 
         return numbers.Count == 0
             ? FirstAccountNumber.ToString()

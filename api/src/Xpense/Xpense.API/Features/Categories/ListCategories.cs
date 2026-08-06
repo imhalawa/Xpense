@@ -17,12 +17,12 @@ public sealed class ListCategories : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapGet("/api/v1/categories", Handle).WithName(nameof(ListCategories));
 
-    private static async Task<Ok<CategoryResponse[]>> Handle(XpenseDbContext db, CancellationToken ct)
+    private static async Task<Ok<CategoryResponse[]>> Handle(XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
-        var categories = await db.Categories
+        var categories = await dbContext.Categories
             .AsNoTracking()
             .Include(category => category.Priority)
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         return TypedResults.Ok(categories.Select(CategoryResponse.Of).ToArray());
     }

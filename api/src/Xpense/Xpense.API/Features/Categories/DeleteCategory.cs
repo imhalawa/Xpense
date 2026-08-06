@@ -17,11 +17,11 @@ public sealed class DeleteCategory : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapDelete("/api/v1/categories/{id:int}", Handle).WithName(nameof(DeleteCategory));
 
-    private static async Task<NoContent> Handle(int id, XpenseDbContext db, CancellationToken ct)
+    private static async Task<NoContent> Handle(int id, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {
         // CategoryRepository.DeleteById wrapped a FirstAsync in catch-all and rethrew as
         // CategoryNotFoundException. Same outcome, without swallowing unrelated failures.
-        var category = await db.Categories.FirstOrDefaultAsync(item => item.Id == id, ct)
+        var category = await dbContext.Categories.FirstOrDefaultAsync(item => item.Id == id, cancellationToken)
                        ?? throw new CategoryNotFoundException(id);
 
         category.MarkAsDeleted();
@@ -32,7 +32,7 @@ public sealed class DeleteCategory : IEndpoint
         // filter hides the row, and an Include would hand back null for a category that is still
         // referenced. Budget is an entity rather than another slice's type, so reaching it from here
         // does not cross a slice boundary.
-        var budgets = await db.Budgets.Where(budget => budget.CategoryId == id).ToListAsync(ct);
+        var budgets = await dbContext.Budgets.Where(budget => budget.CategoryId == id).ToListAsync(cancellationToken);
 
         foreach (var budget in budgets)
         {
@@ -40,7 +40,7 @@ public sealed class DeleteCategory : IEndpoint
             budget.Touch();
         }
 
-        if (await db.SaveChangesAsync(ct) < 1)
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new CategoryDeletionFailedException(id);
 
         return TypedResults.NoContent();
