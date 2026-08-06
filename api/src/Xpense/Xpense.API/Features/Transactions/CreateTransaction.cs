@@ -65,7 +65,7 @@ public sealed class CreateTransaction : IEndpoint
             RuleFor(request => request)
                 .Must(request => Names(request.SourceAccountNumber) || Names(request.DestinationAccountNumber))
                 .WithMessage(
-                    "At least one of sourceAccountNumber and destinationAccountNumber is required.")
+                    "Either a source account or a destination account is required.")
                 .WithName(nameof(Request.SourceAccountNumber));
 
             // A transaction with one account inside Xpense has a counterparty outside it, which the
@@ -73,8 +73,8 @@ public sealed class CreateTransaction : IEndpoint
             When(IsOneSided, () =>
             {
                 RuleFor(request => request.CategoryId)
-                    .NotNull().WithMessage("The categoryId is required unless both accounts are named.")
-                    .GreaterThan(0).WithMessage("The categoryId must reference an existing category.");
+                    .NotNull().WithMessage("A category is required unless both accounts are named.")
+                    .GreaterThan(0).WithMessage("The category must be a valid selection.");
 
                 RuleFor(request => request.Merchant)
                     .NotNull().WithMessage("The merchant is required unless both accounts are named.");

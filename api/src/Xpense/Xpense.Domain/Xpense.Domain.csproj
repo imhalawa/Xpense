@@ -9,7 +9,4 @@
   <ItemGroup>
   </ItemGroup>
 
-  <!-- System.Linq.Async removed: net10 ships System.Linq.AsyncEnumerable in the BCL and the
-       package's extension methods now collide with it. -->
-
 </Project>

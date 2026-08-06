@@ -25,8 +25,8 @@ public sealed class CreateTag : IEndpoint
                 .NotEmpty().WithMessage("The label is required.")
                 .MaximumLength(100);
 
-            RuleFor(request => request.BgColorHex).HexColour("bgColorHex");
-            RuleFor(request => request.FgColorHex).HexColour("fgColorHex");
+            RuleFor(request => request.BgColorHex).HexColour("background colour");
+            RuleFor(request => request.FgColorHex).HexColour("foreground colour");
         }
     }
 

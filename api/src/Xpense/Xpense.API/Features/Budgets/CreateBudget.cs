@@ -37,7 +37,7 @@ public sealed class CreateBudget : IEndpoint
         public Validator()
         {
             RuleFor(request => request.CategoryId)
-                .GreaterThan(0).WithMessage("The categoryId must reference an existing category.");
+                .GreaterThan(0).WithMessage("The category must be a valid selection.");
 
             RuleFor(request => request.Amount)
                 .NotNull().WithMessage("The amount is required.");
@@ -66,7 +66,7 @@ public sealed class CreateBudget : IEndpoint
 
             RuleFor(request => request.EndsOn)
                 .Must((request, endsOn) => endsOn is null || endsOn >= request.StartsOn)
-                .WithMessage("The endsOn date cannot be before startsOn.");
+                .WithMessage("The end date cannot be before the start date.");
         }
 
         private static bool IsOneOff(string recurrence) =>

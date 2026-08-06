@@ -26,7 +26,7 @@ public sealed class UpdateCategory : IEndpoint
                 .MaximumLength(200);
 
             RuleFor(request => request.PriorityId)
-                .GreaterThan(0).WithMessage("The priorityId must reference an existing priority.");
+                .GreaterThan(0).WithMessage("The priority must be a valid selection.");
         }
     }
 
