@@ -46,7 +46,7 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       id="tags-Create"
       size="small"
       options={tagOptions}
-      onChange={(event, newValue, reason, details) => {
+      onChange={(_, newValue, reason, details) => {
         if (details?.option.create && reason !== "removeOption") {
           setSelected([
             ...selected,

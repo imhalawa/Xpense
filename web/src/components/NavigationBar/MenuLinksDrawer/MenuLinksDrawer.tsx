@@ -9,7 +9,7 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink } from "react-router";
 import * as React from "react";
 import { Activity, ArrowLeftRight, Ellipsis, EllipsisVertical, Settings } from "lucide-react";
 import { DateCalendar } from "@mui/x-date-pickers";
@@ -75,14 +75,24 @@ const MenuLinksDrawer = () => {
           </ListItemButton>
         </List>
         <Divider />
-        <Box display="flex" flexDirection={"column"} justifyContent="center">
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center"
+          }}>
           <DateCalendar
             sx={{ width: "90%" }}
             value={selectedDate}
             onChange={(date) => setSelectedDate(date)}
             disableFuture
           />
-          <Box display="flex" justifyContent={"center"} mb={1}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              mb: 1
+            }}>
             <Button onClick={() => setSelectedDate(null)} fullWidth>
               Clear
             </Button>

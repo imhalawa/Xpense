@@ -10,9 +10,7 @@ import {
   tagSchema,
   TransactionType,
 } from "..";
-import buildTransaction from "../models/ITransaction";
 import { categorySchema } from "../models/ICategory";
-import { createMoney } from "../models/IMoney";
 
 export const schema: yup.ObjectSchema<ITransactionFormData> = yup.object().shape({
   amount: yup.number().required("Amount is required").positive("Amount must be positive"),

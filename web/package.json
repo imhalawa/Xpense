@@ -6,61 +6,33 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "preview": "vite preview"
+  },
+  "overrides": {
+    "@mui/x-charts-vendor": "9.4.0"
   },
   "dependencies": {
-    "@emotion/react": "^11.11.4",
-    "@emotion/styled": "^11.11.5",
-    "@fontsource/lato": "^5.0.21",
-    "@hookform/resolvers": "^3.9.0",
-    "@mui/material": "^5.15.21",
-    "@mui/x-charts": "^7.8.0",
-    "@mui/x-date-pickers": "^7.10.0",
-    "axios": "^1.7.2",
-    "dayjs": "^1.11.11",
-    "lucide-react": "^0.407.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.52.1",
-    "react-router-dom": "^6.24.0",
-    "yup": "^1.4.0"
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource/lato": "^5.3.0",
+    "@hookform/resolvers": "^3.10.0",
+    "@mui/material": "^9.3.1",
+    "@mui/x-charts": "^9.11.0",
+    "@mui/x-date-pickers": "^9.11.0",
+    "axios": "^1.19.0",
+    "dayjs": "^1.11.21",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-hook-form": "^7.84.0",
+    "react-router": "^8.3.0",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
-    "@chromatic-com/storybook": "^1.6.1",
-    "@eslint/js": "^9.7.0",
-    "@storybook/addon-essentials": "^8.2.2",
-    "@storybook/addon-interactions": "^8.2.2",
-    "@storybook/addon-links": "^8.2.2",
-    "@storybook/addon-onboarding": "^8.2.2",
-    "@storybook/blocks": "^8.2.2",
-    "@storybook/builder-vite": "^8.2.2",
-    "@storybook/react": "^8.2.2",
-    "@storybook/react-vite": "^8.2.2",
-    "@storybook/test": "^8.2.2",
-    "@types/eslint__js": "^8.42.3",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/eslint-plugin": "^7.13.1",
-    "@typescript-eslint/parser": "^7.13.1",
-    "@vitejs/plugin-react-swc": "^3.5.0",
-    "autoprefixer": "^10.4.19",
-    "eslint": "^8.57.0",
-    "eslint-plugin-react-hooks": "^4.6.2",
-    "eslint-plugin-react-refresh": "^0.4.7",
-    "eslint-plugin-storybook": "^0.8.0",
-    "postcss": "^8.4.39",
-    "storybook": "^8.2.2",
-    "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.3",
-    "typescript-eslint": "^7.16.0",
-    "vite": "^5.3.1"
-  },
-  "eslintConfig": {
-    "extends": [
-      "plugin:storybook/recommended"
-    ]
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react-swc": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
   }
 }

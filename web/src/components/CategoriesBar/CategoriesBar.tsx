@@ -29,13 +29,13 @@ const CategoriesBar = ({categories}: CategoriesBarProps) => {
             component="ul"
         >
             {
-                categories.map(category => (
+                categories.map(({id, label, priority}) => (
                     <CategoryChip
-                        key={category.id}
-                        id={category.id}
-                        name={category.label}
-                        priority={category.priority}
-                        onClick={() => handleClick(category.id)}
+                        key={id}
+                        id={id ?? null}
+                        name={label}
+                        priority={priority}
+                        onClick={id == null ? undefined : () => handleClick(id)}
                     />
                 ))
             }

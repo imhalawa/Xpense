@@ -7,7 +7,7 @@ const TransactionsUtilities = () => {
   const { selectedDate } = useCalendar();
   return (
     <Utility>
-      <TransactionsForm onSubmit={(transaction) => console.log(transaction)} selectedDate={selectedDate} />
+      <TransactionsForm selectedDate={selectedDate} />
       <hr />
       <Calendar />
     </Utility>

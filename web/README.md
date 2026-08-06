@@ -1,30 +1,35 @@
-# React + TypeScript + Vite
+# Xpense.Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Browser client for [Xpense.API](https://github.com/imhalawa/Xpense.API). React 19 and MUI 9 on Vite,
+written in TypeScript.
 
-Currently, two official plugins are available:
+## Running it
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+```bash
+npm install
+npm run dev
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+The dev server listens on `http://localhost:5173`. It expects the API at `http://localhost:4000`,
+set in `src/App.tsx`.
+
+| Script | Does |
+| --- | --- |
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Type-check with `tsc -b`, then bundle |
+| `npm run preview` | Serve the built bundle |
+
+## State of the contract
+
+Every endpoint this client calls was removed when the API reset to its v1 contract, so nothing it
+fetches currently resolves. Migrating the six call sites is the next piece of work.
+
+## Notes
+
+There is no linter. `typescript-eslint` does not support TypeScript 7
+([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)), so
+`tsc` under `strict` is the only static check until that lands.
+
+`package.json` pins `@mui/x-charts-vendor` to 9.4.0, because 9.11.0 is published to npm with only a
+package.json and a README and therefore resolves to nothing. Drop the override once upstream
+republishes.

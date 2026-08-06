@@ -1,4 +1,4 @@
-import { Box, Button, Card, CardActions, CardContent } from "@mui/material";
+import { Button, Card, CardActions, CardContent } from "@mui/material";
 import { DateCalendar } from "@mui/x-date-pickers";
 import { useCalendar } from "../../contexts/CalendarContext";
 

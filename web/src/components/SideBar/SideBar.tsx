@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import { Divider, List, ListItemButton, ListItemIcon } from "@mui/material";
 import { Activity, ArrowLeftRight, ListCollapse, Settings } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 
 interface MiniSideBarProps {
   visible: boolean;
@@ -26,17 +26,16 @@ const SideBar = ({ visible, onVisibilityChange }: MiniSideBarProps) => {
 
   return (
     <Box
-      display="flex"
-      flexDirection={"column"}
-      width={"4rem"}
-      position={visible ? "fixed" : "initial"}
-      height="calc(100vh - 4rem)"
-      justifyContent={"space-between"}
       sx={{
+        display: "flex",
+        flexDirection: "column",
+        width: "4rem",
+        position: visible ? "fixed" : "initial",
+        height: "calc(100vh - 4rem)",
+        justifyContent: "space-between",
         backgroundColor: "primary.dark",
-        color: "white",
-      }}
-    >
+        color: "white"
+      }}>
       <List>
         <ListItemButton onClick={() => onVisibilityChange(true)}>
           <ListItemIcon>

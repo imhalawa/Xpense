@@ -46,16 +46,16 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
       isOptionEqualToValue={(a, b) => a.id === b.id}
       autoHighlight
       value={selected}
-      onChange={(event: any, newValue: IAccount | null) => setSelected(newValue)}
+      onChange={(_, newValue: IAccount | null) => setSelected(newValue)}
       getOptionLabel={(option) => option.label}
       renderOption={(props, option) => {
         const { key, ...optionProps } = props;
         return (
           <Grid container spacing={1} key={key} component="li" {...optionProps}>
-            <Grid item xs={10}>
+            <Grid size={10}>
               <Typography variant="body2">{option.label}&nbsp;</Typography>
             </Grid>
-            <Grid item xs={2}>
+            <Grid size={2}>
               {option.isDefault && (
                 <Typography variant="body2" color="green">
                   Main
@@ -72,12 +72,16 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
           label={label}
           variant="standard"
           value={selected}
-          inputProps={{
-            ...params.inputProps,
-            autoComplete: "new-password", // disable autocomplete and autofill
-          }}
           error={error}
           helperText={helperText}
+          slotProps={{
+            ...params.slotProps,
+
+            htmlInput: {
+              ...params.slotProps.htmlInput,
+              autoComplete: "new-password", // disable autocomplete and autofill
+            }
+          }}
         />
       )}
     />

@@ -82,7 +82,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
         <CardContent>
           <Grid container spacing={1}>
             {/* Amount */}
-            <Grid item xs={8}>
+            <Grid size={8}>
               <FormControl fullWidth>
                 <Controller
                   name="amount"
@@ -93,11 +93,13 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
                       label="Amount"
                       type="number"
                       value={value}
-                      InputLabelProps={{ shrink: true }}
                       variant="standard"
                       onChange={onChange}
                       error={!!error}
                       helperText={error?.message}
+                      slotProps={{
+                        inputLabel: { shrink: true }
+                      }}
                     />
                   )}
                 />
@@ -105,7 +107,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
             </Grid>
 
             {/* Currency */}
-            <Grid item xs={4}>
+            <Grid size={4}>
               <FormControl fullWidth>
                 <Controller
                   name="currency"
@@ -136,7 +138,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
               </FormControl>
             </Grid>
             {/* Merchant */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <FormControl fullWidth>
                 <Controller
                   name="merchant"
@@ -154,7 +156,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
               </FormControl>
             </Grid>
             {/* Category */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <FormControl fullWidth>
                 <Controller
                   name="category"
@@ -172,7 +174,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
               </FormControl>
             </Grid>
             {/* Date of Transaction */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <FormControl fullWidth>
                 <Controller
                   name="dateOfTransaction"
@@ -200,7 +202,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
             </Grid>
 
             {/* Transaction Type */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <FormControl fullWidth>
                 <Controller
                   name="type"
@@ -220,11 +222,15 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
                         <FormHelperText>{error?.message}</FormHelperText>
                         <MenuItem value={TransactionType.CREDIT}>
                           <Grid container>
-                            <Grid item xs={10}>
+                            <Grid size={10}>
                               Income
                             </Grid>
-                            <Grid item xs={2}>
-                              <Box display="flex" justifyContent="right">
+                            <Grid size={2}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "right"
+                                }}>
                                 <ArrowUpRight color="green" size={20} />
                               </Box>
                             </Grid>
@@ -232,11 +238,15 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
                         </MenuItem>
                         <MenuItem value={TransactionType.DEBIT}>
                           <Grid container>
-                            <Grid item xs={10}>
+                            <Grid size={10}>
                               Expense
                             </Grid>
-                            <Grid item xs={2}>
-                              <Box display="flex" justifyContent="right">
+                            <Grid size={2}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "right"
+                                }}>
                                 <ArrowDownRight color="red" size={20} />
                               </Box>
                             </Grid>
@@ -250,7 +260,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
             </Grid>
 
             {/* Account */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <FormControl fullWidth>
                 <Controller
                   name="account"
@@ -269,7 +279,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
             </Grid>
 
             {/* Tags */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <FormControl fullWidth>
                 <Controller
                   name="tags"
@@ -289,7 +299,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
           </Grid>
         </CardContent>
         <CardActions>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Button variant="contained" fullWidth type="submit">
               Add Transaction
             </Button>
