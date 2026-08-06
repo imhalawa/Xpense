@@ -1,8 +1,7 @@
 import { PieChart } from "@mui/x-charts/PieChart";
 import React from "react";
-import { Grid, styled } from "@mui/material";
+import { styled } from "@mui/material";
 import { PieValueType, useDrawingArea } from "@mui/x-charts";
-import { Box } from "lucide-react";
 
 interface XpensePieProps {
   data: PieValueType[] | null;

@@ -59,7 +59,7 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
       isOptionEqualToValue={(a, b) => a.id === b.id}
       autoHighlight
       value={selected}
-      onChange={(event: any, newValue: ICategory | null) => setSelected(newValue)}
+      onChange={(_, newValue: ICategory | null) => setSelected(newValue)}
       getOptionLabel={(option) => option.label}
       renderOption={(props, option) => {
         const { key, ...optionProps } = props;

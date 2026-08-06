@@ -1,6 +1,4 @@
-import * as React from "react";
 import {LineChart, lineElementClasses} from "@mui/x-charts/LineChart";
-import {PieValueType} from "@mui/x-charts";
 
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -23,8 +21,8 @@ export default function XpenseAreaChart({data, hideLegend, height, width}: Xpens
 
     return (
         <LineChart
-            width={500}
-            height={300}
+            width={width ?? 500}
+            height={height ?? 300}
             series={[{data: values, label: "uv", area: true, showMark: false}]}
             xAxis={[
                 {

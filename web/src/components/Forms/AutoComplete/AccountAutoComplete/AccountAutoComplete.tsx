@@ -46,7 +46,7 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
       isOptionEqualToValue={(a, b) => a.id === b.id}
       autoHighlight
       value={selected}
-      onChange={(event: any, newValue: IAccount | null) => setSelected(newValue)}
+      onChange={(_, newValue: IAccount | null) => setSelected(newValue)}
       getOptionLabel={(option) => option.label}
       renderOption={(props, option) => {
         const { key, ...optionProps } = props;
