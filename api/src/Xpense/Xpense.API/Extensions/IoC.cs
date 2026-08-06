@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using Xpense.API.ExceptionHandlers;
@@ -72,6 +73,8 @@ public static class IoC
     {
         services.AddSwaggerGen(options =>
         {
+            options.CustomSchemaIds(SchemaId);
+
             options.SwaggerDoc(
                 "v1",
                 new OpenApiInfo
@@ -92,5 +95,20 @@ public static class IoC
             var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
         });
+    }
+
+    /// <summary>
+    /// A schema id that is unique for a nested type: every name it is declared inside, outermost first,
+    /// then its own. <c>CreateBudget.Request</c> becomes <c>CreateBudgetRequest</c>.
+    /// </summary>
+    private static string SchemaId(Type type)
+    {
+        var names = new List<string>();
+
+        for (var current = type; current is not null; current = current.DeclaringType)
+            names.Insert(0, current.Name);
+
+        // Generics arrive as `Thing`1`; the arity suffix is not valid in a schema id.
+        return string.Concat(names).Replace("`", string.Empty);
     }
 }
