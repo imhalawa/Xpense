@@ -17,7 +17,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .WriteTo.Console();
 });
 
-builder.Services.AddSingleton(Log.Logger);
+builder.Services.AddSingleton<Serilog.ILogger>(_ => Log.Logger);
 // AddControllers used to bring these in implicitly; without MVC they must be explicit.
 builder.Services.AddCors();
 builder.Services.AddEndpointsApiExplorer();
