@@ -45,11 +45,7 @@ const XpensePieChart = ({ data, value, height, width, innerRadius, outerRadius, 
           endAngle: 360,
         },
       ]}
-      slotProps={{
-        legend: {
-          hidden: hideLegend ?? true,
-        },
-      }}
+      hideLegend={hideLegend ?? true}
     >
       <PieCenterLabel>{value}</PieCenterLabel>
     </PieChart>

@@ -8,14 +8,21 @@ interface IUtilityProps {
 const Utility = ({ children }: IUtilityProps) => {
   return (
     <Box
-      display="flex"
-      flexDirection={"column"}
-      padding={"1rem"}
-      height="calc(100% - 4rem)"
-      justifyContent={"space-between"}
-      sx={{ overflowY: "scroll" }}
-    >
-      <Box width={"100%"} display="flex" flexDirection={"column"} justifyContent={"center"}>
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        padding: "1rem",
+        height: "calc(100% - 4rem)",
+        justifyContent: "space-between",
+        overflowY: "scroll"
+      }}>
+      <Box
+        sx={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center"
+        }}>
         {children}
       </Box>
     </Box>

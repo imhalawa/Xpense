@@ -12,7 +12,9 @@ const Layout = () => {
   return (
     <>
       <Grid container>
-        <Grid item xs={12} height={"4rem"}>
+        <Grid size={12} sx={{
+          height: "4rem"
+        }}>
           <NavigationBar />
         </Grid>
         {matchMD && <MediumScreensContent />}
@@ -24,7 +26,12 @@ const Layout = () => {
 
 const SmallScreensContent = () => {
   return (
-    <Grid item xs={12} height={"calc(100vh - 4rem)"} width={"100%"}>
+    <Grid
+      size={12}
+      sx={{
+        height: "calc(100vh - 4rem)",
+        width: "100%"
+      }}>
       <LayoutContent />
     </Grid>
   );
@@ -38,13 +45,18 @@ const MediumScreensContent = () => {
   };
 
   return (
-    <Box display="flex" justifyContent={"space-between"}>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between"
+      }}>
       {showUtilitiesBar && <UtilitiesBar visible={showUtilitiesBar} onVisibilityChange={handleHideSideBar} />}
       {!showUtilitiesBar && <SideBar visible={!showUtilitiesBar} onVisibilityChange={handleHideSideBar} />}
       <Box
-        width={showUtilitiesBar ? "calc(100vw - 26rem)" : "calc(100vw - 4rem)"}
-        marginLeft={showUtilitiesBar ? "26rem" : "4rem"}
-      >
+        sx={{
+          width: showUtilitiesBar ? "calc(100vw - 26rem)" : "calc(100vw - 4rem)",
+          marginLeft: showUtilitiesBar ? "26rem" : "4rem"
+        }}>
         <LayoutContent />
       </Box>
     </Box>
@@ -53,18 +65,23 @@ const MediumScreensContent = () => {
 const LayoutContent = () => {
   return (
     <Container maxWidth={false} sx={{ backgroundColor: "#eef2f6" }}>
-      <Grid container px={2} sx={{ backgroundColor: "#eef2f6", height: "100%" }}>
+      <Grid
+        container
+        sx={{
+          px: 2,
+          backgroundColor: "#eef2f6",
+          height: "100%"
+        }}>
         <Grid
           container
-          my={2}
           sx={{
+            my: 2,
             padding: 0,
             backgroundColor: "white",
             borderRadius: "1rem",
             height: "calc(100vh - 6rem)",
-            overflowY: "scroll",
-          }}
-        >
+            overflowY: "scroll"
+          }}>
           <Outlet />
         </Grid>
       </Grid>

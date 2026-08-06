@@ -26,17 +26,16 @@ const SideBar = ({ visible, onVisibilityChange }: MiniSideBarProps) => {
 
   return (
     <Box
-      display="flex"
-      flexDirection={"column"}
-      width={"4rem"}
-      position={visible ? "fixed" : "initial"}
-      height="calc(100vh - 4rem)"
-      justifyContent={"space-between"}
       sx={{
+        display: "flex",
+        flexDirection: "column",
+        width: "4rem",
+        position: visible ? "fixed" : "initial",
+        height: "calc(100vh - 4rem)",
+        justifyContent: "space-between",
         backgroundColor: "primary.dark",
-        color: "white",
-      }}
-    >
+        color: "white"
+      }}>
       <List>
         <ListItemButton onClick={() => onVisibilityChange(true)}>
           <ListItemIcon>

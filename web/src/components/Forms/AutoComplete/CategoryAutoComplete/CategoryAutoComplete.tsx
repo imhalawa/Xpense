@@ -65,10 +65,10 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
         const { key, ...optionProps } = props;
         return (
           <Grid container spacing={1} key={key} component="li" {...optionProps}>
-            <Grid item xs={10}>
+            <Grid size={10}>
               <Typography variant="body2">{option.label}&nbsp;</Typography>
             </Grid>
-            <Grid item xs={2}>
+            <Grid size={2}>
               <Typography variant="caption" color={priorityColor(option.priority)}>
                 {option.priority.label}
               </Typography>
@@ -82,13 +82,17 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
           variant="standard"
           {...params}
           label={label}
-          inputProps={{
-            ...params.inputProps,
-            autoComplete: "new-password", // disable autocomplete and autofill
-          }}
           value={selected}
           error={error}
           helperText={helperText}
+          slotProps={{
+            ...params.slotProps,
+
+            htmlInput: {
+              ...params.slotProps.htmlInput,
+              autoComplete: "new-password", // disable autocomplete and autofill
+            }
+          }}
         />
       )}
     />

@@ -13,14 +13,15 @@ const UtilitiesBar = ({ visible, onVisibilityChange }: SideMenuProps) => {
   const location = useLocation();
   return (
     <Box
-      width={"26rem"}
-      position={"fixed"}
-      display="flex"
-      height="calc(100vh - 4rem)"
-      flexDirection={"row"}
-      justifyContent={"left"}
-      sx={{ backgroundColor: "white" }}
-    >
+      sx={{
+        width: "26rem",
+        position: "fixed",
+        display: "flex",
+        height: "calc(100vh - 4rem)",
+        flexDirection: "row",
+        justifyContent: "left",
+        backgroundColor: "white"
+      }}>
       <SideBar visible={!visible} onVisibilityChange={() => onVisibilityChange(false)} />
       <Slide in={visible} direction="down" timeout={{ enter: 500, exit: 250 }}>
         <Box>{location.pathname === "/transactions" && <TransactionsUtilities />}</Box>

@@ -6,7 +6,7 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import { Alert, Box, Pagination, PaginationItem, styled, Typography } from "@mui/material";
-import { ReactNode } from "react";
+import { JSX, ReactNode } from "react";
 import { ArrowLeftCircle, ArrowRightCircle } from "lucide-react";
 
 export interface IDataGridProps<T> {
@@ -51,7 +51,13 @@ const DataGrid = <T,>({
   const isPaginated = paginated && activePage && onPageChange && count !== undefined && count > 0;
   const sortedHeaders = headers.sort((a, b) => a.order - b.order);
   return (
-    <Box display="flex" flexDirection="column" gap={1} alignItems={"center"}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        alignItems: "center"
+      }}>
       <TableContainer component={Paper}>
         <Table
           sx={{ minWidth: 650 }}
@@ -62,7 +68,13 @@ const DataGrid = <T,>({
             <TableRow sx={{ backgroundColor: "#eef2f6" }}>
               {sortedHeaders.map((header) => (
                 <TableCell key={header.headerName}>
-                  <Box display="flex" flexDirection="row" alignItems="center" gap={1}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 1
+                    }}>
                     {header.icon && header.icon}
                     <Typography variant="body2">{header.headerName}</Typography>
                   </Box>
@@ -75,7 +87,11 @@ const DataGrid = <T,>({
               <TableCell colSpan={headers.length}>
                 {emptyAlert || (
                   <Alert severity="info">
-                    <Box display="flex" justifyContent="center">
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center"
+                      }}>
                       No data
                     </Box>
                   </Alert>

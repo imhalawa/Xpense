@@ -1,4 +1,4 @@
-import {LineChart, lineElementClasses} from "@mui/x-charts/LineChart";
+import {LineChart, lineClasses} from "@mui/x-charts/LineChart";
 
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -32,15 +32,11 @@ export default function XpenseAreaChart({data, hideLegend, height, width}: Xpens
                 }
             ]}
             sx={{
-                [`& .${lineElementClasses.root}`]: {
+                [`& .${lineClasses.line}`]: {
                     display: "none"
                 }
             }}
-            slotProps={{
-                legend: {
-                    hidden: hideLegend ?? true
-                }
-            }}
+            hideLegend={hideLegend ?? true}
         />
     );
 }
