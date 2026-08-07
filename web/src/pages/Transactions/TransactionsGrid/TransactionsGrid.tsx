@@ -1,14 +1,14 @@
 import { Alert, Link, Typography } from "@mui/material";
 import {
-  Euro,
-  DollarSign,
-  CurrencyIcon,
-  CalendarDaysIcon,
-  CircleAlertIcon,
-  StoreIcon,
-  CreditCardIcon,
-  TagIcon,
-} from "lucide-react";
+  AccountIcon,
+  AmountIcon,
+  CategoryIcon,
+  DateIcon,
+  DollarIcon,
+  EuroIcon,
+  MerchantIcon,
+  TagsIcon,
+} from "../../../icons/icons";
 import CategoryChip from "../../../components/Chips/CategoryChip/CategoryChip";
 import DataGrid, { IDataGridHeader } from "../../../components/DataGrid/DataGrid";
 import { formatIsoDate } from "../../../utils/DateUtils";
@@ -36,11 +36,11 @@ const buildHeaders = (
   {
     headerName: "Amount",
     field: "amount",
-    icon: <CurrencyIcon />,
+    icon: <AmountIcon />,
     order: 2,
     render: (row: ITransactionResponse) => (
       <Typography variant="body2" color={row.kind === "income" ? "green" : "red"}>
-        {row.amount.currency === Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
+        {row.amount.currency === Currency.EUR ? <EuroIcon size={12} /> : <DollarIcon size={12} />}
         {toSingle(row.amount)}
       </Typography>
     ),
@@ -49,14 +49,14 @@ const buildHeaders = (
     headerName: "Date",
     field: "occurredAt",
     order: 3,
-    icon: <CalendarDaysIcon />,
+    icon: <DateIcon />,
     render: (row: ITransactionResponse) => <>{formatIsoDate(row.occurredAt)}</>,
   },
   {
     headerName: "Category",
     field: "categoryId",
     order: 4,
-    icon: <CircleAlertIcon />,
+    icon: <CategoryIcon />,
     render: (row: ITransactionResponse) => {
       const category = row.categoryId === null ? undefined : categories.get(row.categoryId);
       if (category === undefined) return <>&mdash;</>;
@@ -67,14 +67,14 @@ const buildHeaders = (
     headerName: "Merchant",
     field: "merchant",
     order: 5,
-    icon: <StoreIcon />,
+    icon: <MerchantIcon />,
     render: (row: ITransactionResponse) => <>{row.merchant?.label ?? "—"}</>,
   },
   {
     headerName: "Account Number",
     field: "sourceAccountNumber",
     order: 6,
-    icon: <CreditCardIcon />,
+    icon: <AccountIcon />,
     render: (row: ITransactionResponse) => (
       <>{row.sourceAccountNumber ?? row.destinationAccountNumber}</>
     ),
@@ -83,7 +83,7 @@ const buildHeaders = (
     headerName: "Tags",
     field: "tags",
     order: 7,
-    icon: <TagIcon />,
+    icon: <TagsIcon />,
     render: (row: ITransactionResponse) => (
       <>
         {row.tags.map((tag) => (

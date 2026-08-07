@@ -7,7 +7,7 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import { Alert, Box, Pagination, PaginationItem, styled, Typography } from "@mui/material";
 import { JSX, ReactNode } from "react";
-import { ArrowLeftCircle, ArrowRightCircle } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "../../icons/icons";
 
 export interface IDataGridProps<T> {
   headers: Array<IDataGridHeader<T>>;
@@ -117,7 +117,7 @@ const DataGrid = <T,>({
           page={activePage}
           onChange={(_event, page) => onPageChange(page)}
           renderItem={(item) => (
-            <PaginationItem slots={{ previous: ArrowLeftCircle, next: ArrowRightCircle }} {...item} />
+            <PaginationItem slots={{ previous: ChevronLeftIcon, next: ChevronRightIcon }} {...item} />
           )}
         />
       )}

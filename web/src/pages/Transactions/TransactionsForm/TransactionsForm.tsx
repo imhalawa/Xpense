@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs, { Dayjs } from "dayjs";
-import { Euro, DollarSign, CalendarIcon, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DateIcon, DollarIcon, EuroIcon, ExpenseIcon, IncomeIcon } from "../../../icons/icons";
 import AccountAutoComplete from "../../../components/Forms/AutoComplete/AccountAutoComplete/AccountAutoComplete";
 import CategoryAutoComplete from "../../../components/Forms/AutoComplete/CategoryAutoComplete/CategoryAutoComplete";
 import TagAutoComplete from "../../../components/Forms/AutoComplete/TagAutoComplete/TagAutoComplete";
@@ -123,10 +123,10 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
                       >
                         <FormHelperText>{error?.message}</FormHelperText>
                         <MenuItem value={Currency.EUR}>
-                          <Euro size={16} />
+                          <EuroIcon size={16} />
                         </MenuItem>
                         <MenuItem value={Currency.USD}>
-                          <DollarSign size={16} />
+                          <DollarIcon size={16} />
                         </MenuItem>
                       </Select>
                     </>
@@ -182,7 +182,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
                       onChange={onChange}
                       label="Date of Transaction"
                       slots={{
-                        openPickerIcon: CalendarIcon,
+                        openPickerIcon: DateIcon,
                       }}
                       slotProps={{
                         textField: {
@@ -226,9 +226,10 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
                               <Box
                                 sx={{
                                   display: "flex",
-                                  justifyContent: "right"
+                                  justifyContent: "right",
+                                  color: "success.main"
                                 }}>
-                                <ArrowUpRight color="green" size={20} />
+                                <IncomeIcon size={20} />
                               </Box>
                             </Grid>
                           </Grid>
@@ -242,9 +243,10 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
                               <Box
                                 sx={{
                                   display: "flex",
-                                  justifyContent: "right"
+                                  justifyContent: "right",
+                                  color: "error.main"
                                 }}>
-                                <ArrowDownRight color="red" size={20} />
+                                <ExpenseIcon size={20} />
                               </Box>
                             </Grid>
                           </Grid>

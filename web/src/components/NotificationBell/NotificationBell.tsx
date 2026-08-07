@@ -5,7 +5,7 @@ import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
-import { Bell } from "lucide-react";
+import { BellIcon } from "../../icons/icons";
 import { INotificationResponse } from "../../clients/types";
 
 interface NotificationBellProps {
@@ -37,7 +37,7 @@ const NotificationBell = ({
         onClick={(event) => setAnchor(event.currentTarget)}
       >
         <Badge badgeContent={unreadCount} color="error" overlap="circular">
-          <Bell size={20} />
+          <BellIcon size={20} />
         </Badge>
       </IconButton>
 
