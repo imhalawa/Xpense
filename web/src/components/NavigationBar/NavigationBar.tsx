@@ -14,6 +14,7 @@ import {
 } from "../../icons/icons";
 import { useLoading } from "../../contexts/LoadingContext";
 import NotificationBell from "../NotificationBell/NotificationBell";
+import ThemeModeToggle from "../ThemeModeToggle/ThemeModeToggle";
 import {
   getUnreadCount,
   listNotifications,
@@ -76,6 +77,8 @@ const NavigationBar = () => {
             </Button>
           ))}
         </Box>
+
+        <ThemeModeToggle />
 
         <NotificationBell
           notifications={notifications}
