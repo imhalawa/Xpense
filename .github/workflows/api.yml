@@ -1,13 +1,23 @@
-name: .NET
+name: API
 
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - 'api/**'
+      - '.github/workflows/api.yml'
   pull_request:
     branches: [ "**" ]
+    paths:
+      - 'api/**'
+      - '.github/workflows/api.yml'
 
 env:
   SOLUTION: src/Xpense/Xpense.sln
+
+defaults:
+  run:
+    working-directory: api
 
 jobs:
   build:
@@ -59,10 +69,10 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: dotnet-results
-        path: TestResults
+        path: api/TestResults
     - name: Upload coverage report
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
-        path: CoverageReport
+        path: api/CoverageReport

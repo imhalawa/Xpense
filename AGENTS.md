@@ -1,7 +1,12 @@
 # Working in this repo
 
+Two trees: `api/` holds the .NET API and `web/` holds its browser client. Every path below is
+relative to `api/`, and everything on this page describes the API unless it says otherwise. The
+client has no conventions written down yet; it has no linter either, because `typescript-eslint`
+does not support TypeScript 7, so `tsc` under `strict` is its only static check.
+
 Xpense.API uses **vertical slice architecture**. Full write-up in
-[`docs/vertical-slicing-architecture/`](docs/vertical-slicing-architecture/).
+[`api/docs/vertical-slicing-architecture/`](api/docs/vertical-slicing-architecture/).
 
 ## Layout
 
@@ -24,8 +29,8 @@ docker-compose.yml                     postgres -> migrations -> api + notificat
 Every `docker/*/Dockerfile` restores the whole solution, so adding a project means adding its `.csproj` to each of them. Miss one and all three builds fail, not just the new one.
 
 Migrations never run at application startup, and reference data lives in migrations rather than in a
-startup seeder. Both are load-bearing: see [ADR 0004](docs/adr/0004-migrations-are-a-deployment-step.md)
-and [ADR 0005](docs/adr/0005-reference-data-lives-in-migrations.md) before adding code that writes to
+startup seeder. Both are load-bearing: see [ADR 0004](api/docs/adr/0004-migrations-are-a-deployment-step.md)
+and [ADR 0005](api/docs/adr/0005-reference-data-lives-in-migrations.md) before adding code that writes to
 the database during boot.
 
 ## Rules
@@ -43,8 +48,8 @@ These are enforced by `Xpense.Tests/Architecture/SliceIsolationTests.cs`. Breaki
 
 Producers state facts and never decide what is worth telling anyone. `IEventBus.Emit` inserts an event through the caller's `DbContext`, so it commits with whatever the caller is writing -- it does **not** save, and a caller that never saves has emitted nothing.
 
-- **The `Events` table is the queue.** No broker. [ADR 0008](docs/adr/0008-the-events-table-is-the-queue.md).
-- **Budgets never touch the write path.** [ADR 0006](docs/adr/0006-a-budget-reports-and-never-blocks.md).
+- **The `Events` table is the queue.** No broker. [ADR 0008](api/docs/adr/0008-the-events-table-is-the-queue.md).
+- **Budgets never touch the write path.** [ADR 0006](api/docs/adr/0006-a-budget-reports-and-never-blocks.md).
 - **One notification kind per rule**, in its own file under `Xpense.Notifications/Rules/`, discovered by a scan. A rule may not reference another rule, and rules duplicate each other's queries on purpose -- `NotificationRuleIsolationTests` enforces both.
 - **Event bodies hold primitives, enums and ids only.** No entity, no `Money`. A body is a wire format read back long after it was written; `EventContractTests` enforces this.
 - **A rule's payload must contain nothing time-varying.** It is hashed to deduplicate notifications, so a timestamp inside one makes every redelivery look new.
@@ -54,15 +59,15 @@ Producers state facts and never decide what is worth telling anyone. `IEventBus.
 Three versions are held deliberately. Bumping any of them needs a reason.
 
 - **FluentAssertions stays on 6.x.** Version 8 moved to a commercial Xceed licence.
-- **`Microsoft.EntityFrameworkCore.Relational` is pinned explicitly.** Npgsql floors it at `[10.0.4, 11.0.0)`, so without a pin NuGet resolves 10.0.4 against a 10.0.10 core and the app fails at runtime with a missing assembly. See [`docs/postgres.md`](docs/postgres.md).
+- **`Microsoft.EntityFrameworkCore.Relational` is pinned explicitly.** Npgsql floors it at `[10.0.4, 11.0.0)`, so without a pin NuGet resolves 10.0.4 against a 10.0.10 core and the app fails at runtime with a missing assembly. See [`api/docs/postgres.md`](api/docs/postgres.md).
 - **`dotnet-ef` is a local tool** in `.config/dotnet-tools.json`, matching the EF runtime. A globally installed 8.x tool refuses to run against EF 10.
 
 ## Style
 
-- **No comments.** Not in C#, Dockerfiles, YAML, XML or shell. The one exception is `<summary>` on `*Request` and `*Response` records, because Swagger renders those into the OpenAPI document that [ADR 0003](docs/adr/0003-generated-openapi-is-the-contract.md) makes authoritative. Write code that says what it does and put reasoning in the commit message, an ADR, or `docs/`. Parser directives that only look like comments stay: `# syntax=` in a Dockerfile, `#!` in a script.
+- **No comments.** Not in C#, Dockerfiles, YAML, XML or shell. The one exception is `<summary>` on `*Request` and `*Response` records, because Swagger renders those into the OpenAPI document that [ADR 0003](api/docs/adr/0003-generated-openapi-is-the-contract.md) makes authoritative. Write code that says what it does and put reasoning in the commit message, an ADR, or `api/docs/`. Parser directives that only look like comments stay: `# syntax=` in a Dockerfile, `#!` in a script.
 - **Spell names out.** `cancellationToken`, not `ct`. `dbContext`, not `db`. `httpContext`, not `http`. Lambda parameters are named for what they hold, and for *their own* type -- in relationship configuration the two sides differ, so `HasOne(transaction => transaction.Category).WithMany(category => category.Transactions)`. `app` in `Map(IEndpointRouteBuilder app)` is the one exception, being the framework's own name for that thing.
 - **Constants first.** `const` and `static readonly` go at the top of the type, before fields, properties and methods.
-- **Validation messages are prose, not identifiers.** "The category must be a valid selection", never "The categoryId must reference an existing category". The ProblemDetails error dictionary is already keyed by the camelCase field, which is how a client attaches an error to an input, so the message is free to read like a sentence. Domain words stay: "minor units" is the term, per [`UBIQUITOUS_LANGUAGE.md`](UBIQUITOUS_LANGUAGE.md).
+- **Validation messages are prose, not identifiers.** "The category must be a valid selection", never "The categoryId must reference an existing category". The ProblemDetails error dictionary is already keyed by the camelCase field, which is how a client attaches an error to an input, so the message is free to read like a sentence. Domain words stay: "minor units" is the term, per [`api/UBIQUITOUS_LANGUAGE.md`](api/UBIQUITOUS_LANGUAGE.md).
 
 ## Conventions
 
@@ -70,7 +75,7 @@ Three versions are held deliberately. Bumping any of them needs a reason.
 - **Return `TypedResults`**, not `IActionResult`. The concrete return type is the OpenAPI description.
 - **Creates return an absolute `Location`** via `HttpContext.ResourceUri(path)`. `TypedResults.Created` emits a relative header if you hand it a bare path.
 - **Deletes are soft** — `MarkAsDeleted()` + `Touch()`. A global query filter hides the rows. Do not use `Remove`.
-- **Money is `{cents, currency}` on the wire** via `Contracts/MoneyResponse`, and `Money` in the domain. Accounts are denominated in one currency and nothing converts — a mismatched amount is a 400, never a conversion. See [`docs/multi-currency.md`](docs/multi-currency.md).
+- **Money is `{cents, currency}` on the wire** via `Contracts/MoneyResponse`, and `Money` in the domain. Accounts are denominated in one currency and nothing converts — a mismatched amount is a 400, never a conversion. See [`api/docs/multi-currency.md`](api/docs/multi-currency.md).
 - **Timestamps are UTC.** `DateTime.UtcNow` everywhere; a value converter in `XpenseDbContext` tags reads as UTC.
 - **Validation is FluentValidation only.** Do not add DataAnnotations — two validation systems produce two error shapes.
 
@@ -81,6 +86,7 @@ Slices trade DRY for independence. Two slices with similar EF queries or similar
 ## Before you finish
 
 ```bash
+cd api
 dotnet build src/Xpense/Xpense.sln
 dotnet test  src/Xpense/Xpense.sln
 ```
