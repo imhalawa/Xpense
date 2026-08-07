@@ -1,4 +1,4 @@
-import { Currency } from "..";
+import { Currency } from "../enums/Currency";
 
 export interface IMoney {
   minorUnits: number;

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "check:init": "vite build --ssr src/initcheck.ts --outDir .ssrcheck --logLevel error && node .ssrcheck/initcheck.js",
     "preview": "vite preview"
   },
   "overrides": {

@@ -33,5 +33,7 @@ jobs:
       run: npm ci
     - name: Build
       run: npm run build
+    - name: Module init check
+      run: npm run check:init
     - name: Audit
       run: npm audit --audit-level=high
