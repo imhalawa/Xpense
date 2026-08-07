@@ -8,7 +8,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import Grid from "@mui/material/Grid";
-import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Page from "../../components/Page/Page";
 import BudgetForm from "../../components/BudgetForm/BudgetForm";
@@ -73,7 +72,7 @@ const Budgets = () => {
   };
 
   return (
-    <Page title="Budgets" headerColor="primary.dark" headerBackgroundColor="background.paper">
+    <Page title="Budgets">
       <Grid size={12}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
@@ -91,27 +90,31 @@ const Budgets = () => {
               sx={{
                 display: "grid",
                 gap: 2,
-                gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
               }}>
               {budgets.map((budget) => (
-                <Box key={budget.id} sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  <BudgetMeter budget={budget} now={now} />
-                  <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
-                    <Button
-                      size="small"
-                      aria-label={`Edit the ${budget.category.label} budget`}
-                      onClick={() => setEditing(budget)}>
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      aria-label={`Delete the ${budget.category.label} budget`}
-                      onClick={() => setPendingDelete(budget)}>
-                      Delete
-                    </Button>
-                  </Stack>
-                </Box>
+                <BudgetMeter
+                  key={budget.id}
+                  budget={budget}
+                  now={now}
+                  actions={
+                    <>
+                      <Button
+                        size="small"
+                        aria-label={`Edit the ${budget.category.label} budget`}
+                        onClick={() => setEditing(budget)}>
+                        Edit
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        aria-label={`Delete the ${budget.category.label} budget`}
+                        onClick={() => setPendingDelete(budget)}>
+                        Delete
+                      </Button>
+                    </>
+                  }
+                />
               ))}
             </Box>
           )}

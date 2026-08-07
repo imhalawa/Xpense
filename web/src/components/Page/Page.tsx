@@ -1,41 +1,32 @@
-import { Grid, Typography } from "@mui/material";
 import { ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Grid from "@mui/material/Grid";
+import Typography from "@mui/material/Typography";
 
 interface IPageProps {
   title: string;
-  headerBackgroundColor?: string;
-  headerColor?: string;
+  actions?: ReactNode;
   children: ReactNode[] | ReactNode;
 }
-const Page = ({ title, children, headerBackgroundColor, headerColor }: IPageProps) => {
+
+const Page = ({ title, actions, children }: IPageProps) => {
   return (
-    <>
-      <Grid
+    <Box sx={{ width: "100%" }}>
+      <Box
         sx={{
-          backgroundColor: headerBackgroundColor,
-          color: headerColor,
-          borderTopLeftRadius: "1rem",
-          borderTopRightRadius: "1rem",
-        }}
-        size={12}>
-        <Typography variant="h4" sx={{
-          m: 2
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          marginBottom: { xs: 2, md: 3 },
         }}>
-          {title}
-        </Typography>
-        <hr style={{ margin: 0, backgroundColor: headerBackgroundColor }} />
-      </Grid>
-      <Grid
-        container
-        spacing={2}
-        sx={{
-          px: 4,
-          pb: 4,
-          pt: 0
-        }}>
+        <Typography variant="h1">{title}</Typography>
+        {actions}
+      </Box>
+      <Grid container spacing={3}>
         {children}
       </Grid>
-    </>
+    </Box>
   );
 };
 

@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Dayjs } from "dayjs";
 import Box from "@mui/material/Box";
 import LinearProgress from "@mui/material/LinearProgress";
@@ -12,6 +13,7 @@ import DeltaChip from "../DeltaChip/DeltaChip";
 interface BudgetMeterProps {
   budget: IBudgetResponse;
   now: Dayjs;
+  actions?: ReactNode;
 }
 
 const barColour: Record<"light" | "dark", Record<BudgetState, string>> = {
@@ -31,7 +33,7 @@ const barColour: Record<"light" | "dark", Record<BudgetState, string>> = {
   },
 };
 
-const BudgetMeter = ({ budget, now }: BudgetMeterProps) => {
+const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
   const progress = budgetProgress(budget, now);
   const period = budget.period;
 
@@ -90,6 +92,11 @@ const BudgetMeter = ({ budget, now }: BudgetMeterProps) => {
             </Typography>
           )}
         </>
+      )}
+      {actions && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, marginTop: "auto" }}>
+          {actions}
+        </Box>
       )}
     </Paper>
   );
