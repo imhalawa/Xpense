@@ -5,8 +5,8 @@ export const tagSchema: yup.ObjectSchema<ITag> = yup.object().shape({
   id: yup.number().required().nullable(),
   label: yup.string().nonNullable().required(),
   create: yup.boolean().required(),
-  createdOn: yup.number().nullable(),
-  lastUpdated: yup.number().nullable(),
+  createdAt: yup.string().nullable(),
+  updatedAt: yup.string().nullable(),
   bgColorHex: yup.string().nullable(),
   fgColorHex: yup.string().nullable(),
 });

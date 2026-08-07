@@ -1,18 +1,26 @@
-import { IOption } from "..";
 import * as yup from "yup";
+import { Currency, IMoney } from "..";
 
-export interface IAccount extends IOption {
+export interface IAccount {
   accountNumber: string;
-  balance: number;
+  label: string;
+  balance: IMoney;
   isDefault: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export const accountSchema: yup.ObjectSchema<IAccount> = yup.object().shape({
-  id: yup.number().required().nullable(),
-  createdOn: yup.number().required().nullable(),
-  lastUpdated: yup.number().required().nullable(),
-  label: yup.string().required(),
   accountNumber: yup.string().required(),
-  balance: yup.number().required().positive("Account balance must be positive"),
+  label: yup.string().required(),
+  balance: yup
+    .object()
+    .shape({
+      minorUnits: yup.number().required(),
+      currency: yup.mixed<Currency>().oneOf(Object.values(Currency)).required(),
+    })
+    .required(),
   isDefault: yup.boolean().required(),
+  createdAt: yup.string().nullable(),
+  updatedAt: yup.string().nullable(),
 });

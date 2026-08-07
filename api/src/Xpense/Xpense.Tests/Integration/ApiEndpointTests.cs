@@ -363,6 +363,59 @@ public class ApiEndpointTests
     }
 
     [Test]
+    public async Task Get_transactions_filtered_to_one_day_returns_only_that_day()
+    {
+        await SeedTransactions();
+
+        var response = await client.GetAsync(
+            "/api/v1/transactions?from=2026-07-26T00:00:00Z&to=2026-07-27T00:00:00Z");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("totalItems").GetInt32().Should().Be(3);
+    }
+
+    [Test]
+    public async Task Get_transactions_filtered_to_another_day_returns_nothing()
+    {
+        await SeedTransactions();
+
+        var response = await client.GetAsync(
+            "/api/v1/transactions?from=2026-07-27T00:00:00Z&to=2026-07-28T00:00:00Z");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("totalItems").GetInt32().Should().Be(0);
+        document.RootElement.GetProperty("items").GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task Get_transactions_treats_to_as_exclusive()
+    {
+        var seeded = await SeedTransactions();
+
+        var response = await client.GetAsync(
+            "/api/v1/transactions?from=2026-07-26T10:00:00Z&to=2026-07-26T12:00:00Z");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("totalItems").GetInt32().Should().Be(2);
+        var items = document.RootElement.GetProperty("items");
+        items.EnumerateArray()
+            .Select(item => item.GetProperty("id").GetInt32())
+            .Should().NotContain(seeded.LatestTransactionId);
+    }
+
+    [Test]
+    public async Task Get_transactions_with_from_after_to_is_rejected()
+    {
+        var response = await client.GetAsync(
+            "/api/v1/transactions?from=2026-07-27T00:00:00Z&to=2026-07-26T00:00:00Z");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
     public async Task Post_transaction_naming_neither_account_is_rejected()
     {
         var response = await client.PostAsJsonAsync("/api/v1/transactions", new

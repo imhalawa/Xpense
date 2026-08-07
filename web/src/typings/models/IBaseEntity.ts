@@ -1,5 +1,5 @@
-export interface IBaseEntity{
-    id?: number | null,
-    createdOn?: number | null, 
-    lastUpdated?: number|null
+export interface IBaseEntity {
+  id?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }

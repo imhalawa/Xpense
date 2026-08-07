@@ -1,15 +1,15 @@
 import { createContext, useContext, useState } from "react";
-import { ITransaction } from "../typings";
+import { ITransactionResponse } from "../clients/types";
 
 interface ITransactionUtilitiesContext {
-  submittedTransaction: ITransaction | null;
-  setSubmittedTransaction: React.Dispatch<React.SetStateAction<ITransaction | null>>;
+  submittedTransaction: ITransactionResponse | null;
+  setSubmittedTransaction: React.Dispatch<React.SetStateAction<ITransactionResponse | null>>;
 }
 
 const TranscationUtilitiesContext = createContext({} as ITransactionUtilitiesContext);
 
 export const TransactionUtilitiesContextProvider = ({ children }: any) => {
-  const [submittedTransaction, setSubmittedTransaction] = useState<ITransaction | null>(null);
+  const [submittedTransaction, setSubmittedTransaction] = useState<ITransactionResponse | null>(null);
 
   return (
     <TranscationUtilitiesContext.Provider value={{ submittedTransaction, setSubmittedTransaction }}>

@@ -1,19 +1,16 @@
 import { Currency } from "..";
 
 export interface IMoney {
-  cents: number;
+  minorUnits: number;
   currency: Currency;
 }
 
-export const createMoney = (cents: number, currency: Currency): IMoney => ({
-  cents: cents,
+export const createMoney = (minorUnits: number, currency: Currency): IMoney => ({
+  minorUnits,
   currency,
 });
 
-export const toSingle = (money: IMoney): number => {
-  return +(money.cents / 100).toFixed(2);
-};
+export const toSingle = (money: IMoney): number => +(money.minorUnits / 100).toFixed(2);
 
-export const toCents = (money: IMoney): IMoney => {
-  return { ...money, cents: money.cents * 100 };
-};
+export const toMinorUnits = (amount: number, currency: Currency): IMoney =>
+  createMoney(Math.round(amount * 100), currency);

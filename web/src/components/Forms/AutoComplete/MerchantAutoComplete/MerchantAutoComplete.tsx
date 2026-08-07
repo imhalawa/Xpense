@@ -1,8 +1,7 @@
 import { Autocomplete, createFilterOptions, TextField } from "@mui/material";
 import { useEffect, useState } from "react";
 import { IMerchant } from "../../../../typings";
-import { IResponse } from "../../../../clients/types/IResponse";
-import axios from "axios";
+import { listMerchants } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface IMerchantAutoCompleteProps {
@@ -23,10 +22,9 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
 
   useEffect(() => {
     setLoading(true);
-    axios
-      .get<IResponse<IMerchant[]>>("/api/merchant")
-      .then((response) => {
-        setMerchantOptions(response.data.data);
+    listMerchants()
+      .then((merchants) => {
+        setMerchantOptions(merchants);
         setLoading(false);
       })
       .catch((error) => {
