@@ -25,11 +25,11 @@ namespace Xpense.Persistence.TypeConfiguration
             var seededAt = new DateTime(2026, 8, 5, 0, 0, 0, DateTimeKind.Utc);
 
             builder.HasData(
-                new Priority { Id = 1, Label = "Extreme", Weight = 1, CreatedAt = seededAt },
-                new Priority { Id = 2, Label = "High", Weight = 2, CreatedAt = seededAt },
-                new Priority { Id = 3, Label = "Medium", Weight = 3, CreatedAt = seededAt },
-                new Priority { Id = 4, Label = "Low", Weight = 4, CreatedAt = seededAt },
-                new Priority { Id = 5, Label = "None", Weight = 0, CreatedAt = seededAt });
+                new Priority { Id = 1, Label = "Essential", Weight = 1, CreatedAt = seededAt },
+                new Priority { Id = 2, Label = "Important", Weight = 2, CreatedAt = seededAt },
+                new Priority { Id = 3, Label = "Useful", Weight = 3, CreatedAt = seededAt },
+                new Priority { Id = 4, Label = "Optional", Weight = 4, CreatedAt = seededAt },
+                new Priority { Id = 5, Label = "Avoidable", Weight = 5, CreatedAt = seededAt });
         }
     }
 }

@@ -818,10 +818,12 @@ public class ApiEndpointTests
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        document.RootElement.GetArrayLength().Should().Be(5);
-        document.RootElement.EnumerateArray()
-            .Select(priority => priority.GetProperty("label").GetString())
-            .Should().Equal("Extreme", "High", "Medium", "Low", "None");
+        var priorities = document.RootElement.EnumerateArray().ToArray();
+        priorities.Length.Should().Be(5);
+        priorities.Select(priority => priority.GetProperty("label").GetString())
+            .Should().Equal("Essential", "Important", "Useful", "Optional", "Avoidable");
+        priorities.Select(priority => priority.GetProperty("weight").GetDouble())
+            .Should().BeInAscendingOrder().And.OnlyHaveUniqueItems();
     }
 
 
