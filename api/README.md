@@ -69,7 +69,7 @@ processes: the API, and a worker that turns events into notifications.
 - [`docs/notifications.md`](docs/notifications.md) — events, the queue, and writing a rule
 - [`docs/multi-currency.md`](docs/multi-currency.md) — denominated accounts, and why nothing converts
 - [`docs/contract/api-v1-contract-design.md`](docs/contract/api-v1-contract-design.md) — the v1 API contract
-- [`AGENTS.md`](AGENTS.md) — the rules, enforced by `SliceIsolationTests`
+- [`AGENTS.md`](../AGENTS.md) — the rules, enforced by `SliceIsolationTests`
 
 ```
 src/Xpense/

@@ -1,6 +1,6 @@
 # Xpense.Web
 
-Browser client for [Xpense.API](https://github.com/imhalawa/Xpense.API). React 19 and MUI 9 on Vite,
+Browser client for [the API](../api/). React 19 and MUI 9 on Vite,
 written in TypeScript.
 
 ## Running it

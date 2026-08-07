@@ -71,7 +71,7 @@ src/Xpense/
   Xpense.Persistence/      DbContext, type configuration, migrations, OptionResolver
 ```
 
-Repo-root [`AGENTS.md`](../../AGENTS.md) carries the same rules in the place agents read first.
+Repo-root [`AGENTS.md`](../../../AGENTS.md) carries the same rules in the place agents read first.
 
 ## Reading order
 
