@@ -1,4 +1,4 @@
-import { Currency } from "../typings";
+import { Currency } from "../typings/enums/Currency";
 
 export interface IMoneyResponse {
   minorUnits: number;
@@ -107,4 +107,50 @@ export interface ICreateTransactionRequest {
   tags?: IOptionRequest[] | null;
   reason?: string | null;
   occurredAt?: string | null;
+}
+
+export interface IBudgetPeriodResponse {
+  name: string;
+  from: string;
+  toExclusive: string;
+  spent: IMoneyResponse;
+  remaining: IMoneyResponse;
+  exceeded: boolean;
+  uncounted: IMoneyResponse[];
+}
+
+export interface IBudgetResponse {
+  id: number;
+  category: ICategoryResponse;
+  amount: IMoneyResponse;
+  recurrence: string;
+  startsOn: string;
+  endsOn: string | null;
+  alertThresholdPercent: number | null;
+  period: IBudgetPeriodResponse | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface INotificationResponse {
+  id: number;
+  kind: string;
+  title: string;
+  message: string;
+  payload: unknown;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface INotificationPageResponse {
+  notifications: INotificationResponse[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  unreadItems: number;
+}
+
+export interface IUnreadCountResponse {
+  unread: number;
 }

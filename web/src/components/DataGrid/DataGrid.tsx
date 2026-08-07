@@ -65,7 +65,7 @@ const DataGrid = <T,>({
           aria-label={"simple table" + (dense ? "dense" : "")}
         >
           <TableHead>
-            <TableRow sx={{ backgroundColor: "#eef2f6" }}>
+            <TableRow sx={{ backgroundColor: "action.hover" }}>
               {sortedHeaders.map((header) => (
                 <TableCell key={header.headerName}>
                   <Box

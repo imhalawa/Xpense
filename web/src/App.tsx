@@ -1,7 +1,7 @@
 import "./App.css";
 
 import { Route, Routes } from "react-router";
-import Dashboard from "./pages/Dashboard/Dashboard.tsx";
+import Overview from "./pages/Overview/Overview.tsx";
 import Transactions from "./pages/Transactions/Transactions.tsx";
 import Settings from "./pages/Settings/Settings.tsx";
 import Layout from "./pages/Layout.tsx";
@@ -27,7 +27,7 @@ function App() {
               <TransactionUtilitiesContextProvider>
                 <Routes>
                   <Route path="/" element={<Layout />}>
-                    <Route index element={<Dashboard />} />
+                    <Route index element={<Overview />} />
                     <Route path="/transactions" element={<Transactions />} />
                     <Route path="/settings" element={<Settings />} />
                   </Route>
