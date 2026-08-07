@@ -1,0 +1,32 @@
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
+using Xpense.API.Infrastructure;
+using Xpense.Persistence;
+using Xpense.Domain.Exceptions;
+
+namespace Xpense.API.Features.Tags;
+
+public sealed class DeleteTag : IEndpoint
+{
+    public static void Map(IEndpointRouteBuilder app) =>
+        app.MapDelete("/api/v1/tags/{id:int}", Handle).WithName(nameof(DeleteTag));
+
+    private static async Task<NoContent> Handle(int id, XpenseDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var tag = await dbContext.Tags.FirstOrDefaultAsync(tag => tag.Id == id, cancellationToken)
+                  ?? throw new TagNotFoundException(id);
+
+        tag.MarkAsDeleted();
+        tag.Touch();
+
+        if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
+            throw new TagDeletionFailedException(id);
+
+        return TypedResults.NoContent();
+    }
+}
