@@ -1,13 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "@mui/material/styles";
 import theme from "../../theme/theme";
 import { INotificationResponse } from "../../clients/types";
 import NotificationBell from "./NotificationBell";
 
-const notification = (id: number, readAt: string | null): INotificationResponse => ({
+const notification = (
+  id: number,
+  readAt: string | null,
+  kind = "BudgetExceeded"
+): INotificationResponse => ({
   id,
-  kind: "BudgetExceeded",
+  kind,
   title: `Budget exceeded ${id}`,
   message: "Groceries is over budget",
   payload: null,
@@ -46,5 +50,18 @@ describe("NotificationBell", () => {
   it("says there is nothing unread when the count is zero", () => {
     renderBell([], 0);
     expect(screen.getByLabelText(/no unread notifications/i)).toBeDefined();
+  });
+
+  it("separates the items with one divider less than the item count", () => {
+    const notifications = [notification(1, null), notification(2, null), notification(3, null)];
+    renderBell(notifications, 3);
+    fireEvent.click(screen.getByLabelText(/3 unread notifications/i));
+    expect(screen.getAllByRole("separator").length).toBe(notifications.length - 1);
+  });
+
+  it("still shows an icon for a kind it does not know", () => {
+    renderBell([notification(1, null, "SomethingNew")], 1);
+    fireEvent.click(screen.getByLabelText(/1 unread notification/i));
+    expect(screen.getByRole("img", { name: "Notification" })).toBeDefined();
   });
 });
