@@ -44,3 +44,18 @@ describe("typography ramp", () => {
     expect(theme.typography.body1.lineHeight).toBe(1.55);
   });
 });
+
+describe("accessibility baseline", () => {
+  const baseline = () => {
+    const overrides = theme.components?.MuiCssBaseline?.styleOverrides;
+    return typeof overrides === "string" ? overrides : JSON.stringify(overrides);
+  };
+
+  it("defines a visible focus ring", () => {
+    expect(baseline()).toMatch(/focus-visible/);
+  });
+
+  it("honours prefers-reduced-motion", () => {
+    expect(baseline()).toMatch(/prefers-reduced-motion/);
+  });
+});

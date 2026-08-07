@@ -58,6 +58,27 @@ const theme = createTheme({
     numeric: { fontSize: "0.9375rem", fontWeight: 600, fontVariantNumeric: "tabular-nums" },
   },
   breakpoints: { values: { xs: 0, sm: 600, md: 900, lg: 1200, xl: 2000 } },
+  components: {
+    MuiCssBaseline: {
+      styleOverrides: `
+        :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+          outline: 2px solid ${tokens.brand[500]};
+          outline-offset: 2px;
+        }
+        [data-theme='dark'] :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+          outline-color: ${tokens.brand[400]};
+        }
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+          }
+        }
+      `,
+    },
+  },
 });
 
 export default theme;
