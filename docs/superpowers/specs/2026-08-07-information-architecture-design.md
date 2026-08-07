@@ -74,19 +74,25 @@ Forms follow the data's job, not habit.
 
 ### Q5 ordinal ramp
 
-Five priorities are seeded: Extreme (weight 1), High (2), Medium (3), Low (4), None (5). Weight
-ascends as importance descends.
+Five priorities are seeded. They were renamed on 2026-08-07 from urgency words to a necessity
+scale, because "Extreme" is a strange label for rent and this scale is what drives the
+essential-versus-discretionary reading. Weight ascends as necessity descends.
+
+The rename also fixed a data bug. The original weights were Extreme 1, High 2, Medium 3, Low 4 and
+**None 0** — not monotone, so `ORDER BY "Weight"` put None ahead of Extreme and this ordinal ramp
+would have been applied in the wrong order. Nothing read Weight at the time, so the correction was
+safe. See migration `RenamePrioritiesToNecessityScale`.
+
+| Priority | Weight | Light | Dark |
+|---|---|---|---|
+| Essential | 1 | `#104281` | `#9ec5f4` |
+| Important | 2 | `#1c5cab` | `#6da7ec` |
+| Useful | 3 | `#2a78d6` | `#3987e5` |
+| Optional | 4 | `#5598e7` | `#256abf` |
+| Avoidable | 5 | `#86b6ef` | `#184f95` |
 
 Because the scale is ordered, a five-hue categorical palette would be wrong — it implies identity
-where the data means rank. One hue, monotone lightness:
-
-| Priority | Light | Dark |
-|---|---|---|
-| Extreme | `#104281` | `#9ec5f4` |
-| High | `#1c5cab` | `#6da7ec` |
-| Medium | `#2a78d6` | `#3987e5` |
-| Low | `#5598e7` | `#256abf` |
-| None | `#86b6ef` | `#184f95` |
+where the data means rank. One hue, monotone lightness.
 
 Both directions validated as ordinal ramps: lightness monotone, every adjacent gap ≥ 0.06 ΔL,
 light end 2.11:1 against its surface, hue spread 3°.
@@ -174,6 +180,5 @@ Cheapest real value first, each step useful on its own:
   `Transaction` is accurate but means a migration and manual tagging at entry time. Not decided;
   it is last in the shipping order, so it can be decided later. It also overlaps the data-entry
   spec, since marking a transaction recurring is an entry-time act.
-- **Priority labels.** Extreme / High / Medium / Low / None describe urgency, not necessity. For
-  an essential-vs-discretionary reading, "Extreme" is an odd word for "rent". Renaming is a seed
-  data change, not a schema change. Worth deciding before Q5 ships.
+- ~~**Priority labels.**~~ **Resolved 2026-08-07.** Renamed to Essential, Important, Useful,
+  Optional, Avoidable, with monotone weights 1–5. See the Q5 ordinal ramp section above.
