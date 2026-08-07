@@ -1,4 +1,4 @@
-import { Currency } from "../typings";
+import { Currency } from "../typings/enums/Currency";
 
 export interface IMoneyResponse {
   minorUnits: number;
