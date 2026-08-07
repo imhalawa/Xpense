@@ -8,7 +8,8 @@ import Dashboard from "./pages/Dashboard/Dashboard.tsx";
 import Transactions from "./pages/Transactions/Transactions.tsx";
 import Settings from "./pages/Settings/Settings.tsx";
 import Layout from "./pages/Layout.tsx";
-import { createTheme, CssBaseline, ThemeProvider } from "@mui/material";
+import { CssBaseline, ThemeProvider } from "@mui/material";
+import theme from "./theme/theme";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LoadingContextProvider } from "./contexts/LoadingContext.tsx";
@@ -19,24 +20,6 @@ import axios from "axios";
 function App() {
   axios.defaults.baseURL = "http://localhost:4000/";
 
-  const theme = createTheme({
-    typography: {
-      fontFamily: `"Lato","Roboto", "Helvetica", "Arial", sans-serif`,
-      fontSize: 14,
-      fontWeightLight: 300,
-      fontWeightRegular: 400,
-      fontWeightMedium: 500,
-    },
-    breakpoints: {
-      values: {
-        xs: 0,
-        sm: 600,
-        md: 900,
-        lg: 1200,
-        xl: 2000,
-      },
-    },
-  });
   return (
     <>
       <CssBaseline />
