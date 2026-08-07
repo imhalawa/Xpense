@@ -18,6 +18,7 @@ interface BudgetFormProps {
   onSubmit: (values: BudgetFormValues) => void;
   onCancel: () => void;
   submitLabel: string;
+  isEditing?: boolean;
 }
 
 const recurrences: Recurrence[] = ["None", "Weekly", "Monthly", "Yearly"];
@@ -30,11 +31,10 @@ const BudgetForm = ({
   onSubmit,
   onCancel,
   submitLabel,
+  isEditing = false,
 }: BudgetFormProps) => {
   const [values, setValues] = useState<BudgetFormValues>(initialValues);
   const [errors, setErrors] = useState<BudgetFormErrors>({});
-
-  const isEditing = initialValues.categoryId !== null;
 
   const handleSubmit = (submitEvent: FormEvent<HTMLFormElement>) => {
     submitEvent.preventDefault();
