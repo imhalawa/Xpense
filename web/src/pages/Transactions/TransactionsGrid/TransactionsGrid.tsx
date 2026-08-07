@@ -11,62 +11,56 @@ import {
 } from "lucide-react";
 import CategoryChip from "../../../components/Chips/CategoryChip/CategoryChip";
 import DataGrid, { IDataGridHeader } from "../../../components/DataGrid/DataGrid";
-import { formatDate } from "../../../utils/DateUtils";
-import { Currency, ITransaction, TransactionType } from "../../../typings";
+import { formatIsoDate } from "../../../utils/DateUtils";
+import { Currency, ICategory } from "../../../typings";
 import { toSingle } from "../../../typings/models/IMoney";
+import { ITransactionResponse } from "../../../clients/types";
 import { useLoading } from "../../../contexts/LoadingContext";
 import { useCalendar } from "../../../contexts/CalendarContext";
 import { useEffect, useState } from "react";
-import { filter } from "../../../clients/transactions";
+import { listTransactions } from "../../../clients/transactions";
+import { listCategories } from "../../../clients/options";
 import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
+import { Dayjs } from "dayjs";
 
 interface ITransactionsGridProps {
   size?: number;
   dense?: boolean;
-  date?: number;
+  day?: Dayjs | null;
   hidePagination?: boolean;
 }
 
-const headers: IDataGridHeader<ITransaction>[] = [
+const buildHeaders = (
+  categories: Map<number, ICategory>
+): IDataGridHeader<ITransactionResponse>[] => [
   {
     headerName: "Amount",
     field: "amount",
     icon: <CurrencyIcon />,
     order: 2,
-    render: (row: ITransaction) => {
-      return (
-        <>
-          {row.type == TransactionType.CREDIT ? (
-            <Typography variant="body2" color="green">
-              {row.amount.currency == Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
-              {toSingle(row.amount)}
-            </Typography>
-          ) : (
-            <Typography variant="body2" color="red">
-              {row.amount.currency == Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
-              {toSingle(row.amount)}
-            </Typography>
-          )}
-        </>
-      );
-    },
+    render: (row: ITransactionResponse) => (
+      <Typography variant="body2" color={row.kind === "income" ? "green" : "red"}>
+        {row.amount.currency === Currency.EUR ? <Euro size={12} /> : <DollarSign size={12} />}
+        {toSingle(row.amount)}
+      </Typography>
+    ),
   },
   {
     headerName: "Date",
-    field: "createdOn",
+    field: "occurredAt",
     order: 3,
     icon: <CalendarDaysIcon />,
-    render: (row: ITransaction) => {
-      return <>{formatDate(row.createdOn!)}</>;
-    },
+    render: (row: ITransactionResponse) => <>{formatIsoDate(row.occurredAt)}</>,
   },
   {
     headerName: "Category",
-    field: "category",
+    field: "categoryId",
     order: 4,
     icon: <CircleAlertIcon />,
-    render: (row: ITransaction) => {
-      return <CategoryChip id={row.category.id!} name={row.category.label} priority={row.category.priority} />;
+    render: (row: ITransactionResponse) => {
+      const category = row.categoryId === null ? undefined : categories.get(row.categoryId);
+      if (category === undefined) return <>&mdash;</>;
+      return <CategoryChip id={category.id!} name={category.label} priority={category.priority} />;
     },
   },
   {
@@ -74,53 +68,49 @@ const headers: IDataGridHeader<ITransaction>[] = [
     field: "merchant",
     order: 5,
     icon: <StoreIcon />,
-    render: (row: ITransaction) => {
-      return <>{row.merchant.label}</>;
-    },
+    render: (row: ITransactionResponse) => <>{row.merchant?.label ?? "—"}</>,
   },
   {
     headerName: "Account Number",
-    field: "account",
+    field: "sourceAccountNumber",
     order: 6,
     icon: <CreditCardIcon />,
-    render: (row: ITransaction) => {
-      return <>{row.account.accountNumber}</>;
-    },
+    render: (row: ITransactionResponse) => (
+      <>{row.sourceAccountNumber ?? row.destinationAccountNumber}</>
+    ),
   },
   {
     headerName: "Tags",
     field: "tags",
     order: 7,
     icon: <TagIcon />,
-    render: (row: ITransaction) => {
-      return (
-        <>
-          {row.tags &&
-            row.tags.map((tag, index) => (
-              <Link
-                key={index}
-                underline="hover"
-                sx={{
-                  mr: 1,
-                  "&:hover": {
-                    cursor: "pointer",
-                  },
-                }}
-                color="darkblue"
-              >
-                #{tag.label}
-              </Link>
-            ))}
-        </>
-      );
-    },
+    render: (row: ITransactionResponse) => (
+      <>
+        {row.tags.map((tag) => (
+          <Link
+            key={tag.id}
+            underline="hover"
+            sx={{
+              mr: 1,
+              "&:hover": {
+                cursor: "pointer",
+              },
+            }}
+            color="darkblue"
+          >
+            #{tag.label}
+          </Link>
+        ))}
+      </>
+    ),
   },
 ];
 
-const TransactionsGrid = ({ size, hidePagination, dense, date }: ITransactionsGridProps) => {
+const TransactionsGrid = ({ size, hidePagination, dense, day }: ITransactionsGridProps) => {
   const { setLoading } = useLoading();
   const { selectedDate } = useCalendar();
-  const [transactions, setTransactions] = useState<ITransaction[]>([]);
+  const [transactions, setTransactions] = useState<ITransactionResponse[]>([]);
+  const [categories, setCategories] = useState<Map<number, ICategory>>(new Map());
   const [pageSize, setPageSize] = useState<number>(size ?? 10);
   const [page, setPage] = useState<number>(1);
   const [pages, setPages] = useState<number>(0);
@@ -128,28 +118,27 @@ const TransactionsGrid = ({ size, hidePagination, dense, date }: ITransactionsGr
   const { submittedTransaction, setSubmittedTransaction } = useTransctionUtilities();
 
   useEffect(() => {
-    const fetchTransactions = async (page: number, size: number, date?: number) => {
-      const response = await filter(page, size, date);
-      setTransactions(response.data);
-      setPageSize(response.size);
-      setPage(response.page);
-      setPages(response.pages);
-    };
+    listCategories()
+      .then((all) => setCategories(new Map(all.map((category) => [category.id, category]))))
+      .catch((error) => console.error(error));
+  }, []);
 
+  useEffect(() => {
     setLoading(true);
 
-    // TODO: Move this into it's own client && handle errors there
-    fetchTransactions(page, pageSize, date || selectedDate?.unix())
-      .then(() => {
+    listTransactions({ page, pageSize, day: day ?? selectedDate })
+      .then((response) => {
+        setTransactions(response.items);
+        setPageSize(response.pageSize);
+        setPage(response.page);
+        setPages(response.totalPages);
         setLoading(false);
       })
       .catch((error) => {
-        // TODO: Introduce a new Context that connects to Backend logger
-        // Basically this shouldn't call the backend instead show a Piece of UI that indicates an error
         console.error(error);
         setLoading(false);
       });
-  }, [page, pageSize, selectedDate]);
+  }, [page, pageSize, selectedDate, day]);
 
   useEffect(() => {
     if (submittedTransaction != null) {
@@ -164,7 +153,7 @@ const TransactionsGrid = ({ size, hidePagination, dense, date }: ITransactionsGr
 
   return (
     <DataGrid
-      headers={headers}
+      headers={buildHeaders(categories)}
       rows={transactions}
       paginated={!hidePagination && true}
       dense={dense ?? false}

@@ -22,12 +22,11 @@ import { TransactionType, Currency } from "../../../typings";
 import { Controller, useForm } from "react-hook-form";
 import MerchantAutoComplete from "../../../components/Forms/AutoComplete/MerchantAutoComplete/MerchantAutoComplete";
 import { useEffect } from "react";
-import { ITransactionFormData, schema } from "../../../typings/forms/ITransactionFormData";
+import { fromTransactionFormData, ITransactionFormData, schema } from "../../../typings/forms/ITransactionFormData";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
 import { useLoading } from "../../../contexts/LoadingContext";
-import { fromTransactionFormData } from "../../../clients/types/ITransactionRequest";
-import { deposit, withdraw } from "../../../clients/transactions";
+import { createTransaction } from "../../../clients/transactions";
 export interface ITransactionFormProps {
   selectedDate: Dayjs | null;
 }
@@ -59,16 +58,14 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
       setValue("dateOfTransaction", dayjs().unix());
     }
 
-    const commit = data.type === TransactionType.CREDIT ? deposit : withdraw;
-    commit(fromTransactionFormData(data))
-      .then((response) => {
-        if (response.statusCode == 200) {
-          setSubmittedTransaction(response.data);
-          setLoading(false);
-        }
+    createTransaction(fromTransactionFormData(data))
+      .then((transaction) => {
+        setSubmittedTransaction(transaction);
+        setLoading(false);
       })
       .catch((error) => {
         console.error(error);
+        setLoading(false);
       });
   };
 
@@ -128,7 +125,7 @@ const TransactionsForm = ({ selectedDate }: ITransactionFormProps) => {
                         <MenuItem value={Currency.EUR}>
                           <Euro size={16} />
                         </MenuItem>
-                        <MenuItem value={Currency.DOLLAR}>
+                        <MenuItem value={Currency.USD}>
                           <DollarSign size={16} />
                         </MenuItem>
                       </Select>

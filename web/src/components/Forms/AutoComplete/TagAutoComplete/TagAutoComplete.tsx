@@ -1,8 +1,7 @@
 import { Autocomplete, createFilterOptions, TextField } from "@mui/material";
 import { ITag } from "../../../../typings/models/ITag";
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { IResponse } from "../../../../clients/types/IResponse";
+import { listTags } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface ITagAutoCompleteProps {
@@ -27,10 +26,9 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
 
   useEffect(() => {
     setLoading(true);
-    axios
-      .get<IResponse<ITag[]>>("/api/tag")
-      .then((response) => {
-        setTagOptions(response.data.data);
+    listTags()
+      .then((tags) => {
+        setTagOptions(tags.map((tag) => ({ ...tag, create: false })));
         setLoading(false);
       })
       .catch((error) => {
@@ -54,8 +52,8 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
               id: null,
               label: details.option.label,
               create: details.option.create,
-              createdOn: details.option.createdOn,
-              lastUpdated: details.option.lastUpdated,
+              createdAt: details.option.createdAt,
+              updatedAt: details.option.updatedAt,
               fgColorHex: details.option.fgColorHex,
               bgColorHex: details.option.bgColorHex,
             },
@@ -68,8 +66,8 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
                   id: null,
                   label: value,
                   create: true,
-                  createdOn: 0,
-                  lastUpdated: 0,
+                  createdAt: null,
+                  updatedAt: null,
                   fgColorHex: "",
                   bgColorHex: "",
                 };
@@ -92,8 +90,8 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
             id: null,
             label: inputValue,
             create: true,
-            createdOn: 0,
-            lastUpdated: 0,
+            createdAt: null,
+            updatedAt: null,
             fgColorHex: "",
             bgColorHex: "",
           });

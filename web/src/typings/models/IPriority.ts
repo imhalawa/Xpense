@@ -3,8 +3,8 @@ import { IBaseEntity } from "..";
 
 export const prioritySchema: yup.ObjectSchema<IPriority> = yup.object().shape({
   id: yup.number().required().nullable(),
-  createdOn: yup.number().nullable(),
-  lastUpdated: yup.number().nullable(),
+  createdAt: yup.string().nullable(),
+  updatedAt: yup.string().nullable(),
   label: yup.string().nonNullable().required(),
   weight: yup.number().required(),
 });

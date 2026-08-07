@@ -1,30 +1,32 @@
 import axios from "axios";
-import { ITransaction } from "../typings";
-import { IResponse } from "./types/IResponse";
-import { ITransactionRequest } from "./types/ITransactionRequest";
-import { IPaginatedResponse } from "./types/IPaginatedResponse";
+import { Dayjs } from "dayjs";
+import { ICreateTransactionRequest, ITransactionPageResponse, ITransactionResponse } from "./types";
 
-export const filter = async (
-  page: number,
-  size: number,
-  date?: number
-): Promise<IPaginatedResponse<ITransaction>> => {
-  var response = await axios.get<IPaginatedResponse<ITransaction>>("/api/transaction/filter", {
+export interface ITransactionQuery {
+  page: number;
+  pageSize: number;
+  day?: Dayjs | null;
+}
+
+export const listTransactions = async ({
+  page,
+  pageSize,
+  day,
+}: ITransactionQuery): Promise<ITransactionPageResponse> => {
+  const response = await axios.get<ITransactionPageResponse>("/api/v1/transactions", {
     params: {
-      page: page,
-      size: size,
-      date: date,
+      page,
+      pageSize,
+      from: day ? day.startOf("day").toISOString() : undefined,
+      to: day ? day.startOf("day").add(1, "day").toISOString() : undefined,
     },
   });
   return response.data;
 };
 
-export const deposit = async (data: ITransactionRequest): Promise<IResponse<ITransaction>> => {
-  var response = await axios.post<IResponse<ITransaction>>("/api/transaction/deposit", data);
-  return response.data;
-};
-
-export const withdraw = async (data: ITransactionRequest): Promise<IResponse<ITransaction>> => {
-  var response = await axios.post<IResponse<ITransaction>>("/api/transaction/withdraw", data);
+export const createTransaction = async (
+  request: ICreateTransactionRequest
+): Promise<ITransactionResponse> => {
+  const response = await axios.post<ITransactionResponse>("/api/v1/transactions", request);
   return response.data;
 };

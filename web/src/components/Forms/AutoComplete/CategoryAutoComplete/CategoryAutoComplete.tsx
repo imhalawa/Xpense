@@ -1,8 +1,7 @@
 import { Autocomplete, Grid, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { ICategory, IPriority } from "../../../../typings";
-import { IResponse } from "../../../../clients/types/IResponse";
-import axios from "axios";
+import { listCategories } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface ICategoryAutoCompleteProps {
@@ -33,12 +32,13 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
 
   useEffect(() => {
     setLoading(true);
-    axios
-      .get<IResponse<ICategory[]>>("/api/category")
-      .then((response) => response.data)
-      .then((response) => {
-        setCategoryOptions(response.data);
-        setSelected(value || (response.data.sort((a, b) => b.priority.weight - a.priority.weight)[0] ?? null));
+    listCategories()
+      .then((categories) => {
+        setCategoryOptions(categories);
+        setSelected(
+          value ||
+            ([...categories].sort((left, right) => right.priority.weight - left.priority.weight)[0] ?? null)
+        );
         setLoading(false);
       })
       .catch((error) => {

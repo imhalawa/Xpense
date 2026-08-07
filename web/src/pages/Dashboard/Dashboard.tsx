@@ -6,10 +6,9 @@ import XpenseAreaChart, { XpenseAreaChartEntry } from "../../components/Charts/X
 import TransactionsGrid from "../Transactions/TransactionsGrid/TransactionsGrid.tsx";
 import Page from "../../components/Page/Page.tsx";
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { IResponse } from "../../clients/types/IResponse.ts";
-import { ITodayExpensesByCategory } from "../../typings/models/ITodayExpensesByCategory.ts";
+import { getSpendingByCategory } from "../../clients/analytics.ts";
 import { PieValueType } from "@mui/x-charts";
+import { IMoney } from "../../typings";
 import { toSingle } from "../../typings/models/IMoney.ts";
 import dayjs from "dayjs";
 
@@ -40,6 +39,8 @@ const areaChartData: XpenseAreaChartEntry[] = [
   },
 ];
 
+const format = (money: IMoney): string => `${toSingle(money)} ${money.currency}`;
+
 const Dashboard = () => {
   // TODO: create a proper type
   const [todayExpensesByCategory, setTodayExpensesByCategory] = useState<{
@@ -48,23 +49,18 @@ const Dashboard = () => {
   }>({ data: null, value: null });
 
   useEffect(() => {
-    const getExpenses = async () => {
-      return await axios
-        .get<IResponse<ITodayExpensesByCategory>>("/api/analytics/today/categories")
-        .then((response) => response.data);
-    };
-
-    getExpenses().then((data) => {
-      var pieData = data.data.expenses.map(
-        (e) => (({
-          id: e.id,
-          value: toSingle(e.amount),
-          label: e.category.label
-        }) as PieValueType)
+    getSpendingByCategory().then((spending) => {
+      const pieData = spending.expenses.map(
+        (expense) =>
+          ({
+            id: `${expense.id}-${expense.amount.currency}`,
+            value: toSingle(expense.amount),
+            label: expense.category.label,
+          }) as PieValueType
       );
       setTodayExpensesByCategory({
         data: pieData,
-        value: toSingle(data.data.total).toString(),
+        value: spending.totals.map(format).join(" · ") || "0",
       });
     });
   }, []);
@@ -96,7 +92,7 @@ const Dashboard = () => {
         sx={{
           my: 2
         }}>
-        <TransactionsGrid size={6} dense hidePagination date={dayjs().unix()} />
+        <TransactionsGrid size={6} dense hidePagination day={dayjs()} />
       </Grid>
       <Grid
         size={{

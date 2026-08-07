@@ -1,8 +1,7 @@
 import { Autocomplete, Grid, TextField, Typography } from "@mui/material";
 import { IAccount } from "../../../../typings/models/IAccount";
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { IResponse } from "../../../../clients/types/IResponse";
+import { listAccounts } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface IAccountAutoCompleteProps {
@@ -22,11 +21,10 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
   useEffect(() => {
     setLoading(true);
     // TODO: need to clean up this later
-    axios
-      .get<IResponse<IAccount[]>>("/api/account")
-      .then((response) => {
-        setAccountOptions(response.data.data);
-        setSelected(value || (response.data.data.find((a) => a.isDefault) ?? null));
+    listAccounts()
+      .then((accounts) => {
+        setAccountOptions(accounts);
+        setSelected(value || (accounts.find((account) => account.isDefault) ?? null));
         setLoading(false);
       })
       .catch((error) => {
@@ -43,7 +41,7 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
     <Autocomplete
       id="account-autocomplete"
       options={accountOptions}
-      isOptionEqualToValue={(a, b) => a.id === b.id}
+      isOptionEqualToValue={(option, selectedOption) => option.accountNumber === selectedOption.accountNumber}
       autoHighlight
       value={selected}
       onChange={(_, newValue: IAccount | null) => setSelected(newValue)}
