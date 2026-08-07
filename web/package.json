@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "check:init": "vite build --ssr src/initcheck.ts --outDir .ssrcheck --logLevel error && node .ssrcheck/initcheck.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "overrides": {
     "@mui/x-charts-vendor": "9.4.0"
@@ -30,10 +32,14 @@
     "yup": "^1.7.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react-swc": "^4.3.3",
+    "jsdom": "^25.0.1",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1"
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
   }
 }
