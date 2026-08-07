@@ -154,3 +154,21 @@ export interface INotificationPageResponse {
 export interface IUnreadCountResponse {
   unread: number;
 }
+
+export type Recurrence = "None" | "Weekly" | "Monthly" | "Yearly";
+
+export interface IBudgetAmountRequest {
+  minorUnits: number;
+  currency: Currency;
+}
+
+export interface ICreateBudgetRequest {
+  categoryId: number;
+  amount: IBudgetAmountRequest;
+  recurrence: Recurrence;
+  startsOn: string;
+  endsOn: string | null;
+  alertThresholdPercent: number | null;
+}
+
+export type IUpdateBudgetRequest = Omit<ICreateBudgetRequest, "categoryId">;

@@ -3,6 +3,7 @@ import "./App.css";
 import { Route, Routes } from "react-router";
 import Overview from "./pages/Overview/Overview.tsx";
 import Transactions from "./pages/Transactions/Transactions.tsx";
+import Budgets from "./pages/Budgets/Budgets.tsx";
 import Settings from "./pages/Settings/Settings.tsx";
 import Layout from "./pages/Layout.tsx";
 import { CssBaseline, ThemeProvider } from "@mui/material";
@@ -29,6 +30,7 @@ function App() {
                   <Route path="/" element={<Layout />}>
                     <Route index element={<Overview />} />
                     <Route path="/transactions" element={<Transactions />} />
+                    <Route path="/budgets" element={<Budgets />} />
                     <Route path="/settings" element={<Settings />} />
                   </Route>
                 </Routes>
