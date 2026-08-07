@@ -1,15 +1,10 @@
 import * as yup from "yup";
-import {
-  accountSchema,
-  Currency,
-  IAccount,
-  ICategory,
-  IMerchant,
-  ITag,
-  merchantSchema,
-  tagSchema,
-  TransactionType,
-} from "..";
+import { accountSchema, IAccount } from "../models/IAccount";
+import { Currency } from "../enums/Currency";
+import { ICategory } from "../models/ICategory";
+import { IMerchant, merchantSchema } from "../models/IMerchant";
+import { ITag, tagSchema } from "../models/ITag";
+import { TransactionType } from "../enums/TransactionType";
 import { categorySchema } from "../models/ICategory";
 import { toMinorUnits } from "../models/IMoney";
 import { ICreateTransactionRequest } from "../../clients/types";

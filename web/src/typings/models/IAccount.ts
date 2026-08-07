@@ -1,5 +1,6 @@
 import * as yup from "yup";
-import { Currency, IMoney } from "..";
+import { Currency } from "../enums/Currency";
+import { IMoney } from "./IMoney";
 
 export interface IAccount {
   accountNumber: string;

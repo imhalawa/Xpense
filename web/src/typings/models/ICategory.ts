@@ -1,5 +1,6 @@
 import * as yup from "yup";
-import { prioritySchema, IPriority, IBaseEntity } from "..";
+import { prioritySchema, IPriority } from "./IPriority";
+import { IBaseEntity } from "./IBaseEntity";
 
 export const categorySchema: yup.ObjectSchema<ICategory> = yup.object().shape({
   id: yup.number().required().nullable(),
