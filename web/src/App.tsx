@@ -11,7 +11,6 @@ import theme from "./theme/theme";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LoadingContextProvider } from "./contexts/LoadingContext.tsx";
-import { CalendarContextProvider } from "./contexts/CalendarContext.tsx";
 import { TransactionUtilitiesContextProvider } from "./contexts/TransactionUtilitiesContext.tsx";
 import axios from "axios";
 
@@ -24,18 +23,16 @@ function App() {
       <ThemeProvider theme={theme}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <LoadingContextProvider>
-            <CalendarContextProvider>
-              <TransactionUtilitiesContextProvider>
-                <Routes>
-                  <Route path="/" element={<Layout />}>
-                    <Route index element={<Overview />} />
-                    <Route path="/transactions" element={<Transactions />} />
-                    <Route path="/budgets" element={<Budgets />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Route>
-                </Routes>
-              </TransactionUtilitiesContextProvider>
-            </CalendarContextProvider>
+            <TransactionUtilitiesContextProvider>
+              <Routes>
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<Overview />} />
+                  <Route path="/transactions" element={<Transactions />} />
+                  <Route path="/budgets" element={<Budgets />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
+              </Routes>
+            </TransactionUtilitiesContextProvider>
           </LoadingContextProvider>
         </LocalizationProvider>
       </ThemeProvider>
