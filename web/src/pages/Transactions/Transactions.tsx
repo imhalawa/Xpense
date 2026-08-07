@@ -9,7 +9,7 @@ const Transactions = () => {
   const { selectedDate } = useCalendar();
 
   return (
-    <Page title="Transactions" headerColor={"primary.dark"} headerBackgroundColor={"white"}>
+    <Page title="Transactions" headerColor={"primary.dark"} headerBackgroundColor={"background.paper"}>
       <Grid size={{ xs: 12, md: 8 }}>
         <Box sx={{ height: "calc(100vh - 256px)", width: "100%" }}>
           <TransactionsGrid size={10} />

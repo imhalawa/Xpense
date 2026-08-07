@@ -17,12 +17,12 @@ const Layout = () => {
 
 const LayoutContent = () => {
   return (
-    <Container maxWidth={false} sx={{ backgroundColor: "#eef2f6" }}>
+    <Container maxWidth={false} sx={{ backgroundColor: "background.default" }}>
       <Grid
         container
         sx={{
           px: 2,
-          backgroundColor: "#eef2f6",
+          backgroundColor: "background.default",
           height: "100%"
         }}>
         <Grid
@@ -30,8 +30,8 @@ const LayoutContent = () => {
           sx={{
             my: 2,
             padding: 0,
-            backgroundColor: "white",
-            borderRadius: "1rem",
+            backgroundColor: "background.paper",
+            borderRadius: 1,
             height: "calc(100vh - 6rem)",
             overflowY: "scroll"
           }}>

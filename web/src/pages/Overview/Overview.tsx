@@ -21,7 +21,7 @@ const Overview = () => {
   }, []);
 
   return (
-    <Page title="Overview" headerColor="primary.dark" headerBackgroundColor="white">
+    <Page title="Overview" headerColor="primary.dark" headerBackgroundColor="background.paper">
       <Grid size={12}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3, width: "100%" }}>
           <Box>
