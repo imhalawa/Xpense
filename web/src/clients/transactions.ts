@@ -6,19 +6,39 @@ export interface ITransactionQuery {
   page: number;
   pageSize: number;
   day?: Dayjs | null;
+  from?: Dayjs | null;
+  to?: Dayjs | null;
 }
 
-export const listTransactions = async ({
-  page,
-  pageSize,
-  day,
-}: ITransactionQuery): Promise<ITransactionPageResponse> => {
+interface IHalfOpenRange {
+  from: string | undefined;
+  to: string | undefined;
+}
+
+const halfOpenRange = ({ day, from, to }: ITransactionQuery): IHalfOpenRange => {
+  if (from != null || to != null)
+    return {
+      from: from?.startOf("day").toISOString(),
+      to: to?.startOf("day").add(1, "day").toISOString(),
+    };
+
+  if (day != null)
+    return {
+      from: day.startOf("day").toISOString(),
+      to: day.startOf("day").add(1, "day").toISOString(),
+    };
+
+  return { from: undefined, to: undefined };
+};
+
+export const listTransactions = async (
+  query: ITransactionQuery
+): Promise<ITransactionPageResponse> => {
   const response = await axios.get<ITransactionPageResponse>("/api/v1/transactions", {
     params: {
-      page,
-      pageSize,
-      from: day ? day.startOf("day").toISOString() : undefined,
-      to: day ? day.startOf("day").add(1, "day").toISOString() : undefined,
+      page: query.page,
+      pageSize: query.pageSize,
+      ...halfOpenRange(query),
     },
   });
   return response.data;

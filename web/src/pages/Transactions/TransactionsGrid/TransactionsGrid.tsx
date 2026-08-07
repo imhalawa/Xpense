@@ -12,12 +12,12 @@ import {
 import CategoryChip from "../../../components/Chips/CategoryChip/CategoryChip";
 import DataGrid, { IDataGridHeader } from "../../../components/DataGrid/DataGrid";
 import { formatIsoDate } from "../../../utils/DateUtils";
-import { Currency, ICategory } from "../../../typings";
+import { Currency } from "../../../typings/enums/Currency";
+import { ICategory } from "../../../typings/models/ICategory";
 import { toSingle } from "../../../typings/models/IMoney";
 import { ITransactionResponse } from "../../../clients/types";
 import { useLoading } from "../../../contexts/LoadingContext";
-import { useCalendar } from "../../../contexts/CalendarContext";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { listTransactions } from "../../../clients/transactions";
 import { listCategories } from "../../../clients/options";
 import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
@@ -27,6 +27,8 @@ interface ITransactionsGridProps {
   size?: number;
   dense?: boolean;
   day?: Dayjs | null;
+  from?: Dayjs | null;
+  to?: Dayjs | null;
   hidePagination?: boolean;
 }
 
@@ -39,7 +41,7 @@ const buildHeaders = (
     icon: <AmountIcon />,
     order: 2,
     render: (row: ITransactionResponse) => (
-      <Typography variant="body2" color={row.kind === "income" ? "green" : "red"}>
+      <Typography variant="body2" color={row.kind === "income" ? "success.main" : "error.main"}>
         {row.amount.currency === Currency.EUR ? <EuroIcon size={12} /> : <DollarIcon size={12} />}
         {toSingle(row.amount)}
       </Typography>
@@ -96,7 +98,7 @@ const buildHeaders = (
                 cursor: "pointer",
               },
             }}
-            color="darkblue"
+            color="primary"
           >
             #{tag.label}
           </Link>
@@ -106,9 +108,8 @@ const buildHeaders = (
   },
 ];
 
-const TransactionsGrid = ({ size, hidePagination, dense, day }: ITransactionsGridProps) => {
+const TransactionsGrid = ({ size, hidePagination, dense, day, from, to }: ITransactionsGridProps) => {
   const { setLoading } = useLoading();
-  const { selectedDate } = useCalendar();
   const [transactions, setTransactions] = useState<ITransactionResponse[]>([]);
   const [categories, setCategories] = useState<Map<number, ICategory>>(new Map());
   const [pageSize, setPageSize] = useState<number>(size ?? 10);
@@ -123,10 +124,10 @@ const TransactionsGrid = ({ size, hidePagination, dense, day }: ITransactionsGri
       .catch((error) => console.error(error));
   }, []);
 
-  useEffect(() => {
+  const loadTransactions = useCallback(() => {
     setLoading(true);
 
-    listTransactions({ page, pageSize, day: day ?? selectedDate })
+    listTransactions({ page, pageSize, day, from, to })
       .then((response) => {
         setTransactions(response.items);
         setPageSize(response.pageSize);
@@ -138,13 +139,16 @@ const TransactionsGrid = ({ size, hidePagination, dense, day }: ITransactionsGri
         console.error(error);
         setLoading(false);
       });
-  }, [page, pageSize, selectedDate, day]);
+  }, [page, pageSize, day, from, to]);
 
   useEffect(() => {
-    if (submittedTransaction != null) {
-      setTransactions([...transactions, submittedTransaction]);
-      setSubmittedTransaction(null);
-    }
+    loadTransactions();
+  }, [loadTransactions]);
+
+  useEffect(() => {
+    if (submittedTransaction === null) return;
+    setSubmittedTransaction(null);
+    loadTransactions();
   }, [submittedTransaction]);
 
   const onPageChange = (page: number) => {
