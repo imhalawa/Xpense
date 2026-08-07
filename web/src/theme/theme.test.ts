@@ -25,3 +25,22 @@ describe("theme", () => {
     expect(theme.shape.borderRadius).toBe(tokens.radius.card);
   });
 });
+
+describe("typography ramp", () => {
+  it("sizes the hero number at thirty-two pixels and bold", () => {
+    expect(theme.typography.heroNumber.fontSize).toBe("2rem");
+    expect(theme.typography.heroNumber.fontWeight).toBe(700);
+  });
+
+  it("gives the numeric variant tabular figures", () => {
+    expect(theme.typography.numeric.fontVariantNumeric).toBe("tabular-nums");
+  });
+
+  it("does not give the hero number tabular figures", () => {
+    expect(theme.typography.heroNumber.fontVariantNumeric).toBeUndefined();
+  });
+
+  it("sets body line height for reading", () => {
+    expect(theme.typography.body1.lineHeight).toBe(1.55);
+  });
+});
