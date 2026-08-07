@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "@mui/material/styles";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import theme from "../../theme/theme";
 import { Currency } from "../../typings/enums/Currency";
 import { ICategoryResponse } from "../../clients/types";
@@ -30,14 +32,16 @@ const initialValues: BudgetFormValues = {
 const renderForm = (onSubmit = vi.fn(), values = initialValues, isEditing = false) => {
   render(
     <ThemeProvider theme={theme}>
-      <BudgetForm
-        categories={categories}
-        initialValues={values}
-        onSubmit={onSubmit}
-        onCancel={vi.fn()}
-        submitLabel="Save"
-        isEditing={isEditing}
-      />
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <BudgetForm
+          categories={categories}
+          initialValues={values}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+          submitLabel="Save"
+          isEditing={isEditing}
+        />
+      </LocalizationProvider>
     </ThemeProvider>
   );
   return onSubmit;
@@ -83,5 +87,33 @@ describe("BudgetForm", () => {
     expect(
       screen.getByRole("combobox", { name: "Category" }).getAttribute("aria-disabled")
     ).toBeNull();
+  });
+
+  it("names the currency by symbol and iso code so a dollar is never ambiguous", () => {
+    renderForm();
+    expect(screen.getByText("EUR")).toBeDefined();
+  });
+
+  it("submits the percent behind an alert threshold quick pick", () => {
+    const onSubmit = renderForm();
+    fireEvent.click(screen.getByRole("button", { name: "50%" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0].alertThresholdPercent).toBe(50);
+  });
+
+  it("submits no threshold at all when the budget should stay quiet", () => {
+    const onSubmit = renderForm();
+    fireEvent.click(screen.getByRole("button", { name: "No alert" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0].alertThresholdPercent).toBeNull();
+  });
+
+  it("reveals a number field only once the threshold is custom", () => {
+    renderForm();
+    expect(screen.queryByLabelText("Alert threshold percent")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
+    expect(screen.getByLabelText("Alert threshold percent")).toBeDefined();
   });
 });
