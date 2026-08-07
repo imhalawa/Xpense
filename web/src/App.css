@@ -1,24 +1,16 @@
-body {
-  font-family: "Lato", "Roboto", "Helvetica", "Arial", sans-serif;
-}
-
- 
 ::-webkit-scrollbar {
   width: 4px;
 }
-/* Track */
+
 ::-webkit-scrollbar-track {
-  background: var(--scrollbarBG);
-  border-radius: 16px;
+  background: transparent;
 }
-/* Handle */
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--thumbBG);
+  background-color: var(--mui-palette-divider);
   border-radius: 16px;
-  border: 2px solid var(--scrollbarBG);
 }
-/* Handle on hover */
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #3163be;
+  background-color: var(--mui-palette-primary-main);
 }
