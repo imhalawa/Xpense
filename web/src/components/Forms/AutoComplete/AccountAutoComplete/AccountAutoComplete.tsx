@@ -20,7 +20,6 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
 
   useEffect(() => {
     setLoading(true);
-    // TODO: need to clean up this later
     listAccounts()
       .then((accounts) => {
         setAccountOptions(accounts);
@@ -55,7 +54,7 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
             </Grid>
             <Grid size={2}>
               {option.isDefault && (
-                <Typography variant="body2" color="green">
+                <Typography variant="body2" color="success.main">
                   Main
                 </Typography>
               )}
@@ -68,7 +67,6 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
           {...params}
           required
           label={label}
-          variant="standard"
           value={selected}
           error={error}
           helperText={helperText}
@@ -77,7 +75,7 @@ const AccountAutoComplete = ({ label, value, error, helperText, onChange }: IAcc
 
             htmlInput: {
               ...params.slotProps.htmlInput,
-              autoComplete: "new-password", // disable autocomplete and autofill
+              autoComplete: "new-password",
             }
           }}
         />

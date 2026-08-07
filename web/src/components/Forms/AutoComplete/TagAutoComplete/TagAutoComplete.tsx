@@ -42,7 +42,6 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       multiple
       freeSolo
       id="tags-Create"
-      size="small"
       options={tagOptions}
       onChange={(_, newValue, reason, details) => {
         if (details?.option.create && reason !== "removeOption") {
@@ -83,7 +82,6 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
         const filtered = filter(options, params);
 
         const { inputValue } = params;
-        // Suggest the creation of a new value
         const isExisting = options.some((option) => inputValue === option.label);
         if (inputValue !== "" && !isExisting) {
           filtered.push({
@@ -102,15 +100,12 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       clearOnBlur
       handleHomeEndKeys
       getOptionLabel={(option) => {
-        // Value selected with enter, right from the input
         if (typeof option === "string") {
           return option;
         }
-        // Add "xxx" option created dynamically
         if (option.create) {
           return option.label;
         }
-        // Regular option
         return option.label;
       }}
       renderOption={(props, option) => (
@@ -123,7 +118,6 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
           {...params}
           label={label}
           value={value}
-          variant="standard"
           placeholder={label}
           error={error}
           helperText={helperText}

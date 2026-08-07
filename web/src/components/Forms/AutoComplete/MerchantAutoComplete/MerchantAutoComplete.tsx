@@ -41,7 +41,6 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
     <Autocomplete
       freeSolo
       id="tags-Create"
-      size="small"
       options={merchantOptions}
       onChange={(_event, newValue, _reason, _details) => {
         if (typeof newValue === "string") {
@@ -51,7 +50,6 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
             create: true,
           });
         } else if (newValue && newValue.create) {
-          // Create a new value from the user input
           setSelected({
             id: null,
             label: newValue.label,
@@ -66,7 +64,6 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
         const filtered = filter(options, params);
 
         const { inputValue } = params;
-        // Suggest the creation of a new value
         const isExisting = options.some((option) => inputValue === option.label);
         if (inputValue !== "" && !isExisting) {
           filtered.push({
@@ -100,7 +97,6 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
           {...params}
           label={label}
           value={value}
-          variant="standard"
           placeholder={label}
           error={error}
           helperText={helperText}

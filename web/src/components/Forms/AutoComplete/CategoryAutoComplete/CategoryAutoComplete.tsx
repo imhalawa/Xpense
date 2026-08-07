@@ -16,17 +16,16 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
   const [categoryOptions, setCategoryOptions] = useState<ICategory[]>([]);
   const [selected, setSelected] = useState<ICategory | null>(null);
 
-  //TODO: Later, give the user the option to pick a color for the priority
   const priorityColor = (priority: IPriority): string => {
     switch (priority.weight) {
       case 1:
-        return "green";
+        return "success.main";
       case 2:
-        return "orange";
+        return "warning.main";
       case 3:
-        return "red";
+        return "error.main";
       default:
-        return "Mauve";
+        return "text.secondary";
     }
   };
 
@@ -48,7 +47,6 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
   }, []);
 
   useEffect(() => {
-    console.log(selected);
     onChange(selected);
   }, [selected]);
 
@@ -79,7 +77,6 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
       renderInput={(params) => (
         <TextField
           required
-          variant="standard"
           {...params}
           label={label}
           value={selected}
@@ -90,7 +87,7 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
 
             htmlInput: {
               ...params.slotProps.htmlInput,
-              autoComplete: "new-password", // disable autocomplete and autofill
+              autoComplete: "new-password",
             }
           }}
         />
