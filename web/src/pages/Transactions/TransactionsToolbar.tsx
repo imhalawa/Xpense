@@ -75,6 +75,7 @@ const TransactionsToolbar = ({
         <PopoverSurface className={styles.dates}>
           <Field label="From">
             <DatePicker
+              allowTextInput
               value={filter.from === null ? null : dayjs(filter.from).toDate()}
               formatDate={(date) => calendarDate(date) ?? ""}
               onSelectDate={(date) =>
@@ -84,6 +85,7 @@ const TransactionsToolbar = ({
           </Field>
           <Field label="To">
             <DatePicker
+              allowTextInput
               value={filter.to === null ? null : dayjs(filter.to).toDate()}
               formatDate={(date) => calendarDate(date) ?? ""}
               onSelectDate={(date) => onFilterChange({ ...filter, to: calendarDate(date) })}
