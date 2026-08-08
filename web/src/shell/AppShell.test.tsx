@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { LoadingContextProvider } from "../contexts/LoadingContext";
@@ -81,12 +81,17 @@ const renderShell = (path: string) => {
       </VaultProvider>
     </MemoryRouter>,
   );
+  return projection;
 };
 
 const appearsBefore = (leading: Element, trailing: Element) =>
   Boolean(leading.compareDocumentPosition(trailing) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 describe("AppShell", () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
   it("renders the fixed sidebar order", async () => {
     setWindowWidth(true);
     renderShell("/transactions?space=personal");
@@ -96,12 +101,49 @@ describe("AppShell", () => {
     const overview = screen.getByRole("link", { name: "Overview" });
     const manage = screen.getByRole("link", { name: "Manage" });
     const categories = screen.getByRole("button", { name: "Categories" });
-    const lock = screen.getByRole("button", { name: "Lock vault", hidden: true });
+    const notifications = screen.getByRole("button", { name: "No unread notifications" });
 
+    expect(appearsBefore(identity, notifications)).toBe(true);
+    expect(appearsBefore(notifications, addTransaction)).toBe(true);
     expect(appearsBefore(identity, addTransaction)).toBe(true);
     expect(appearsBefore(addTransaction, overview)).toBe(true);
     expect(appearsBefore(manage, categories)).toBe(true);
-    expect(appearsBefore(categories, lock)).toBe(true);
+  });
+
+  it("locks and unlocks the vault from the identity menu on any route", async () => {
+    setWindowWidth(true);
+    const projection = renderShell("/budgets?space=personal");
+    const unlock = vi.spyOn(projection, "unlock");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Local user, Personal" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Lock vault" }));
+    fireEvent.click(await screen.findByRole("button", { name: "local" }));
+
+    expect(screen.queryByRole("menuitem", { name: "Lock vault" })).toBeNull();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Unlock vault" }));
+
+    await waitFor(() => expect(unlock).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole("button", { name: "Local user, Personal" })).toBeDefined();
+  });
+
+  it("changes the color scheme through the identity submenu", async () => {
+    setWindowWidth(true);
+    renderShell("/transactions?space=personal");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Local user, Personal" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Theme" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Dark" }));
+
+    expect(localStorage.getItem("xpense-color-scheme")).toBe("dark");
+  });
+
+  it("has no bottom theme or vault control shelf", async () => {
+    setWindowWidth(true);
+    renderShell("/transactions?space=personal");
+    await screen.findByRole("button", { name: "Local user, Personal" });
+
+    expect(screen.queryByRole("group", { name: "Color scheme" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Lock vault" })).toBeNull();
   });
 
   it("renders all destinations and marks exactly one active route", async () => {

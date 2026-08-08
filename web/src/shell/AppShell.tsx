@@ -7,7 +7,6 @@ import {
   Hamburger,
   NavDrawer,
   NavDrawerBody,
-  NavDrawerFooter,
   NavDrawerHeader,
   NavItem,
   ProgressBar,
@@ -18,12 +17,10 @@ import {
 import {
   AddRegular,
   HomeRegular,
-  LockClosedRegular,
   ReceiptRegular,
   SettingsRegular,
   WalletRegular,
 } from "@fluentui/react-icons";
-import ThemeModeToggle from "../components/ThemeModeToggle/ThemeModeToggle";
 import NotificationBell from "../components/NotificationBell/NotificationBell";
 import { useLoading } from "../contexts/LoadingContext";
 import {
@@ -33,6 +30,7 @@ import {
   markNotificationRead,
 } from "../clients/notifications";
 import type { INotificationResponse } from "../clients/types";
+import { useColorScheme } from "../fluent/useColorScheme";
 import { useVault } from "../vault/VaultProvider";
 import type {
   AccountView,
@@ -91,8 +89,15 @@ const useStyles = makeStyles({
     borderInlineEndColor: tokens.colorNeutralStroke2,
   },
   header: {
+    display: "flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalS,
     paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalM,
+  },
+  identityMenu: {
+    flexGrow: 1,
+    minWidth: 0,
   },
   body: {
     display: "flex",
@@ -116,19 +121,6 @@ const useStyles = makeStyles({
   },
   navItem: {
     backgroundColor: "transparent",
-  },
-  footer: {
-    display: "flex",
-    flexDirection: "column",
-    gap: tokens.spacingVerticalS,
-    borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
-    paddingBlock: tokens.spacingVerticalM,
-    paddingInline: tokens.spacingHorizontalM,
-  },
-  footerActions: {
-    display: "flex",
-    alignItems: "center",
-    gap: tokens.spacingHorizontalXS,
   },
   menuButton: {
     position: "fixed",
@@ -176,6 +168,7 @@ const AppShell = ({ children }: AppShellProps) => {
   const navigate = useNavigate();
   const { loading } = useLoading();
   const { projection, state } = useVault();
+  const { mode: themeMode, setMode: setThemeMode } = useColorScheme();
   const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
   const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
@@ -305,17 +298,31 @@ const AppShell = ({ children }: AppShellProps) => {
         selectedValue={activeDestination.path}
         onOpenChange={(_event, data) => setIsNavigationOpen(Boolean(data.open))}>
         <NavDrawerHeader className={styles.header}>
-          <IdentityMenu
-            spaces={spaces}
-            activeSpace={transactionFilter.filter.space}
-            displayName={localDisplayName}
-            emailPrefix={localEmailPrefix}
-            isUnlocked={state === "unlocked"}
-            onSelectSpace={selectSpace}
-            onManageGroups={() => undefined}
-            onAccountSettings={() => undefined}
-            onLock={() => projection.lock()}
-            onSignOut={() => undefined}
+          <div className={styles.identityMenu}>
+            <IdentityMenu
+              spaces={spaces}
+              activeSpace={transactionFilter.filter.space}
+              displayName={localDisplayName}
+              emailPrefix={localEmailPrefix}
+              isUnlocked={state === "unlocked"}
+              themeMode={themeMode}
+              onSelectSpace={selectSpace}
+              onLock={() => projection.lock()}
+              onUnlock={() => void projection.unlock()}
+              onThemeModeChange={setThemeMode}
+            />
+          </div>
+          <NotificationBell
+            notifications={notifications}
+            unreadCount={unreadCount}
+            page={notificationsPage}
+            totalPages={notificationPages}
+            onPageChange={setNotificationsPage}
+            onMarkRead={(id) => markNotificationRead(id).then(refreshNotifications)}
+            onMarkSelectedRead={(ids) =>
+              Promise.all(ids.map(markNotificationRead)).then(refreshNotifications)
+            }
+            onMarkAllRead={() => markAllNotificationsRead().then(refreshNotifications)}
           />
         </NavDrawerHeader>
         <NavDrawerBody className={styles.body}>
@@ -373,29 +380,6 @@ const AppShell = ({ children }: AppShellProps) => {
             onToggleTaxonomy={toggleTaxonomy}
           />
         </NavDrawerBody>
-        <NavDrawerFooter className={styles.footer}>
-          <NotificationBell
-            notifications={notifications}
-            unreadCount={unreadCount}
-            page={notificationsPage}
-            totalPages={notificationPages}
-            onPageChange={setNotificationsPage}
-            onMarkRead={(id) => markNotificationRead(id).then(refreshNotifications)}
-            onMarkSelectedRead={(ids) =>
-              Promise.all(ids.map(markNotificationRead)).then(refreshNotifications)
-            }
-            onMarkAllRead={() => markAllNotificationsRead().then(refreshNotifications)}
-          />
-          <div className={styles.footerActions}>
-            <ThemeModeToggle />
-            <Button
-              appearance="subtle"
-              icon={<LockClosedRegular />}
-              aria-label="Lock vault"
-              onClick={() => projection.lock()}
-            />
-          </div>
-        </NavDrawerFooter>
       </NavDrawer>
 
       <main className={mergeClasses(styles.main, !isWideScreen && styles.mobileMain)}>

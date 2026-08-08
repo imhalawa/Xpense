@@ -1,15 +1,8 @@
-import { useState } from "react";
 import {
   Avatar,
   Body1,
   Button,
   Caption1,
-  Dialog,
-  DialogActions,
-  DialogBody,
-  DialogContent,
-  DialogSurface,
-  DialogTitle,
   Menu,
   MenuDivider,
   MenuItem,
@@ -20,17 +13,22 @@ import {
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
-import { SpaceId, SpaceSummary } from "../vault/VaultProjection";
+import type { ColorSchemeMode } from "../fluent/useColorScheme";
+import type { SpaceId, SpaceSummary } from "../vault/VaultProjection";
 
 const spaceRadioName = "space";
-const manageGroupsLabel = "Manage groups";
-const accountSettingsLabel = "Account and passkeys";
-const lockVaultLabel = "Lock vault";
-const signOutLabel = "Sign out";
+const themeRadioName = "theme";
+
+const themeOptions: ReadonlyArray<{ label: string; value: ColorSchemeMode }> = [
+  { label: "System", value: "system" },
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+];
 
 const useStyles = makeStyles({
   trigger: {
     justifyContent: "flex-start",
+    columnGap: tokens.spacingHorizontalS,
     width: "100%",
     height: "auto",
     paddingBlock: tokens.spacingVerticalS,
@@ -48,20 +46,20 @@ const useStyles = makeStyles({
   },
 });
 
-const describeUnavailableFeature = (feature: string) =>
-  `${feature} arrives with accounts. Xpense has no sign-in, no groups and no passkeys yet, so there is nothing for this to change.`;
-
-interface IdentityMenuProps {
+export interface IdentityMenuProps {
   spaces: SpaceSummary[];
   activeSpace: SpaceId;
   displayName: string;
   emailPrefix: string;
   isUnlocked: boolean;
+  themeMode: ColorSchemeMode;
   onSelectSpace: (space: SpaceId) => void;
-  onManageGroups: () => void;
-  onAccountSettings: () => void;
+  onManageGroups?: () => void;
+  onAccountSettings?: () => void;
   onLock: () => void;
-  onSignOut: () => void;
+  onUnlock: () => void;
+  onSignOut?: () => void;
+  onThemeModeChange: (mode: ColorSchemeMode) => void;
 }
 
 const IdentityMenu = ({
@@ -70,83 +68,76 @@ const IdentityMenu = ({
   displayName,
   emailPrefix,
   isUnlocked,
+  themeMode,
   onSelectSpace,
   onManageGroups,
   onAccountSettings,
   onLock,
+  onUnlock,
   onSignOut,
+  onThemeModeChange,
 }: IdentityMenuProps) => {
   const styles = useStyles();
-  const [unavailableFeature, setUnavailableFeature] = useState<string | null>(null);
-
   const identityLabel = isUnlocked ? displayName : emailPrefix;
   const activeSpaceName = spaces.find((space) => space.id === activeSpace)?.name ?? "";
   const triggerLabel = activeSpaceName ? `${identityLabel}, ${activeSpaceName}` : identityLabel;
 
-  const announceUnavailable = (feature: string, notify: () => void) => () => {
-    notify();
-    setUnavailableFeature(feature);
-  };
-
   return (
-    <>
-      <Menu
-        checkedValues={{ [spaceRadioName]: [activeSpace] }}
-        onCheckedValueChange={(_event, data) => {
-          const [chosenSpace] = data.checkedItems;
-          if (chosenSpace) onSelectSpace(chosenSpace);
-        }}>
-        <MenuTrigger disableButtonEnhancement>
-          <Button className={styles.trigger} appearance="subtle" aria-label={triggerLabel}>
-            <Avatar aria-hidden name={identityLabel} size={32} />
-            <span className={styles.identity}>
-              <Body1>{identityLabel}</Body1>
-              <Caption1 className={styles.space}>{activeSpaceName}</Caption1>
-            </span>
-          </Button>
-        </MenuTrigger>
-        <MenuPopover>
-          <MenuList>
-            {spaces.map((space) => (
-              <MenuItemRadio key={space.id} name={spaceRadioName} value={space.id}>
-                {space.name}
-              </MenuItemRadio>
-            ))}
-            <MenuDivider />
-            <MenuItem onClick={announceUnavailable(manageGroupsLabel, onManageGroups)}>
-              {manageGroupsLabel}
-            </MenuItem>
-            <MenuItem onClick={announceUnavailable(accountSettingsLabel, onAccountSettings)}>
-              {accountSettingsLabel}
-            </MenuItem>
-            <MenuItem onClick={onLock}>{lockVaultLabel}</MenuItem>
-            <MenuItem onClick={announceUnavailable(signOutLabel, onSignOut)}>
-              {signOutLabel}
-            </MenuItem>
-          </MenuList>
-        </MenuPopover>
-      </Menu>
-
-      <Dialog
-        open={unavailableFeature !== null}
-        onOpenChange={(_event, data) => {
-          if (!data.open) setUnavailableFeature(null);
-        }}>
-        <DialogSurface>
-          <DialogBody>
-            <DialogTitle>{unavailableFeature}</DialogTitle>
-            <DialogContent>
-              {unavailableFeature === null ? null : describeUnavailableFeature(unavailableFeature)}
-            </DialogContent>
-            <DialogActions>
-              <Button appearance="primary" onClick={() => setUnavailableFeature(null)}>
-                Close
-              </Button>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
-      </Dialog>
-    </>
+    <Menu
+      checkedValues={{ [spaceRadioName]: [activeSpace] }}
+      onCheckedValueChange={(_event, data) => {
+        const [chosenSpace] = data.checkedItems;
+        if (chosenSpace) onSelectSpace(chosenSpace);
+      }}>
+      <MenuTrigger disableButtonEnhancement>
+        <Button className={styles.trigger} appearance="subtle" aria-label={triggerLabel}>
+          <Avatar aria-hidden name={identityLabel} size={32} />
+          <span className={styles.identity}>
+            <Body1>{identityLabel}</Body1>
+            <Caption1 className={styles.space}>{activeSpaceName}</Caption1>
+          </span>
+        </Button>
+      </MenuTrigger>
+      <MenuPopover>
+        <MenuList>
+          {spaces.map((space) => (
+            <MenuItemRadio key={space.id} name={spaceRadioName} value={space.id}>
+              {space.name}
+            </MenuItemRadio>
+          ))}
+          <MenuDivider />
+          {onManageGroups && <MenuItem onClick={onManageGroups}>Manage groups</MenuItem>}
+          {onAccountSettings && (
+            <MenuItem onClick={onAccountSettings}>Account and passkeys</MenuItem>
+          )}
+          <Menu
+            checkedValues={{ [themeRadioName]: [themeMode] }}
+            onCheckedValueChange={(_event, data) => {
+              const [chosenMode] = data.checkedItems;
+              if (chosenMode === "system" || chosenMode === "light" || chosenMode === "dark") {
+                onThemeModeChange(chosenMode);
+              }
+            }}>
+            <MenuTrigger disableButtonEnhancement>
+              <MenuItem>Theme</MenuItem>
+            </MenuTrigger>
+            <MenuPopover>
+              <MenuList>
+                {themeOptions.map((option) => (
+                  <MenuItemRadio key={option.value} name={themeRadioName} value={option.value}>
+                    {option.label}
+                  </MenuItemRadio>
+                ))}
+              </MenuList>
+            </MenuPopover>
+          </Menu>
+          <MenuItem onClick={isUnlocked ? onLock : onUnlock}>
+            {isUnlocked ? "Lock vault" : "Unlock vault"}
+          </MenuItem>
+          {onSignOut && <MenuItem onClick={onSignOut}>Sign out</MenuItem>}
+        </MenuList>
+      </MenuPopover>
+    </Menu>
   );
 };
 

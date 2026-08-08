@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { SpaceSummary } from "../vault/VaultProjection";
+import { tokens } from "@fluentui/react-components";
+import { useState } from "react";
+import type { SpaceSummary } from "../vault/VaultProjection";
 import IdentityMenu from "./IdentityMenu";
 
 const spaces: SpaceSummary[] = [
@@ -15,7 +17,9 @@ const renderIdentityMenu = (overrides: Partial<Parameters<typeof IdentityMenu>[0
     onManageGroups: vi.fn(),
     onAccountSettings: vi.fn(),
     onLock: vi.fn(),
+    onUnlock: vi.fn(),
     onSignOut: vi.fn(),
+    onThemeModeChange: vi.fn(),
   };
 
   render(
@@ -25,6 +29,7 @@ const renderIdentityMenu = (overrides: Partial<Parameters<typeof IdentityMenu>[0
       displayName="Mohamed Halawa"
       emailPrefix="mohamed"
       isUnlocked
+      themeMode="system"
       {...handlers}
       {...overrides}
     />
@@ -82,6 +87,46 @@ describe("IdentityMenu", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("switches from lock to unlock without leaving the lock action active", () => {
+    const onLock = vi.fn();
+    const onUnlock = vi.fn();
+    const Harness = () => {
+      const [isUnlocked, setIsUnlocked] = useState(true);
+      return (
+        <IdentityMenu
+          spaces={spaces}
+          activeSpace="personal"
+          displayName="Mohamed Halawa"
+          emailPrefix="mohamed"
+          isUnlocked={isUnlocked}
+          themeMode="system"
+          onSelectSpace={vi.fn()}
+          onLock={() => {
+            onLock();
+            setIsUnlocked(false);
+          }}
+          onUnlock={() => {
+            onUnlock();
+            setIsUnlocked(true);
+          }}
+          onThemeModeChange={vi.fn()}
+        />
+      );
+    };
+
+    render(<Harness />);
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Lock vault" }));
+    fireEvent.click(screen.getByRole("button", { name: "mohamed, Personal" }));
+
+    expect(screen.queryByRole("menuitem", { name: "Lock vault" })).toBeNull();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Unlock vault" }));
+
+    expect(onLock).toHaveBeenCalledTimes(1);
+    expect(onUnlock).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Mohamed Halawa, Personal" })).toBeDefined();
+  });
+
   it("shows the email prefix instead of the display name while locked", () => {
     renderIdentityMenu({ isUnlocked: false });
 
@@ -104,26 +149,49 @@ describe("IdentityMenu", () => {
     ["Manage groups", "onManageGroups"],
     ["Account and passkeys", "onAccountSettings"],
     ["Sign out", "onSignOut"],
-  ] as const)("explains that %s arrives with accounts instead of doing nothing", (label, handler) => {
+  ] as const)("reports %s directly without showing a placeholder", (label, handler) => {
     const handlers = renderIdentityMenu();
     openMenu();
 
     fireEvent.click(screen.getByRole("menuitem", { name: label }));
 
-    const dialog = screen.getByRole("dialog");
-
-    expect(dialog.textContent).toContain(label);
-    expect(dialog.textContent).toContain("arrives with accounts");
     expect(handlers[handler]).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("closes the explanation dialog again", () => {
-    renderIdentityMenu();
+  it("omits account actions whose callbacks are unavailable", () => {
+    renderIdentityMenu({
+      onManageGroups: undefined,
+      onAccountSettings: undefined,
+      onSignOut: undefined,
+    });
     openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("menuitem", { name: "Manage groups" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Account and passkeys" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Sign out" })).toBeNull();
+  });
 
-    expect(screen.queryByRole("dialog")).toBeNull();
+  it("changes theme from an accessible submenu", () => {
+    const handlers = renderIdentityMenu({ themeMode: "system" });
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Theme" }));
+
+    const themeChoices = screen.getAllByRole("menuitemradio").slice(-3);
+    expect(themeChoices.map((item) => item.textContent)).toEqual(["System", "Light", "Dark"]);
+    expect(screen.getByRole("menuitemradio", { name: "System" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Dark" }));
+
+    expect(handlers.onThemeModeChange).toHaveBeenCalledWith("dark");
+  });
+
+  it("uses the Fluent eight pixel spacing token between avatar and identity text", () => {
+    renderIdentityMenu();
+
+    const trigger = screen.getByRole("button", { name: "Mohamed Halawa, Personal" });
+    expect(getComputedStyle(trigger).columnGap).toBe(tokens.spacingHorizontalS);
   });
 });
