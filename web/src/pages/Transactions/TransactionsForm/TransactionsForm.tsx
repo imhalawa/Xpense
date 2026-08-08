@@ -20,17 +20,19 @@ import TagAutoComplete from "../../../components/Forms/AutoComplete/TagAutoCompl
 import { Currency } from "../../../typings/enums/Currency";
 import { TransactionType } from "../../../typings/enums/TransactionType";
 import {
-  fromTransactionFormData,
   ITransactionFormData,
   schema,
 } from "../../../typings/forms/ITransactionFormData";
-import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
 import { useLoading } from "../../../contexts/LoadingContext";
-import { createTransaction } from "../../../clients/transactions";
+import { toMinorUnits } from "../../../typings/models/IMoney";
+import type { AccountView, TransactionDraft } from "../../../vault/VaultProjection";
+import type { IAccount } from "../../../typings/models/IAccount";
 
 export interface ITransactionFormProps {
   onCancel: () => void;
-  onSubmitted: () => void;
+  onSubmit: (draft: TransactionDraft) => Promise<void>;
+  accounts: AccountView[];
+  activeSpace: string;
   submitLabel?: string;
 }
 
@@ -72,12 +74,19 @@ const useStyles = makeStyles({
 
 const TransactionsForm = ({
   onCancel,
-  onSubmitted,
+  onSubmit,
+  accounts,
+  activeSpace,
   submitLabel = "Create",
 }: ITransactionFormProps) => {
   const styles = useStyles();
-  const { setSubmittedTransaction } = useTransctionUtilities();
   const { setLoading } = useLoading();
+  const accountOptions: IAccount[] = accounts.map((account, index) => ({
+    accountNumber: account.id,
+    label: account.label,
+    balance: { minorUnits: 0, currency: account.currency },
+    isDefault: index === 0,
+  }));
 
   const { handleSubmit, control } = useForm<ITransactionFormData>({
     resolver: yupResolver(schema),
@@ -86,26 +95,35 @@ const TransactionsForm = ({
       currency: Currency.EUR,
       type: TransactionType.DEBIT,
       dateOfTransaction: dayjs().unix(),
-      account: null,
+      account: accountOptions[0] ?? null,
       category: null,
       merchant: null,
       tags: [],
     },
   });
 
-  const submit = (data: ITransactionFormData) => {
+  const submit = async (data: ITransactionFormData) => {
     setLoading(true);
-
-    createTransaction(fromTransactionFormData(data))
-      .then((transaction) => {
-        setSubmittedTransaction(transaction);
-        setLoading(false);
-        onSubmitted();
-      })
-      .catch((submitError) => {
-        console.error(submitError);
-        setLoading(false);
+    const amount = toMinorUnits(data.amount, data.currency);
+    try {
+      await onSubmit({
+        id: null,
+        space: activeSpace,
+        kind: data.type === TransactionType.CREDIT ? "income" : "expense",
+        amountMinorUnits: amount.minorUnits,
+        currency: amount.currency,
+        occurredAt: dayjs.unix(data.dateOfTransaction).toISOString(),
+        accountId: data.account!.accountNumber,
+        categoryId: data.category?.id == null ? null : String(data.category.id),
+        merchantLabel: data.merchant?.label ?? null,
+        tagLabels: (data.tags ?? []).map((tag) => tag.label),
+        reason: null,
       });
+    } catch (submitError) {
+      console.error(submitError);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -227,6 +245,7 @@ const TransactionsForm = ({
           <AccountAutoComplete
             label="Account"
             value={value}
+            options={accountOptions}
             error={error !== undefined}
             helperText={error?.message}
             onChange={onChange}

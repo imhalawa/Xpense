@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { Badge, Combobox, Field, Option, makeStyles, tokens } from "@fluentui/react-components";
 import { IAccount } from "../../../../typings/models/IAccount";
-import { listAccounts } from "../../../../clients/options";
-import { useLoading } from "../../../../contexts/LoadingContext";
 
 interface IAccountAutoCompleteProps {
   label: string;
   value: IAccount | null;
   error?: boolean;
   helperText?: string;
+  options: IAccount[];
   onChange: (value: IAccount | null) => void;
 }
 
@@ -27,26 +26,13 @@ const AccountAutoComplete = ({
   value,
   error,
   helperText,
+  options,
   onChange,
 }: IAccountAutoCompleteProps) => {
   const styles = useStyles();
-  const { setLoading } = useLoading();
-  const [accountOptions, setAccountOptions] = useState<IAccount[]>([]);
-  const [selected, setSelected] = useState<IAccount | null>(value);
-
-  useEffect(() => {
-    setLoading(true);
-    listAccounts()
-      .then((accounts) => {
-        setAccountOptions(accounts);
-        setSelected(value ?? accounts.find((account) => account.isDefault) ?? null);
-        setLoading(false);
-      })
-      .catch((loadError) => {
-        console.error(loadError);
-        setLoading(false);
-      });
-  }, []);
+  const [selected, setSelected] = useState<IAccount | null>(
+    value ?? options.find((account) => account.isDefault) ?? options[0] ?? null,
+  );
 
   useEffect(() => {
     onChange(selected);
@@ -63,10 +49,10 @@ const AccountAutoComplete = ({
         selectedOptions={selected === null ? [] : [selected.accountNumber]}
         onOptionSelect={(_event, data) =>
           setSelected(
-            accountOptions.find((account) => account.accountNumber === data.optionValue) ?? null
+            options.find((account) => account.accountNumber === data.optionValue) ?? null
           )
         }>
-        {accountOptions.map((account) => (
+        {options.map((account) => (
           <Option key={account.accountNumber} value={account.accountNumber} text={account.label}>
             <span className={styles.option}>
               {account.label}

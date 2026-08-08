@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   Button,
+  Caption1,
   Hamburger,
   NavDrawer,
   NavDrawerBody,
@@ -33,7 +34,12 @@ import {
 } from "../clients/notifications";
 import type { INotificationResponse } from "../clients/types";
 import { useVault } from "../vault/VaultProvider";
-import type { SpaceSummary, TaxonomyKind, TaxonomyValue } from "../vault/VaultProjection";
+import type {
+  AccountView,
+  SpaceSummary,
+  TaxonomyKind,
+  TaxonomyValue,
+} from "../vault/VaultProjection";
 import {
   clearTransactionFilters,
   serialiseTransactionFilter,
@@ -43,6 +49,7 @@ import { useTransactionFilter } from "../transactions/useTransactionFilter";
 import IdentityMenu from "./IdentityMenu";
 import PageTitle from "./PageTitle";
 import SidebarFilters from "./SidebarFilters";
+import TransactionDialog from "./TransactionDialog";
 import { useIsWideScreen } from "./useIsWideScreen";
 
 type Destination = {
@@ -95,6 +102,12 @@ const useStyles = makeStyles({
   addTransaction: {
     width: "100%",
     justifyContent: "flex-start",
+    marginBlockEnd: tokens.spacingVerticalM,
+  },
+  addTransactionExplanation: {
+    display: "block",
+    color: tokens.colorNeutralForeground3,
+    marginBlockStart: `-${tokens.spacingVerticalS}`,
     marginBlockEnd: tokens.spacingVerticalM,
   },
   navigation: {
@@ -166,12 +179,15 @@ const AppShell = ({ children }: AppShellProps) => {
   const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
   const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
+  const [editableAccounts, setEditableAccounts] = useState<AccountView[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [taxonomy, setTaxonomy] = useState<TaxonomyValue[]>([]);
   const [notifications, setNotifications] = useState<INotificationResponse[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsPage, setNotificationsPage] = useState(1);
   const [notificationPages, setNotificationPages] = useState(1);
   const activeDestination = destinationForPath(location.pathname);
+  const addTransactionRef = useRef<HTMLButtonElement>(null);
 
   const refreshNotifications = useCallback(() => {
     Promise.all([
@@ -215,6 +231,33 @@ const AppShell = ({ children }: AppShellProps) => {
         if (!isCurrent) return;
         setSpaces([]);
         setTaxonomy([]);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [projection, state, transactionFilter.filter.space]);
+
+  useEffect(() => {
+    if (state !== "ready") {
+      setEditableAccounts([]);
+      setAccountsLoaded(false);
+      return;
+    }
+
+    let isCurrent = true;
+    setAccountsLoaded(false);
+    projection
+      .listAccounts(transactionFilter.filter.space)
+      .then((accounts) => {
+        if (!isCurrent) return;
+        setEditableAccounts(accounts.filter((account) => account.canEdit));
+        setAccountsLoaded(true);
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setEditableAccounts([]);
+        setAccountsLoaded(true);
       });
 
     return () => {
@@ -277,15 +320,36 @@ const AppShell = ({ children }: AppShellProps) => {
         </NavDrawerHeader>
         <NavDrawerBody className={styles.body}>
           <Button
+            ref={addTransactionRef}
             className={styles.addTransaction}
             appearance="primary"
             icon={<AddRegular />}
+            disabled={!accountsLoaded || editableAccounts.length === 0}
+            aria-describedby={
+              accountsLoaded && editableAccounts.length === 0
+                ? "add-transaction-description"
+                : undefined
+            }
+            title={
+              accountsLoaded && editableAccounts.length === 0
+                ? "No account in this space can be edited."
+                : undefined
+            }
             onClick={() => {
-              navigate("/transactions/new");
+              navigate("/transactions/new", {
+                state: { returnTo: `${location.pathname}${location.search}` },
+              });
               closeNavigation();
             }}>
             Add transaction
           </Button>
+          {accountsLoaded && editableAccounts.length === 0 && (
+            <Caption1
+              id="add-transaction-description"
+              className={styles.addTransactionExplanation}>
+              No account in this space can be edited.
+            </Caption1>
+          )}
 
           <nav className={styles.navigation} aria-label="Primary">
             {destinations.map(({ path, label, icon }) => (
@@ -340,6 +404,11 @@ const AppShell = ({ children }: AppShellProps) => {
           {children}
         </div>
       </main>
+      <TransactionDialog
+        accounts={editableAccounts}
+        activeSpace={transactionFilter.filter.space}
+        returnFocusRef={addTransactionRef}
+      />
     </div>
   );
 };
