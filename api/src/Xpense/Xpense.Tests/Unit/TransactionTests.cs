@@ -148,6 +148,74 @@ public class TransactionTests
         transaction.DestinationAccount.Should().BeNull();
     }
 
+    [Test]
+    public void Reversing_an_expense_restores_its_source_balance()
+    {
+        var source = Account("1000000000", 1000);
+        var transaction = Entities.Transaction.Expense(
+            source, Money.OfMinorUnits(250), Category(), Merchant(), null, OccurredAt);
+
+        transaction.ReverseBalanceEffect();
+
+        source.BalanceMinorUnits.Should().Be(1000);
+    }
+
+    [Test]
+    public void Reversing_an_income_restores_its_destination_balance()
+    {
+        var destination = Account("1000000000", 1000);
+        var transaction = Entities.Transaction.Income(
+            destination, Money.OfMinorUnits(250), Category(), Merchant(), null, OccurredAt);
+
+        transaction.ReverseBalanceEffect();
+
+        destination.BalanceMinorUnits.Should().Be(1000);
+    }
+
+    [Test]
+    public void Reversing_a_transfer_restores_both_balances()
+    {
+        var source = Account("1000000000", 1000);
+        var destination = Account("2000000000", 500);
+        var transaction = Entities.Transaction.Transfer(
+            source, destination, Money.OfMinorUnits(250), null, null, OccurredAt);
+
+        transaction.ReverseBalanceEffect();
+
+        source.BalanceMinorUnits.Should().Be(1000);
+        destination.BalanceMinorUnits.Should().Be(500);
+    }
+
+    [Test]
+    public void Replacing_a_transaction_keeps_its_identity_and_copies_the_new_effect()
+    {
+        var originalSource = Account("1000000000", 1000);
+        var replacementSource = Account("2000000000", 2000);
+        var original = Entities.Transaction.Expense(
+            originalSource, Money.OfMinorUnits(250), Category(), Merchant(), null, OccurredAt);
+        original.Id = 42;
+        var createdAt = original.CreatedAt;
+        original.ReverseBalanceEffect();
+        var replacement = Entities.Transaction.Expense(
+            replacementSource,
+            Money.OfMinorUnits(400),
+            Category(),
+            Merchant(),
+            null,
+            OccurredAt.AddDays(1));
+
+        original.ReplaceWith(replacement);
+
+        original.Id.Should().Be(42);
+        original.CreatedAt.Should().Be(createdAt);
+        original.UpdatedAt.Should().NotBeNull();
+        original.AmountMinorUnits.Should().Be(400);
+        original.SourceAccount.Should().BeSameAs(replacementSource);
+        original.OccurredAt.Should().Be(OccurredAt.AddDays(1));
+        originalSource.BalanceMinorUnits.Should().Be(1000);
+        replacementSource.BalanceMinorUnits.Should().Be(1600);
+    }
+
     [TestCase(0)]
     [TestCase(-1)]
     public void Income_and_expense_reject_a_non_positive_amount(long minorUnits)

@@ -306,6 +306,60 @@ public class ApiEndpointTests
     }
 
     [Test]
+    public async Task Put_transaction_reverses_the_old_effect_and_applies_the_replacement()
+    {
+        var seeded = await SeedAccountAndCategory(2000);
+        var createResponse = await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber,
+            categoryId = seeded.CategoryId,
+            merchant = new { label = "Coffee Shop", create = true }
+        });
+        using var createdDocument = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
+        var transactionId = createdDocument.RootElement.GetProperty("id").GetInt32();
+
+        var response = await client.PutAsJsonAsync($"/api/v1/transactions/{transactionId}", new
+        {
+            amount = new { minorUnits = 250, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber,
+            categoryId = seeded.CategoryId,
+            merchant = new { label = "Lunch", create = true },
+            occurredAt = new DateTimeOffset(2026, 8, 8, 12, 30, 0, TimeSpan.Zero)
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("id").GetInt32().Should().Be(transactionId);
+        document.RootElement.GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(250);
+        document.RootElement.GetProperty("merchant").GetProperty("label").GetString().Should().Be("Lunch");
+        document.RootElement.GetProperty("updatedAt").ValueKind.Should().NotBe(JsonValueKind.Null);
+        (await GetAccountBalance(seeded.AccountNumber)).Should().Be(1750);
+    }
+
+    [Test]
+    public async Task Delete_transaction_reverses_its_effect_and_soft_deletes_the_resource()
+    {
+        var seeded = await SeedAccountAndCategory(2000);
+        var createResponse = await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber,
+            categoryId = seeded.CategoryId,
+            merchant = new { label = "Coffee Shop", create = true }
+        });
+        using var createdDocument = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
+        var transactionId = createdDocument.RootElement.GetProperty("id").GetInt32();
+
+        var response = await client.DeleteAsync($"/api/v1/transactions/{transactionId}");
+        var getResponse = await client.GetAsync($"/api/v1/transactions/{transactionId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await GetAccountBalance(seeded.AccountNumber)).Should().Be(2000);
+    }
+
+    [Test]
     public async Task Get_transaction_by_id_returns_the_direct_transaction_resource()
     {
         var seeded = await SeedTransactions();
