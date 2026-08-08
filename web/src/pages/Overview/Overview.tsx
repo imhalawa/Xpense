@@ -6,7 +6,6 @@ import BudgetMeter from "../../components/BudgetMeter/BudgetMeter";
 import { listAccounts } from "../../clients/options";
 import { listBudgets } from "../../clients/budgets";
 import { IAccountResponse, IBudgetResponse } from "../../clients/types";
-import PageHeader from "../../shell/PageHeader";
 
 const useStyles = makeStyles({
   sections: {
@@ -41,32 +40,29 @@ const Overview = () => {
   }, []);
 
   return (
-    <>
-      <PageHeader title="Overview" />
-      <div className={styles.sections}>
-        <section className={styles.section} aria-labelledby="balances-heading">
-          <Title3 as="h2" id="balances-heading">
-            Balances
-          </Title3>
-          <AccountBalances accounts={accounts} />
-        </section>
+    <div className={styles.sections}>
+      <section className={styles.section} aria-labelledby="balances-heading">
+        <Title3 as="h2" id="balances-heading">
+          Balances
+        </Title3>
+        <AccountBalances accounts={accounts} />
+      </section>
 
-        <section className={styles.section} aria-labelledby="budgets-heading">
-          <Title3 as="h2" id="budgets-heading">
-            Budgets
-          </Title3>
-          {budgets.length === 0 ? (
-            <Caption1 className={styles.empty}>No budgets yet.</Caption1>
-          ) : (
-            <div className={styles.budgets}>
-              {budgets.map((budget) => (
-                <BudgetMeter key={budget.id} budget={budget} now={now} />
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </>
+      <section className={styles.section} aria-labelledby="budgets-heading">
+        <Title3 as="h2" id="budgets-heading">
+          Budgets
+        </Title3>
+        {budgets.length === 0 ? (
+          <Caption1 className={styles.empty}>No budgets yet.</Caption1>
+        ) : (
+          <div className={styles.budgets}>
+            {budgets.map((budget) => (
+              <BudgetMeter key={budget.id} budget={budget} now={now} />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 };
 

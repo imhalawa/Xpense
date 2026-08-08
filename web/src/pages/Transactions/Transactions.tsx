@@ -15,13 +15,15 @@ import { AddRegular } from "@fluentui/react-icons";
 import dayjs, { Dayjs } from "dayjs";
 import TransactionsGrid from "./TransactionsGrid/TransactionsGrid";
 import TransactionsForm from "./TransactionsForm/TransactionsForm";
-import PageHeader from "../../shell/PageHeader";
 
 const useStyles = makeStyles({
   body: {
     display: "flex",
     flexDirection: "column",
     gap: tokens.spacingVerticalL,
+  },
+  actions: {
+    alignSelf: "flex-end",
   },
   filters: {
     display: "grid",
@@ -42,19 +44,13 @@ const Transactions = () => {
 
   return (
     <>
-      <PageHeader
-        title="Transactions"
-        actions={
-          <Button
-            appearance="primary"
-            icon={<AddRegular />}
-            onClick={() => setIsFormOpen(true)}>
+      <div className={styles.body}>
+        <div className={styles.actions}>
+          <Button appearance="primary" icon={<AddRegular />} onClick={() => setIsFormOpen(true)}>
             New transaction
           </Button>
-        }
-      />
+        </div>
 
-      <div className={styles.body}>
         <div className={styles.filters}>
           <Field label="From">
             <DatePicker

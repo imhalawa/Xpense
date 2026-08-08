@@ -21,11 +21,15 @@ import { IBudgetResponse, ICategoryResponse, Recurrence } from "../../clients/ty
 import { BudgetFormValues, toCreateRequest } from "../../budgets/budgetFormRules";
 import { toMajorUnits } from "../../money/formatMoney";
 import { Currency } from "../../typings/enums/Currency";
-import PageHeader from "../../shell/PageHeader";
 
 const dayFormat = "YYYY-MM-DD";
 
 const useStyles = makeStyles({
+  actions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    marginBlockEnd: tokens.spacingVerticalL,
+  },
   grid: {
     display: "grid",
     gap: tokens.spacingHorizontalL,
@@ -89,14 +93,11 @@ const Budgets = () => {
 
   return (
     <>
-      <PageHeader
-        title="Budgets"
-        actions={
-          <Button appearance="primary" icon={<AddRegular />} onClick={() => setEditing("new")}>
-            New budget
-          </Button>
-        }
-      />
+      <div className={styles.actions}>
+        <Button appearance="primary" icon={<AddRegular />} onClick={() => setEditing("new")}>
+          New budget
+        </Button>
+      </div>
 
       {budgets.length === 0 ? (
         <Caption1 className={styles.empty}>No budgets yet.</Caption1>
