@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Linq.Expressions;
@@ -7,7 +9,16 @@ using Xpense.Domain.Entities;
 
 namespace Xpense.Persistence
 {
-    public class XpenseDbContext : DbContext
+    public class XpenseDbContext : IdentityDbContext<
+        XpenseUser,
+        IdentityRole<Guid>,
+        Guid,
+        IdentityUserClaim<Guid>,
+        IdentityUserRole<Guid>,
+        IdentityUserLogin<Guid>,
+        IdentityRoleClaim<Guid>,
+        IdentityUserToken<Guid>,
+        IdentityUserPasskey<Guid>>
     {
         public XpenseDbContext() { }
 
@@ -25,11 +36,11 @@ namespace Xpense.Persistence
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
             ConfigureDecimalColumnsStore(modelBuilder, 18, 2);
             ConfigureUtcDateTimes(modelBuilder);
             ApplyGlobalQueryFilter(modelBuilder, entity => !entity.IsDeleted);
-            base.OnModelCreating(modelBuilder);
         }
 
         private static void ConfigureUtcDateTimes(ModelBuilder modelBuilder)
