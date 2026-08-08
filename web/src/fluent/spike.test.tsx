@@ -12,26 +12,7 @@ import {
 } from "@fluentui/react-components";
 import { LineChart } from "@fluentui/react-charts";
 import { Alert24Regular } from "@fluentui/react-icons";
-import type { BrandVariants } from "@fluentui/react-components";
-
-const brand: BrandVariants = {
-  10: "#020305",
-  20: "#111723",
-  30: "#16263D",
-  40: "#193253",
-  50: "#1B3F6A",
-  60: "#1B4C82",
-  70: "#18599B",
-  80: "#1565C0",
-  90: "#3B7AD0",
-  100: "#598FDC",
-  110: "#74A4E6",
-  120: "#8FB9EF",
-  130: "#AACEF6",
-  140: "#C5E2FB",
-  150: "#E0F0FD",
-  160: "#F5FAFE",
-};
+import { brandRamp } from "./brand";
 
 describe("fluent toolchain", () => {
   it("renders a themed component under FluentProvider", () => {
@@ -44,8 +25,8 @@ describe("fluent toolchain", () => {
   });
 
   it("builds a light and a dark theme from the brand ramp", () => {
-    const light = createLightTheme(brand);
-    const dark = createDarkTheme(brand);
+    const light = createLightTheme(brandRamp);
+    const dark = createDarkTheme(brandRamp);
 
     expect(light.colorBrandBackground).toBeDefined();
     expect(dark.colorBrandBackground).toBeDefined();
