@@ -33,6 +33,10 @@ namespace Xpense.Persistence
         public virtual DbSet<Budget> Budgets { get; set; }
         public virtual DbSet<EventRecord> Events { get; set; }
         public virtual DbSet<Notification> Notifications { get; set; }
+        public virtual DbSet<UserProfile> UserProfiles { get; set; }
+        public virtual DbSet<UserEncryptionIdentity> UserEncryptionIdentities { get; set; }
+        public virtual DbSet<VaultWrapper> VaultWrappers { get; set; }
+        public virtual DbSet<PendingRegistration> PendingRegistrations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
