@@ -215,6 +215,43 @@ public class ApiEndpointTests
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
+    [Test]
+    public async Task Post_merchants_returns_the_created_resource_at_its_id_route()
+    {
+        var response = await client.PostAsync(
+            "/api/v1/merchants",
+            JsonBody("{\"label\":\"Albert Heijn\"}"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().Be(new Uri("http://localhost/api/v1/merchants/1"));
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("id").GetInt32().Should().Be(1);
+        document.RootElement.GetProperty("label").GetString().Should().Be("Albert Heijn");
+
+        var getResponse = await client.GetAsync(response.Headers.Location);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Put_merchants_updates_the_resource_and_delete_returns_no_content()
+    {
+        var createResponse = await client.PostAsync(
+            "/api/v1/merchants",
+            JsonBody("{\"label\":\"Albert Heijn\"}"));
+
+        var updateResponse = await client.PutAsync(
+            "/api/v1/merchants/1",
+            JsonBody("{\"label\":\"Local market\"}"));
+        var deleteResponse = await client.DeleteAsync("/api/v1/merchants/1");
+        var getResponse = await client.GetAsync("/api/v1/merchants/1");
+
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await updateResponse.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("label").GetString().Should().Be("Local market");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
 
     [Test]
     public async Task Post_income_creates_a_direct_resource_and_uses_the_get_by_id_location()
