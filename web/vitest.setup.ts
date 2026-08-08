@@ -14,6 +14,31 @@ if (!window.matchMedia) {
   }));
 }
 
+if (!window.localStorage) {
+  const entries = new Map<string, string>();
+  const memoryStorage: Storage = {
+    get length() {
+      return entries.size;
+    },
+    key: (index: number) => [...entries.keys()][index] ?? null,
+    getItem: (key: string) => entries.get(String(key)) ?? null,
+    setItem: (key: string, value: string) => {
+      entries.set(String(key), String(value));
+    },
+    removeItem: (key: string) => {
+      entries.delete(String(key));
+    },
+    clear: () => {
+      entries.clear();
+    },
+  };
+
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: memoryStorage,
+  });
+}
+
 if (!window.ResizeObserver) {
   window.ResizeObserver = class ResizeObserver {
     observe() {}
