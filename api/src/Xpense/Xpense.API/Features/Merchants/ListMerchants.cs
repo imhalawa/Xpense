@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,12 +16,32 @@ namespace Xpense.API.Features.Merchants;
 
 public sealed class ListMerchants : IEndpoint
 {
+    private const int DefaultLimit = 20;
+    private const int MinimumLimit = 1;
+    private const int MaximumLimit = 100;
+
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapGet("/api/v1/merchants", Handle).WithName(nameof(ListMerchants));
 
-    private static async Task<Ok<MerchantResponse[]>> Handle(XpenseDbContext dbContext, CancellationToken cancellationToken)
+    private static async Task<Ok<MerchantResponse[]>> Handle(
+        XpenseDbContext dbContext,
+        CancellationToken cancellationToken,
+        string? search = null,
+        int limit = DefaultLimit)
     {
-        var merchants = await dbContext.Merchants.AsNoTracking().ToListAsync(cancellationToken);
+        var query = dbContext.Merchants.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = $"%{search}%";
+            query = query.Where(merchant => EF.Functions.ILike(merchant.Label, pattern));
+        }
+
+        var merchants = await query
+            .OrderBy(merchant => merchant.Label)
+            .Take(Math.Clamp(limit, MinimumLimit, MaximumLimit))
+            .ToListAsync(cancellationToken);
+
         return TypedResults.Ok(merchants.Select(MerchantResponse.Of).ToArray());
     }
 }
