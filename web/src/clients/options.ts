@@ -1,5 +1,12 @@
 import axios from "axios";
-import { IAccountResponse, ICategoryResponse, IMerchantResponse, ITagResponse } from "./types";
+import {
+  IAccountResponse,
+  ICategoryResponse,
+  ICreateCategoryRequest,
+  IMerchantResponse,
+  IPriorityResponse,
+  ITagResponse,
+} from "./types";
 
 export const listAccounts = async (): Promise<IAccountResponse[]> => {
   const response = await axios.get<IAccountResponse[]>("/api/v1/accounts");
@@ -8,6 +15,18 @@ export const listAccounts = async (): Promise<IAccountResponse[]> => {
 
 export const listCategories = async (): Promise<ICategoryResponse[]> => {
   const response = await axios.get<ICategoryResponse[]>("/api/v1/categories");
+  return response.data;
+};
+
+export const listPriorities = async (): Promise<IPriorityResponse[]> => {
+  const response = await axios.get<IPriorityResponse[]>("/api/v1/priorities");
+  return response.data;
+};
+
+export const createCategory = async (
+  request: ICreateCategoryRequest,
+): Promise<ICategoryResponse> => {
+  const response = await axios.post<ICategoryResponse>("/api/v1/categories", request);
   return response.data;
 };
 

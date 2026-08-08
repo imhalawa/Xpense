@@ -1,5 +1,6 @@
 import type {
   AccountView,
+  CategoryPriority,
   FilterFacet,
   FilterResolution,
   PageRequest,
@@ -49,8 +50,12 @@ const matchesFilter = (transaction: TransactionView, filter: TransactionFilter):
 
 export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
   const transactionsBySpace: Record<SpaceId, TransactionView[]> = {};
+  const taxonomyBySpace: Record<SpaceId, TaxonomyValue[]> = {};
   for (const [space, transactions] of Object.entries(seed.transactions)) {
     transactionsBySpace[space] = [...transactions];
+  }
+  for (const [space, values] of Object.entries(seed.taxonomy)) {
+    taxonomyBySpace[space] = [...values];
   }
 
   let currentState: VaultState = "ready";
@@ -66,7 +71,7 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
     if (currentState === "locked") throw new Error(lockedMessage);
   };
 
-  const taxonomyOf = (space: SpaceId): TaxonomyValue[] => seed.taxonomy[space] ?? [];
+  const taxonomyOf = (space: SpaceId): TaxonomyValue[] => taxonomyBySpace[space] ?? [];
 
   const knowsTaxonomy = (space: SpaceId, kind: TaxonomyKind, id: RecordId): boolean =>
     taxonomyOf(space).some((value) => value.kind === kind && value.id === id);
@@ -116,6 +121,24 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
       return taxonomyOf(space).filter((value) => value.kind === kind);
     },
 
+    async createCategory(
+      space: SpaceId,
+      label: string,
+      _priority: CategoryPriority,
+    ): Promise<TaxonomyValue> {
+      requireUnlocked();
+      const categories = taxonomyOf(space).filter((value) => value.kind === "category");
+      const created: TaxonomyValue = {
+        id: `fixture-category-${categories.length + 1}`,
+        kind: "category",
+        label,
+        foregroundHex: null,
+        backgroundHex: null,
+      };
+      taxonomyBySpace[space] = [...taxonomyOf(space), created];
+      return created;
+    },
+
     async resolveFilter(filter: TransactionFilter): Promise<FilterResolution> {
       requireUnlocked();
 
@@ -160,6 +183,11 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
       };
     },
 
+    async getTransaction(space: SpaceId, id: RecordId): Promise<TransactionView | null> {
+      requireUnlocked();
+      return (transactionsBySpace[space] ?? []).find((transaction) => transaction.id === id) ?? null;
+    },
+
     async saveTransaction(draft: TransactionDraft): Promise<TransactionView> {
       requireUnlocked();
 
@@ -171,7 +199,7 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
         currency: draft.currency,
         occurredAt: draft.occurredAt,
         accountId: draft.accountId,
-        counterpartyAccountId: null,
+        counterpartyAccountId: draft.counterpartyAccountId ?? null,
         isCounterpartyPrivate: false,
         categoryId: draft.categoryId,
         merchantId:
@@ -181,6 +209,7 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
         tagIds: draft.tagLabels
           .map((label) => findTaxonomyIdByLabel(draft.space, "tag", label))
           .filter((tagId): tagId is RecordId => tagId !== null),
+        reason: draft.reason,
         canEdit: true,
       };
 
@@ -191,6 +220,15 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
       transactionsBySpace[draft.space] = rows;
 
       return saved;
+    },
+
+    async deleteTransaction(space: SpaceId, id: RecordId): Promise<void> {
+      requireUnlocked();
+      const rows = transactionsBySpace[space] ?? [];
+      const transaction = rows.find((item) => item.id === id);
+      if (transaction === undefined) throw new Error("The transaction was not found");
+      if (!transaction.canEdit) throw new Error("The transaction cannot be edited");
+      transactionsBySpace[space] = rows.filter((item) => item.id !== id);
     },
   };
 };

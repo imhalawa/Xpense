@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { UIEvent } from "react";
+import type { KeyboardEvent, UIEvent } from "react";
 import {
   Badge,
   Body1,
@@ -11,6 +11,17 @@ import {
   DataGridHeader,
   DataGridHeaderCell,
   DataGridRow,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   MessageBar,
   MessageBarBody,
   Skeleton,
@@ -21,7 +32,11 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import type { TableColumnDefinition } from "@fluentui/react-components";
-import { ChevronLeftRegular, ChevronRightRegular } from "@fluentui/react-icons";
+import {
+  ChevronLeftRegular,
+  ChevronRightRegular,
+  MoreHorizontalRegular,
+} from "@fluentui/react-icons";
 import { categoryPaletteSlot, resolveTagColors } from "../../theme/tagColors";
 import { formatIsoDate } from "../../utils/DateUtils";
 import { useVault } from "../../vault/VaultProvider";
@@ -47,7 +62,9 @@ interface TransactionsViewProps {
   onClearFilters: () => void;
   limit?: number;
   hidePagination?: boolean;
-  refreshKey?: number;
+  refreshKey?: string | number;
+  onEditTransaction?: (transaction: TransactionView) => void;
+  onTransactionChanged?: () => void;
 }
 
 const useStyles = makeStyles({
@@ -70,6 +87,26 @@ const useStyles = makeStyles({
     width: "100%",
     textAlign: "right",
     fontVariantNumeric: "tabular-nums",
+  },
+  amountCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
+    ":hover button": {
+      opacity: 1,
+    },
+    ":focus-within button": {
+      opacity: 1,
+    },
+  },
+  actionMenu: {
+    flexShrink: 0,
+    opacity: 0,
+  },
+  mobileActionMenu: {
+    opacity: 1,
+    minWidth: "44px",
+    minHeight: "44px",
   },
   income: {
     color: "var(--xpense-income)",
@@ -106,6 +143,9 @@ const useStyles = makeStyles({
     alignItems: "baseline",
     justifyContent: "space-between",
     gap: tokens.spacingHorizontalM,
+  },
+  interactiveRow: {
+    cursor: "pointer",
   },
   mobileDetails: {
     display: "grid",
@@ -179,6 +219,8 @@ const TransactionsView = ({
   limit,
   hidePagination = false,
   refreshKey,
+  onEditTransaction,
+  onTransactionChanged,
 }: TransactionsViewProps) => {
   const styles = useStyles();
   const isDesktop = useDesktopLayout();
@@ -191,6 +233,8 @@ const TransactionsView = ({
   const [syncFailure, setSyncFailure] = useState<string | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
+  const [transactionPendingDeletion, setTransactionPendingDeletion] = useState<TransactionView | null>(null);
+  const [deleteFailure, setDeleteFailure] = useState<string | null>(null);
 
   useEffect(() => {
     if (state !== "unlocked") return;
@@ -278,19 +322,84 @@ const TransactionsView = ({
       </span>
     );
 
+  const actionMenu = (transaction: TransactionView, isMobile = false) => {
+    if (!transaction.canEdit || onEditTransaction === undefined) return null;
+
+    return (
+      <Menu>
+        <MenuTrigger disableButtonEnhancement>
+          <Button
+            className={mergeClasses(styles.actionMenu, isMobile && styles.mobileActionMenu)}
+            appearance="subtle"
+            icon={<MoreHorizontalRegular />}
+            aria-label={`Actions for transaction ${transaction.id}`}
+            onClick={(event) => event.stopPropagation()}
+          />
+        </MenuTrigger>
+        <MenuPopover>
+          <MenuList>
+            <MenuItem
+              onClick={(event) => {
+                event.stopPropagation();
+                onEditTransaction(transaction);
+              }}>
+              Edit
+            </MenuItem>
+            <MenuItem
+              onClick={(event) => {
+                event.stopPropagation();
+                setDeleteFailure(null);
+                setTransactionPendingDeletion(transaction);
+              }}>
+              Delete
+            </MenuItem>
+          </MenuList>
+        </MenuPopover>
+      </Menu>
+    );
+  };
+
+  const activateTransaction = (transaction: TransactionView) => {
+    if (transaction.canEdit) onEditTransaction?.(transaction);
+  };
+
+  const rowKeyDown = (event: KeyboardEvent<HTMLElement>, transaction: TransactionView) => {
+    if (!transaction.canEdit || (event.key !== "Enter" && event.key !== " ")) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+    event.preventDefault();
+    activateTransaction(transaction);
+  };
+
+  const confirmDelete = async () => {
+    if (transactionPendingDeletion === null) return;
+
+    try {
+      await projection.deleteTransaction(filter.space, transactionPendingDeletion.id);
+      setTransactions((rows) => rows.filter((row) => row.id !== transactionPendingDeletion.id));
+      setTotalRows((count) => Math.max(count - 1, 0));
+      setTransactionPendingDeletion(null);
+      onTransactionChanged?.();
+    } catch {
+      setDeleteFailure("The transaction could not be deleted. Try again.");
+    }
+  };
+
   const columns = useMemo<TableColumnDefinition<TransactionView>[]>(
     () => [
       createTableColumn({
         columnId: "amount",
         renderHeaderCell: () => "Amount",
         renderCell: (item) => (
-          <Body1
-            className={mergeClasses(
-              styles.amount,
-              item.kind === "income" ? styles.income : item.kind === "expense" ? styles.expense : undefined,
-            )}>
-            {formatAmount(item)}
-          </Body1>
+          <div className={styles.amountCell}>
+            <Body1
+              className={mergeClasses(
+                styles.amount,
+                item.kind === "income" ? styles.income : item.kind === "expense" ? styles.expense : undefined,
+              )}>
+              {formatAmount(item)}
+            </Body1>
+            {actionMenu(item)}
+          </div>
         ),
       }),
       createTableColumn({
@@ -332,16 +441,13 @@ const TransactionsView = ({
         renderCell: tagBadges,
       }),
     ],
-    [accountLabels, categories, merchants, styles, tags, taxonomyById],
+    [accountLabels, categories, merchants, onEditTransaction, styles, tags, taxonomyById],
   );
 
   if (state === "locked") {
     return (
       <div className={styles.state}>
         <Body1>The vault is locked.</Body1>
-        <Button appearance="primary" onClick={() => void projection.unlock()}>
-          Unlock
-        </Button>
       </div>
     );
   }
@@ -399,7 +505,13 @@ const TransactionsView = ({
             </DataGridHeader>
             <DataGridBody<TransactionView>>
               {({ item, rowId }) => (
-                <DataGridRow<TransactionView> key={rowId}>
+                <DataGridRow<TransactionView>
+                  key={rowId}
+                  className={item.canEdit ? styles.interactiveRow : undefined}
+                  data-transaction-id={item.id}
+                  tabIndex={item.canEdit ? 0 : undefined}
+                  onClick={() => activateTransaction(item)}
+                  onKeyDown={(event: KeyboardEvent<HTMLElement>) => rowKeyDown(event, item)}>
                   {({ renderCell }) => (
                     <DataGridCell style={{ height: "44px" }}>{renderCell(item)}</DataGridCell>
                   )}
@@ -414,7 +526,11 @@ const TransactionsView = ({
                 key={item.id}
                 role="listitem"
                 className={styles.mobileItem}
-                aria-label={`${formatAmount(item)} on ${formatIsoDate(item.occurredAt)}`}>
+                aria-label={`${formatAmount(item)} on ${formatIsoDate(item.occurredAt)}`}
+                data-transaction-id={item.id}
+                tabIndex={item.canEdit ? 0 : undefined}
+                onClick={() => activateTransaction(item)}
+                onKeyDown={(event) => rowKeyDown(event, item)}>
                 <div className={styles.mobileHeader}>
                   <Body1
                     className={mergeClasses(
@@ -428,6 +544,7 @@ const TransactionsView = ({
                     {formatAmount(item)}
                   </Body1>
                   <Caption1>{formatIsoDate(item.occurredAt)}</Caption1>
+                  {actionMenu(item, true)}
                 </div>
                 <div className={styles.mobileDetails}>
                   <Caption1 className={styles.secondary}>Category</Caption1>
@@ -479,6 +596,30 @@ const TransactionsView = ({
           </div>
         )}
       </div>
+
+      <Dialog
+        open={transactionPendingDeletion !== null}
+        onOpenChange={(_event, data) => {
+          if (!data.open) setTransactionPendingDeletion(null);
+        }}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Delete transaction?</DialogTitle>
+            <DialogContent>
+              <Body1>This permanently removes the transaction from this ledger.</Body1>
+              {deleteFailure !== null && <MessageBar intent="error"><MessageBarBody>{deleteFailure}</MessageBarBody></MessageBar>}
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setTransactionPendingDeletion(null)}>
+                Cancel
+              </Button>
+              <Button appearance="primary" onClick={() => void confirmDelete()}>
+                Delete transaction
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
     </div>
   );
 };

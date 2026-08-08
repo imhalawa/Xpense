@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import axios from "axios";
 import dayjs from "dayjs";
-import { listTransactions } from "./transactions";
+import { deleteTransaction, listTransactions, updateTransaction } from "./transactions";
+import { Currency } from "../typings/enums/Currency";
 
 vi.mock("axios");
 
@@ -48,5 +49,27 @@ describe("listTransactions", () => {
       to: dayjs("2026-08-31"),
     });
     expect(paramsOfLastCall().from).toBe(dayjs("2026-08-01T00:00:00").toISOString());
+  });
+
+  it("updates an existing transaction at its concrete resource route", async () => {
+    vi.mocked(axios.put).mockResolvedValue({ data: { id: 42 } });
+    const request = {
+      amount: { minorUnits: 1250, currency: Currency.EUR },
+      sourceAccountNumber: "NL01XPNS0000000001",
+      categoryId: 7,
+      merchant: { id: 3, label: "Bakery", create: false },
+    };
+
+    await updateTransaction("42", request);
+
+    expect(axios.put).toHaveBeenCalledWith("/api/v1/transactions/42", request);
+  });
+
+  it("deletes an existing transaction at its concrete resource route", async () => {
+    vi.mocked(axios.delete).mockResolvedValue({ data: undefined });
+
+    await deleteTransaction("42");
+
+    expect(axios.delete).toHaveBeenCalledWith("/api/v1/transactions/42");
   });
 });

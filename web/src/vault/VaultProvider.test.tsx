@@ -54,9 +54,12 @@ const stubProjection = (initialState: VaultState = "ready"): StubProjection => {
     listSpaces: unsupported,
     listAccounts: unsupported,
     listTaxonomy: unsupported,
+    createCategory: unsupported,
     resolveFilter: unsupported,
     queryTransactions: unsupported,
+    getTransaction: unsupported,
     saveTransaction: unsupported,
+    deleteTransaction: unsupported,
   };
 };
 

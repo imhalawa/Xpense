@@ -1,6 +1,11 @@
 import axios from "axios";
 import { Dayjs } from "dayjs";
-import { ICreateTransactionRequest, ITransactionPageResponse, ITransactionResponse } from "./types";
+import {
+  ICreateTransactionRequest,
+  ITransactionPageResponse,
+  ITransactionResponse,
+  IUpdateTransactionRequest,
+} from "./types";
 
 export interface ITransactionQuery {
   page: number;
@@ -49,4 +54,16 @@ export const createTransaction = async (
 ): Promise<ITransactionResponse> => {
   const response = await axios.post<ITransactionResponse>("/api/v1/transactions", request);
   return response.data;
+};
+
+export const updateTransaction = async (
+  id: string,
+  request: IUpdateTransactionRequest,
+): Promise<ITransactionResponse> => {
+  const response = await axios.put<ITransactionResponse>(`/api/v1/transactions/${id}`, request);
+  return response.data;
+};
+
+export const deleteTransaction = async (id: string): Promise<void> => {
+  await axios.delete(`/api/v1/transactions/${id}`);
 };

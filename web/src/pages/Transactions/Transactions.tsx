@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   MessageBar,
@@ -11,7 +11,7 @@ import { DismissRegular } from "@fluentui/react-icons";
 import { Button } from "@fluentui/react-components";
 import { useTransactionFilter } from "../../transactions/useTransactionFilter";
 import { useVault } from "../../vault/VaultProvider";
-import type { AccountView } from "../../vault/VaultProjection";
+import type { AccountView, TransactionView } from "../../vault/VaultProjection";
 import TransactionsToolbar from "./TransactionsToolbar";
 import TransactionsView from "./TransactionsView";
 
@@ -32,6 +32,8 @@ const Transactions = () => {
   const { projection, state } = useVault();
   const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [accounts, setAccounts] = useState<AccountView[]>([]);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const restoredFocusLocation = useRef<string | null>(null);
 
   useEffect(() => {
     if (state !== "unlocked") {
@@ -58,6 +60,25 @@ const Transactions = () => {
     navigate("/transactions/new", {
       state: { returnTo: `${location.pathname}${location.search}` },
     });
+
+  const editTransaction = (transaction: TransactionView) => {
+    navigate(`/transactions/${encodeURIComponent(transaction.id)}/edit`, {
+      state: {
+        returnTo: `${location.pathname}${location.search}`,
+        returnFocusId: transaction.id,
+      },
+    });
+  };
+
+  useEffect(() => {
+    const returnFocusId = (location.state as { returnFocusId?: string } | null)?.returnFocusId;
+    if (returnFocusId === undefined || restoredFocusLocation.current === location.key) return;
+
+    const row = document.querySelector<HTMLElement>(`[data-transaction-id="${returnFocusId}"]`);
+    if (row === null) return;
+    restoredFocusLocation.current = location.key;
+    row.focus();
+  }, [location.key, location.state, refreshVersion]);
 
   return (
     <div className={styles.root}>
@@ -86,8 +107,11 @@ const Transactions = () => {
       <TransactionsView
         filter={transactionFilter.filter}
         activeFilterCount={transactionFilter.activeFilterCount}
+        refreshKey={`${location.key}-${refreshVersion}`}
         onAddTransaction={addTransaction}
         onClearFilters={transactionFilter.clearFilters}
+        onEditTransaction={editTransaction}
+        onTransactionChanged={() => setRefreshVersion((version) => version + 1)}
       />
     </div>
   );

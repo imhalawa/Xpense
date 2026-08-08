@@ -21,6 +21,11 @@ export interface ICategoryResponse {
   updatedAt: string | null;
 }
 
+export interface ICreateCategoryRequest {
+  label: string;
+  priorityId: number;
+}
+
 export interface IAccountResponse {
   accountNumber: string;
   label: string;
@@ -108,6 +113,8 @@ export interface ICreateTransactionRequest {
   reason?: string | null;
   occurredAt?: string | null;
 }
+
+export type IUpdateTransactionRequest = ICreateTransactionRequest;
 
 export interface IBudgetPeriodResponse {
   name: string;

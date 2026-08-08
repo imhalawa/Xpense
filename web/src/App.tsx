@@ -45,6 +45,7 @@ function App() {
               <Route index element={<Overview />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/transactions/new" element={<Transactions />} />
+              <Route path="/transactions/:id/edit" element={<Transactions />} />
               <Route path="/budgets" element={<Budgets />} />
               <Route path="/settings" element={<Settings />} />
             </Route>

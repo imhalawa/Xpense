@@ -4,6 +4,7 @@ import { TransactionKind } from "../clients/types";
 export type SpaceId = string;
 export type RecordId = string;
 export type TaxonomyKind = "category" | "merchant" | "tag";
+export type CategoryPriority = "Low" | "Medium" | "High";
 export type VaultState = "locked" | "loading" | "ready" | "error";
 export type FilterFacet = "space" | "category" | "merchant" | "tag" | "account" | "from" | "to";
 
@@ -41,6 +42,7 @@ export interface TransactionView {
   categoryId: RecordId | null;
   merchantId: RecordId | null;
   tagIds: RecordId[];
+  reason?: string | null;
   canEdit: boolean;
 }
 
@@ -77,6 +79,7 @@ export interface TransactionDraft {
   currency: Currency;
   occurredAt: string;
   accountId: RecordId;
+  counterpartyAccountId?: RecordId | null;
   categoryId: RecordId | null;
   merchantLabel: string | null;
   tagLabels: string[];
@@ -91,7 +94,14 @@ export interface VaultProjection {
   listSpaces(): Promise<SpaceSummary[]>;
   listAccounts(space: SpaceId): Promise<AccountView[]>;
   listTaxonomy(space: SpaceId, kind: TaxonomyKind): Promise<TaxonomyValue[]>;
+  createCategory(
+    space: SpaceId,
+    label: string,
+    priority: CategoryPriority,
+  ): Promise<TaxonomyValue>;
   resolveFilter(filter: TransactionFilter): Promise<FilterResolution>;
   queryTransactions(filter: TransactionFilter, page: PageRequest): Promise<TransactionPage>;
+  getTransaction(space: SpaceId, id: RecordId): Promise<TransactionView | null>;
   saveTransaction(draft: TransactionDraft): Promise<TransactionView>;
+  deleteTransaction(space: SpaceId, id: RecordId): Promise<void>;
 }

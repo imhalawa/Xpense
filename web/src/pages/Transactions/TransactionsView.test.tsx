@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Currency } from "../../typings/enums/Currency";
 import { fixtureProjection } from "../../vault/fixtureProjection";
@@ -84,6 +84,8 @@ const renderView = (
     activeFilterCount?: number;
     refreshKey?: number;
     projection?: ReturnType<typeof fixtureProjection>;
+    onEditTransaction?: (transaction: TransactionView) => void;
+    onTransactionChanged?: () => void;
   } = {},
 ) => {
   const projection = options.projection ?? fixtureProjection(seed(transactions));
@@ -95,6 +97,8 @@ const renderView = (
         refreshKey={options.refreshKey}
         onAddTransaction={vi.fn()}
         onClearFilters={vi.fn()}
+        onEditTransaction={options.onEditTransaction}
+        onTransactionChanged={options.onTransactionChanged}
       />
     </VaultProvider>,
   );
@@ -126,6 +130,21 @@ describe("TransactionsView", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 
+  it("keeps the mobile action menu visible, touch-sized, and usable", async () => {
+    setWidth(390);
+    const onEditTransaction = vi.fn();
+    renderView([transaction(1)], { onEditTransaction });
+
+    const actions = await screen.findByRole("button", { name: "Actions for transaction 1" });
+    expect(getComputedStyle(actions).opacity).toBe("1");
+    expect(Number.parseFloat(getComputedStyle(actions).minWidth)).toBeGreaterThanOrEqual(44);
+    expect(Number.parseFloat(getComputedStyle(actions).minHeight)).toBeGreaterThanOrEqual(44);
+    fireEvent.click(actions);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
+
+    expect(onEditTransaction).toHaveBeenCalledWith(transaction(1));
+  });
+
   it("uses Fluent's 44px medium row sizing", async () => {
     setWidth(1440);
     renderView([transaction(1)]);
@@ -146,14 +165,15 @@ describe("TransactionsView", () => {
     expect(screen.getByRole("button", { name: "Clear filters" })).toBeDefined();
   });
 
-  it("replaces rows with one unlock action while locked", async () => {
+  it("replaces rows with a locked-state message while locked", async () => {
     setWidth(1440);
     const { projection } = renderView([transaction(1)]);
     await screen.findByRole("table");
 
     act(() => projection.lock());
 
-    expect(await screen.findByRole("button", { name: "Unlock" })).toBeDefined();
+    expect(await screen.findByText("The vault is locked.")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Unlock" })).toBeNull();
     expect(screen.queryByRole("row")).toBeNull();
   });
 
@@ -206,5 +226,47 @@ describe("TransactionsView", () => {
 
     expect(await screen.findByText("Private account")).toBeDefined();
     expect(screen.queryByText("private-account")).toBeNull();
+  });
+
+  it("opens editable rows by click, Enter, and the action menu", async () => {
+    setWidth(1440);
+    const onEditTransaction = vi.fn();
+    renderView([transaction(1)], { onEditTransaction });
+
+    const row = (await screen.findAllByRole("row"))[1];
+    fireEvent.click(row);
+    fireEvent.keyDown(row, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Actions for transaction 1" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
+
+    expect(onEditTransaction).toHaveBeenCalledTimes(3);
+    expect(onEditTransaction).toHaveBeenLastCalledWith(transaction(1));
+  });
+
+  it("has no row action for a transaction the viewer cannot edit", async () => {
+    setWidth(1440);
+    const onEditTransaction = vi.fn();
+    renderView([{ ...transaction(1), canEdit: false }], { onEditTransaction });
+
+    const row = (await screen.findAllByRole("row"))[1];
+    fireEvent.click(row);
+    fireEvent.keyDown(row, { key: " " });
+
+    expect(screen.queryByRole("button", { name: "Actions for transaction 1" })).toBeNull();
+    expect(onEditTransaction).not.toHaveBeenCalled();
+  });
+
+  it("confirms deletion and refreshes the transaction collection", async () => {
+    setWidth(1440);
+    const projection = fixtureProjection(seed([transaction(1)]));
+    const onTransactionChanged = vi.fn();
+    renderView([transaction(1)], { projection, onEditTransaction: vi.fn(), onTransactionChanged });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Actions for transaction 1" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete transaction" }));
+
+    await waitFor(() => expect(onTransactionChanged).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("12.50 EUR")).toBeNull();
   });
 });

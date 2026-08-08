@@ -1,5 +1,17 @@
-import { listAccounts, listCategories, listMerchants, listTags } from "../clients/options";
-import { createTransaction, listTransactions } from "../clients/transactions";
+import {
+  createCategory,
+  listAccounts,
+  listCategories,
+  listMerchants,
+  listPriorities,
+  listTags,
+} from "../clients/options";
+import {
+  createTransaction,
+  deleteTransaction,
+  listTransactions,
+  updateTransaction,
+} from "../clients/transactions";
 import { fixtureProjection } from "./fixtureProjection";
 import type { FixtureSeed } from "./fixtureProjection";
 import type {
@@ -8,11 +20,13 @@ import type {
   ICreateTransactionRequest,
   IMerchantResponse,
   IOptionRequest,
+  IPriorityResponse,
   ITagResponse,
   ITransactionResponse,
 } from "../clients/types";
 import type {
   AccountView,
+  CategoryPriority,
   SpaceSummary,
   TaxonomyKind,
   TaxonomyValue,
@@ -26,8 +40,12 @@ const personalSpaceId = "personal";
 const transactionPageSize = 200;
 const transactionRowCeiling = 2000;
 const lockedMessage = "The vault is locked";
-const editingUnsupportedMessage = "Editing a transaction is not supported yet";
-const transferUnsupportedMessage = "Saving a transfer is not supported yet";
+const missingTransferAccountMessage = "Select a destination account before saving the transfer";
+const priorityLabelByDraftPriority: Record<CategoryPriority, string> = {
+  High: "Important",
+  Medium: "Useful",
+  Low: "Optional",
+};
 
 const personalSpace: SpaceSummary = {
   id: personalSpaceId,
@@ -103,6 +121,7 @@ const toTransactionView = (transaction: ITransactionResponse): TransactionView =
   categoryId: transaction.categoryId === null ? null : String(transaction.categoryId),
   merchantId: transaction.merchant === null ? null : String(transaction.merchant.id),
   tagIds: transaction.tags.map((tag) => String(tag.id)),
+  reason: transaction.reason,
   canEdit: true,
 });
 
@@ -132,6 +151,7 @@ export const plaintextProjection = (): PlaintextProjection => {
   let currentState: VaultState = "locked";
   let loaded: VaultProjection | null = null;
   let taxonomy: TaxonomyValue[] = [];
+  let priorities: IPriorityResponse[] = [];
   let ceiling: RowCeilingReport | null = null;
   const listeners = new Set<(state: VaultState) => void>();
 
@@ -146,11 +166,12 @@ export const plaintextProjection = (): PlaintextProjection => {
   };
 
   const load = async (): Promise<void> => {
-    const [accounts, categories, merchants, tags] = await Promise.all([
+    const [accounts, categories, merchants, tags, loadedPriorities] = await Promise.all([
       listAccounts(),
       listCategories(),
       listMerchants(),
       listTags(),
+      listPriorities(),
     ]);
     const ledger = await loadLedger();
 
@@ -159,6 +180,7 @@ export const plaintextProjection = (): PlaintextProjection => {
       ...merchants.map(toMerchantValue),
       ...tags.map(toTagValue),
     ];
+    priorities = loadedPriorities;
 
     const seed: FixtureSeed = {
       spaces: [personalSpace],
@@ -185,7 +207,12 @@ export const plaintextProjection = (): PlaintextProjection => {
   const toCreateRequest = (draft: TransactionDraft): ICreateTransactionRequest => ({
     amount: { minorUnits: draft.amountMinorUnits, currency: draft.currency },
     sourceAccountNumber: draft.kind === "income" ? null : draft.accountId,
-    destinationAccountNumber: draft.kind === "income" ? draft.accountId : null,
+    destinationAccountNumber:
+      draft.kind === "income"
+        ? draft.accountId
+        : draft.kind === "transfer"
+          ? draft.counterpartyAccountId ?? null
+          : null,
     categoryId: draft.categoryId === null ? null : Number(draft.categoryId),
     merchant: draft.merchantLabel === null ? null : optionRequest("merchant", draft.merchantLabel),
     tags: draft.tagLabels.map((label) => optionRequest("tag", label)),
@@ -225,6 +252,7 @@ export const plaintextProjection = (): PlaintextProjection => {
     lock() {
       loaded = null;
       taxonomy = [];
+      priorities = [];
       ceiling = null;
       moveTo("locked");
     },
@@ -242,6 +270,17 @@ export const plaintextProjection = (): PlaintextProjection => {
       return requireLoaded().listTaxonomy(space, kind);
     },
 
+    async createCategory(space, label, priority) {
+      requireLoaded();
+      if (space !== personalSpaceId) throw new Error("The space was not found");
+      const priorityLabel = priorityLabelByDraftPriority[priority];
+      const knownPriority = priorities.find((item) => item.label === priorityLabel);
+      if (knownPriority === undefined) throw new Error("The category priority is unavailable");
+      const created = await createCategory({ label, priorityId: knownPriority.id });
+      await load();
+      return toCategoryValue(created);
+    },
+
     async resolveFilter(filter) {
       return requireLoaded().resolveFilter(filter);
     },
@@ -250,14 +289,32 @@ export const plaintextProjection = (): PlaintextProjection => {
       return requireLoaded().queryTransactions(filter, page);
     },
 
+    async getTransaction(space, id) {
+      return requireLoaded().getTransaction(space, id);
+    },
+
     async saveTransaction(draft) {
       requireLoaded();
-      if (draft.id !== null) throw new Error(editingUnsupportedMessage);
-      if (draft.kind === "transfer") throw new Error(transferUnsupportedMessage);
+      if (
+        draft.kind === "transfer" &&
+        (draft.counterpartyAccountId === null || draft.counterpartyAccountId === undefined)
+      ) {
+        throw new Error(missingTransferAccountMessage);
+      }
 
-      const created = await createTransaction(toCreateRequest(draft));
+      const saved =
+        draft.id === null
+          ? await createTransaction(toCreateRequest(draft))
+          : await updateTransaction(draft.id, toCreateRequest(draft));
       await load();
-      return toTransactionView(created);
+      return toTransactionView(saved);
+    },
+
+    async deleteTransaction(space, id) {
+      requireLoaded();
+      if (space !== personalSpaceId) throw new Error("The transaction was not found");
+      await deleteTransaction(id);
+      await load();
     },
   };
 };

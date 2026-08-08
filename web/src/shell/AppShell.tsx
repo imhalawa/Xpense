@@ -404,6 +404,7 @@ const AppShell = ({ children }: AppShellProps) => {
       </main>
       <TransactionDialog
         accounts={editableAccounts}
+        accountsLoaded={accountsLoaded}
         activeSpace={transactionFilter.filter.space}
         returnFocusRef={addTransactionRef}
       />

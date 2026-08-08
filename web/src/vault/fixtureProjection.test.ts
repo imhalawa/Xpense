@@ -251,4 +251,39 @@ describe("fixtureProjection", () => {
     expect(page.totalRows).toBe(2);
     expect(page.rows[0].id).toBe(saved.id);
   });
+
+  it("replaces an existing transaction when its draft carries the record identifier", async () => {
+    const projection = fixtureProjection(
+      buildSeed([buildTransaction({ id: "existing", amountMinorUnits: 1000, reason: "Before" })]),
+    );
+
+    await projection.saveTransaction({
+      id: "existing",
+      space: personalSpace,
+      kind: "expense",
+      amountMinorUnits: 2400,
+      currency: Currency.EUR,
+      occurredAt: "2026-08-09T10:00:00.000Z",
+      accountId: "account-1",
+      categoryId: "category-1",
+      merchantLabel: "Albert",
+      tagLabels: ["Work"],
+      reason: "After",
+    });
+
+    const page = await projection.queryTransactions(buildFilter(), wholePage);
+    expect(page.rows).toHaveLength(1);
+    expect(page.rows[0]).toMatchObject({ id: "existing", amountMinorUnits: 2400, reason: "After" });
+  });
+
+  it("removes an editable transaction", async () => {
+    const projection = fixtureProjection(buildSeed([buildTransaction({ id: "existing" })]));
+
+    await projection.deleteTransaction(personalSpace, "existing");
+
+    await expect(projection.getTransaction(personalSpace, "existing")).resolves.toBeNull();
+    await expect(projection.deleteTransaction(personalSpace, "missing")).rejects.toThrow(
+      "The transaction was not found",
+    );
+  });
 });

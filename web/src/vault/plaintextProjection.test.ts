@@ -7,6 +7,7 @@ import type {
   ICategoryResponse,
   ICreateTransactionRequest,
   IMerchantResponse,
+  IPriorityResponse,
   ITagResponse,
   ITransactionResponse,
 } from "../clients/types";
@@ -54,6 +55,12 @@ const merchants: IMerchantResponse[] = [
 
 const tags: ITagResponse[] = [
   { id: 5, label: "Work", bgColorHex: "#102030", fgColorHex: "#ffffff", createdAt, updatedAt: null },
+];
+
+const priorities: IPriorityResponse[] = [
+  { id: 2, label: "Important", weight: 75, createdAt, updatedAt: null },
+  { id: 3, label: "Useful", weight: 50, createdAt, updatedAt: null },
+  { id: 4, label: "Optional", weight: 25, createdAt, updatedAt: null },
 ];
 
 const buildTransaction = (
@@ -115,6 +122,7 @@ const stubTransactionPages = (pageFor: (page: number) => TransactionPageStub): v
     if (url === "/api/v1/categories") return Promise.resolve({ data: categories });
     if (url === "/api/v1/merchants") return Promise.resolve({ data: merchants });
     if (url === "/api/v1/tags") return Promise.resolve({ data: tags });
+    if (url === "/api/v1/priorities") return Promise.resolve({ data: priorities });
     if (url === "/api/v1/transactions") {
       const page = config?.params?.page ?? 1;
       const stub = pageFor(page);
@@ -148,6 +156,8 @@ describe("plaintextProjection", () => {
   beforeEach(() => {
     vi.mocked(axios.get).mockReset();
     vi.mocked(axios.post).mockReset();
+    vi.mocked(axios.put).mockReset();
+    vi.mocked(axios.delete).mockReset();
   });
 
   it("asks each option endpoint exactly once and pages transactions until the last page", async () => {
@@ -164,6 +174,7 @@ describe("plaintextProjection", () => {
     expect(callsTo("/api/v1/categories")).toHaveLength(1);
     expect(callsTo("/api/v1/merchants")).toHaveLength(1);
     expect(callsTo("/api/v1/tags")).toHaveLength(1);
+    expect(callsTo("/api/v1/priorities")).toHaveLength(1);
     expect(requestedPages()).toEqual([1, 2, 3]);
     expect(projection.state).toBe("ready");
   });
@@ -324,6 +335,31 @@ describe("plaintextProjection", () => {
     expect(saved.id).toBe("77");
   });
 
+  it("creates a category with the real priority identifier and refreshes taxonomy", async () => {
+    stubSinglePage([]);
+    const createdCategory: ICategoryResponse = {
+      id: 8,
+      label: "New food",
+      priority: priorities[1],
+      createdAt,
+      updatedAt: null,
+    };
+    vi.mocked(axios.post).mockResolvedValue({ data: createdCategory });
+
+    const projection = plaintextProjection();
+    await projection.unlock();
+    const created = await projection.createCategory(personalSpace, "New food", "Medium");
+
+    expect(vi.mocked(axios.post)).toHaveBeenCalledWith("/api/v1/categories", {
+      label: "New food",
+      priorityId: 3,
+    });
+    expect(created).toEqual(
+      expect.objectContaining({ id: "8", kind: "category", label: "New food" }),
+    );
+    expect(callsTo("/api/v1/categories")).toHaveLength(2);
+  });
+
   it("asks the server to create a merchant or tag it has never seen", async () => {
     stubSinglePage([]);
     vi.mocked(axios.post).mockResolvedValue({ data: buildTransaction({ id: 78 }) });
@@ -373,26 +409,59 @@ describe("plaintextProjection", () => {
     expect(rows.map((row) => row.id)).toEqual(["77"]);
   });
 
-  it("refuses a draft carrying an identifier because there is no update endpoint", async () => {
-    stubSinglePage([]);
+  it("updates a draft carrying an identifier and refreshes the loaded ledger", async () => {
+    const updated = buildTransaction({ id: 77, reason: "Updated" });
+    let ledger = [buildTransaction({ id: 77, reason: "Before" })];
+    stubTransactionPages(() => ({
+      items: ledger,
+      totalItems: ledger.length,
+      totalPages: 1,
+    }));
+    vi.mocked(axios.put).mockImplementation((() => {
+      ledger = [updated];
+      return Promise.resolve({ data: updated });
+    }) as unknown as typeof axios.put);
 
     const projection = plaintextProjection();
     await projection.unlock();
 
-    await expect(projection.saveTransaction(buildDraft({ id: "77" }))).rejects.toThrow(
-      "Editing a transaction is not supported yet",
+    await projection.saveTransaction(buildDraft({ id: "77", reason: "Updated" }));
+
+    expect(vi.mocked(axios.put)).toHaveBeenCalledWith(
+      "/api/v1/transactions/77",
+      expect.objectContaining({ reason: "Updated" }),
     );
-    expect(vi.mocked(axios.post)).not.toHaveBeenCalled();
+    expect((await projection.getTransaction(personalSpace, "77"))?.reason).toBe("Updated");
   });
 
-  it("refuses a transfer draft because it cannot name the second account", async () => {
+  it("deletes a transaction and refreshes the loaded ledger", async () => {
+    let ledger = [buildTransaction({ id: 77 })];
+    stubTransactionPages(() => ({
+      items: ledger,
+      totalItems: ledger.length,
+      totalPages: ledger.length === 0 ? 0 : 1,
+    }));
+    vi.mocked(axios.delete).mockImplementation((() => {
+      ledger = [];
+      return Promise.resolve({ data: undefined });
+    }) as unknown as typeof axios.delete);
+
+    const projection = plaintextProjection();
+    await projection.unlock();
+    await projection.deleteTransaction(personalSpace, "77");
+
+    expect(vi.mocked(axios.delete)).toHaveBeenCalledWith("/api/v1/transactions/77");
+    await expect(projection.getTransaction(personalSpace, "77")).resolves.toBeNull();
+  });
+
+  it("refuses a transfer draft when it cannot name the second account", async () => {
     stubSinglePage([]);
 
     const projection = plaintextProjection();
     await projection.unlock();
 
     await expect(projection.saveTransaction(buildDraft({ kind: "transfer" }))).rejects.toThrow(
-      "Saving a transfer is not supported yet",
+      "Select a destination account before saving the transfer",
     );
     expect(vi.mocked(axios.post)).not.toHaveBeenCalled();
   });
