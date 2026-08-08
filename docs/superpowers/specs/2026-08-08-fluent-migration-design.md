@@ -1,7 +1,8 @@
 # Migrating Xpense.Web to Fluent UI React
 
 Date: 2026-08-08
-Status: agreed, not yet implemented
+Status: implemented; its large page-header treatment is superseded by
+`2026-08-08-web-shell-and-filtering-design.md`
 Scope: `web/` only. No API changes.
 Supersedes: most of `2026-08-07-design-standard-design.md`. See "What survives from the design standard".
 

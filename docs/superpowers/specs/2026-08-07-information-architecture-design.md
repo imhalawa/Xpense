@@ -1,7 +1,8 @@
 # Xpense information architecture and analytics
 
 Date: 2026-08-07
-Status: agreed, not yet implemented
+Status: partially superseded; navigation and transaction-filter transport now follow
+`2026-08-08-web-shell-and-filtering-design.md`
 Depends on: `2026-08-07-design-standard-design.md`
 Scope: page structure, navigation, and which analytics exist. Includes the API additions each
 analytic needs. Excludes how transactions get entered — separate spec.

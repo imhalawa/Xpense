@@ -1,7 +1,8 @@
 # Xpense authentication and users
 
 Date: 2026-08-07
-Status: agreed in principle, decisions below were made without review — see "Decisions taken alone"
+Status: superseded by `2026-08-08-identity-groups-and-sharing-design.md` and
+`2026-08-08-zero-knowledge-vault-and-recovery-design.md`
 Scope: a `User` concept, authentication, per-user data scoping, and per-user AI provider tokens.
 Consumed by: `2026-08-07-data-entry-design.md`, which needs a per-user token for its AI adapters.
 
