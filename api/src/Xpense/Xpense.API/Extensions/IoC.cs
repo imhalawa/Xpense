@@ -28,6 +28,9 @@ public static class IoC
 
     public static void AddDomainServices(this IServiceCollection services)
     {
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+        services.AddScoped<SyncAuthorization>();
         services.AddScoped(typeof(OptionResolver<>));
 
         services.AddScoped<IEventBus, EventBus>();
