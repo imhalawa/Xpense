@@ -34,10 +34,10 @@ const personalEnvelopeDescriptor: EnvelopeDescriptor = {
 };
 const groupEnvelopeDescriptor: EnvelopeDescriptor = { recordId, ownerId: userId, groupId };
 
-const successfulValue = <T>(response: VaultWorkerResponse<T>): T => {
+const successfulValue = <T>(response: VaultWorkerResponse): T => {
   expect(response.ok).toBe(true);
   if (!response.ok) throw new Error(response.error.message);
-  return response.value;
+  return response.value as T;
 };
 
 beforeEach(async () => {
@@ -181,7 +181,9 @@ describe("vault worker command handler", () => {
   });
 
   it("returns an error result for an unknown command", async () => {
-    const response = await handleVaultCommand({ type: "eraseTheServer" } as VaultWorkerCommand);
+    const response = await handleVaultCommand(
+      { type: "eraseTheServer" } as unknown as VaultWorkerCommand,
+    );
 
     expect(response).toEqual({
       ok: false,
