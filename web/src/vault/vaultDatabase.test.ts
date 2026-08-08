@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  VAULT_DATABASE_NAME,
   deleteVaultDatabase,
   openVaultDatabase,
   type VaultDatabase,

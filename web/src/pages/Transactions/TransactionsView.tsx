@@ -193,7 +193,7 @@ const TransactionsView = ({
   const [scrollTop, setScrollTop] = useState(0);
 
   useEffect(() => {
-    if (state !== "ready") return;
+    if (state !== "unlocked") return;
 
     let isCurrent = true;
     setIsLoadingRows(true);
@@ -346,7 +346,7 @@ const TransactionsView = ({
     );
   }
 
-  if ((state === "loading" || isLoadingRows) && transactions.length === 0) {
+  if ((state === "unlocking" || isLoadingRows) && transactions.length === 0) {
     return (
       <Skeleton className={styles.skeleton} aria-label="Loading transactions">
         {Array.from({ length: 5 }, (_value, index) => (

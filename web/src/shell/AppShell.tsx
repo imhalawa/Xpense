@@ -211,7 +211,7 @@ const AppShell = ({ children }: AppShellProps) => {
   }, [isWideScreen]);
 
   useEffect(() => {
-    if (state !== "ready") {
+    if (state !== "unlocked") {
       setSpaces([]);
       setTaxonomy([]);
       return;
@@ -239,7 +239,7 @@ const AppShell = ({ children }: AppShellProps) => {
   }, [projection, state, transactionFilter.filter.space]);
 
   useEffect(() => {
-    if (state !== "ready") {
+    if (state !== "unlocked") {
       setEditableAccounts([]);
       setAccountsLoaded(false);
       return;
@@ -310,7 +310,7 @@ const AppShell = ({ children }: AppShellProps) => {
             activeSpace={transactionFilter.filter.space}
             displayName={localDisplayName}
             emailPrefix={localEmailPrefix}
-            isUnlocked={state === "ready"}
+            isUnlocked={state === "unlocked"}
             onSelectSpace={selectSpace}
             onManageGroups={() => undefined}
             onAccountSettings={() => undefined}

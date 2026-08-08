@@ -31,7 +31,7 @@ const assertionOptions: CredentialRequestOptions = {
 const base64Url = (bytes: Uint8Array): string => {
   let binary = "";
   for (const value of bytes) binary += String.fromCharCode(value);
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  return btoa(binary).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
 };
 
 const clientData = (challenge: Uint8Array): ArrayBuffer =>

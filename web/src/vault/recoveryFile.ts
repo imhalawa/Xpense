@@ -14,6 +14,9 @@ const vaultSecretPrefix = "Vault secret: ";
 const checksumPrefix = "Checksum: ";
 const recoverySecretBytes = 32;
 
+const webCryptoBytes = (bytes: Uint8Array): Uint8Array<ArrayBuffer> =>
+  new Uint8Array(Array.from(bytes));
+
 export interface RecoveryFileWrapper {
   id: string;
   userId: string;
@@ -40,17 +43,19 @@ export interface ParsedRecoveryFile {
 const encodeBase64Url = (bytes: Uint8Array): string => {
   let binary = "";
   for (const value of bytes) binary += String.fromCharCode(value);
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  return btoa(binary).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
 };
 
 const decodeBase64Url = (encoded: string): Uint8Array => {
   const padding = "=".repeat((4 - (encoded.length % 4)) % 4);
-  const binary = atob(encoded.replaceAll("-", "+").replaceAll("_", "/") + padding);
+  const binary = atob(encoded.replace(/-/gu, "+").replace(/_/gu, "/") + padding);
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 };
 
-const concatenate = (...parts: Uint8Array[]): Uint8Array => {
-  const result = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+const concatenate = (...parts: Uint8Array[]): Uint8Array<ArrayBuffer> => {
+  const result: Uint8Array<ArrayBuffer> = new Uint8Array(
+    parts.reduce((total, part) => total + part.length, 0),
+  );
   let offset = 0;
   for (const part of parts) {
     result.set(part, offset);
@@ -134,7 +139,7 @@ export const createRecoveryFile = async (
   const vaultSecret = randomBytes(recoverySecretBytes);
   try {
     const [tokenHash, fileChecksum, wrappingKey] = await Promise.all([
-      crypto.subtle.digest("SHA-256", authenticationToken),
+      crypto.subtle.digest("SHA-256", webCryptoBytes(authenticationToken)),
       checksum(authenticationToken, vaultSecret),
       deriveRecoveryFileWrappingKey(vaultSecret),
     ]);

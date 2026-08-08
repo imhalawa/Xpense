@@ -34,7 +34,7 @@ const Transactions = () => {
   const [accounts, setAccounts] = useState<AccountView[]>([]);
 
   useEffect(() => {
-    if (state !== "ready") {
+    if (state !== "unlocked") {
       setAccounts([]);
       return;
     }

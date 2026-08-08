@@ -1,9 +1,11 @@
 import { deriveWrappingKey } from "../crypto/primitives";
 import { PASSKEY_WRAPPING_INFO } from "../crypto/protocol";
 
+type ByteSource = ArrayBufferLike | ArrayBufferView<ArrayBufferLike>;
+
 interface PrfExtensionResult {
   enabled?: boolean;
-  results?: { first?: BufferSource };
+  results?: { first?: ByteSource };
 }
 
 interface PasskeyExtensionResults {
@@ -53,7 +55,7 @@ export interface SerializedAssertion {
   };
 }
 
-const copyBytes = (source: BufferSource): Uint8Array<ArrayBuffer> => {
+const copyBytes = (source: ByteSource): Uint8Array<ArrayBuffer> => {
   if (ArrayBuffer.isView(source)) {
     return new Uint8Array(
       Array.from(new Uint8Array(source.buffer, source.byteOffset, source.byteLength)),
@@ -62,10 +64,10 @@ const copyBytes = (source: BufferSource): Uint8Array<ArrayBuffer> => {
   return new Uint8Array(Array.from(new Uint8Array(source)));
 };
 
-const encodeBase64Url = (source: BufferSource): string => {
+const encodeBase64Url = (source: ByteSource): string => {
   let binary = "";
   for (const value of copyBytes(source)) binary += String.fromCharCode(value);
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  return btoa(binary).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
 };
 
 const requireCredential = (credential: Credential | null): PublicKeyCredential => {

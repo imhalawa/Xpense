@@ -20,7 +20,7 @@ const descriptor: MasterKeyWrapperDescriptor = {
 const base64Url = (bytes: Uint8Array): string => {
   let binary = "";
   for (const value of bytes) binary += String.fromCharCode(value);
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  return btoa(binary).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
 };
 
 describe("recovery file", () => {
@@ -34,7 +34,12 @@ describe("recovery file", () => {
     expect(Object.keys(bundle.serverPayload)).toEqual(["authenticationTokenHash"]);
     expect(bundle.serverPayload.authenticationTokenHash).toBe(
       base64Url(
-        new Uint8Array(await crypto.subtle.digest("SHA-256", parsed.authenticationToken)),
+        new Uint8Array(
+          await crypto.subtle.digest(
+            "SHA-256",
+            new Uint8Array(Array.from(parsed.authenticationToken)),
+          ),
+        ),
       ),
     );
     expect(JSON.stringify(bundle.serverPayload)).not.toContain(bundle.fileText);
