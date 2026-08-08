@@ -35,6 +35,14 @@ services:
     command: ["--connection", *connection]
     restart: "no"
 
+  dataprotection-init:
+    image: alpine:3.22
+    user: "0:0"
+    command: ["sh", "-c", "chown 1001:1001 /keys && chmod 0700 /keys"]
+    restart: "no"
+    volumes:
+      - xpense-dataprotection:/keys
+
   api:
     build:
       context: .
@@ -45,12 +53,18 @@ services:
     depends_on:
       migrations:
         condition: service_completed_successfully
+      dataprotection-init:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__DefaultConnection: *connection
+      DataProtection__KeyDirectory: /keys
+      ForwardedHeaders__KnownProxies__0: 127.0.0.1
     ports:
       - "127.0.0.1:4000:8080"
+    volumes:
+      - xpense-dataprotection:/keys
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 10s
@@ -68,9 +82,15 @@ services:
     depends_on:
       migrations:
         condition: service_completed_successfully
+      dataprotection-init:
+        condition: service_completed_successfully
     environment:
       DOTNET_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: *connection
+      DataProtection__KeyDirectory: /keys
+    volumes:
+      - xpense-dataprotection:/keys
 
 volumes:
   xpense-postgres-data:
+  xpense-dataprotection:

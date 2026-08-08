@@ -12,6 +12,18 @@ namespace Xpense.Tests.Infrastructure;
 
 public sealed class WebApiTestFactory : WebApplicationFactory<Program>
 {
+    private static readonly IReadOnlyDictionary<string, string?> TestConfiguration =
+        new Dictionary<string, string?>
+        {
+            ["Authentication:RelyingPartyDomain"] = "identity.example.test",
+            ["Authentication:RelyingPartyName"] = "Xpense Test",
+            ["Authentication:AllowedOrigins:0"] = "https://app.example.test",
+            ["Authentication:Registration"] = "Open",
+            ["Authentication:PublicUrl"] = "https://app.example.test",
+            ["DataProtection:KeyDirectory"] = "/tmp/xpense-tests/keys",
+            ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1"
+        };
+
     private readonly string connectionString;
     private readonly IInterceptor[] interceptors;
     private Guid? currentUserId;
@@ -31,6 +43,10 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+
+        foreach (var setting in TestConfiguration)
+            builder.UseSetting(setting.Key, setting.Value!);
+
         builder.ConfigureServices(services =>
         {
             RemoveProductionDbContext(services);
