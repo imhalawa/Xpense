@@ -37,6 +37,12 @@ namespace Xpense.Persistence
         public virtual DbSet<UserEncryptionIdentity> UserEncryptionIdentities { get; set; }
         public virtual DbSet<VaultWrapper> VaultWrappers { get; set; }
         public virtual DbSet<PendingRegistration> PendingRegistrations { get; set; }
+        public virtual DbSet<Group> Groups { get; set; }
+        public virtual DbSet<GroupMembership> GroupMemberships { get; set; }
+        public virtual DbSet<GroupInvitation> GroupInvitations { get; set; }
+        public virtual DbSet<ResourceGrant> ResourceGrants { get; set; }
+        public virtual DbSet<SharedResource> SharedResources { get; set; }
+        public virtual DbSet<InvitationDelivery> InvitationDeliveries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
