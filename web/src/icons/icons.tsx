@@ -2,41 +2,36 @@ import Icon, { IconProps } from "./Icon";
 
 export const OverviewIcon = (props: IconProps) => (
   <Icon {...props}>
-    <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
-    <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
-    <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
-    <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
+    <path d="M5 20v-6" />
+    <path d="M12 20V4.5" />
+    <path d="M19 20v-9.5" />
   </Icon>
 );
 
 export const TransactionsIcon = (props: IconProps) => (
   <Icon {...props}>
-    <path d="M3 8.5h14" />
-    <path d="M14 5.5l3 3-3 3" />
-    <path d="M21 15.5H7" />
-    <path d="M10 12.5l-3 3 3 3" />
+    <path d="M4 8.75h13" />
+    <path d="M13.75 5.5 17 8.75l-3.25 3.25" />
+    <path d="M20 15.25H7" />
+    <path d="M10.25 12 7 15.25l3.25 3.25" />
   </Icon>
 );
 
 export const BudgetsIcon = (props: IconProps) => (
   <Icon {...props}>
-    <path d="M4 17a8 8 0 1 1 16 0" />
-    <path d="M12 17l4.5-4.5" />
-    <circle cx="12" cy="17" r="1.25" />
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 4v8h8" />
   </Icon>
 );
 
 export const ManageIcon = (props: IconProps) => (
   <Icon {...props}>
-    <path d="M4 7h8" />
-    <path d="M16 7h4" />
-    <circle cx="14" cy="7" r="2" />
-    <path d="M4 12h4" />
-    <path d="M12 12h8" />
-    <circle cx="10" cy="12" r="2" />
-    <path d="M4 17h9" />
-    <path d="M17 17h3" />
-    <circle cx="15" cy="17" r="2" />
+    <path d="M4 8.5h7" />
+    <path d="M15.5 8.5H20" />
+    <circle cx="13.25" cy="8.5" r="2.25" />
+    <path d="M4 15.5h3.5" />
+    <path d="M12 15.5h8" />
+    <circle cx="9.75" cy="15.5" r="2.25" />
   </Icon>
 );
 
