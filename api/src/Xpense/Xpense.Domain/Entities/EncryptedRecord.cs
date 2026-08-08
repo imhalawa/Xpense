@@ -27,4 +27,8 @@ public class EncryptedRecord
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public void MarkAsDeleted() => IsDeleted = true;
+
+    public void Touch() => UpdatedAt = DateTime.UtcNow;
 }
