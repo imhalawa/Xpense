@@ -1,13 +1,9 @@
 import { ReactNode } from "react";
 import { Dayjs } from "dayjs";
-import Box from "@mui/material/Box";
-import LinearProgress from "@mui/material/LinearProgress";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
+import { Caption1, Card, ProgressBar, Subtitle2 } from "@fluentui/react-components";
 import { IBudgetResponse } from "../../clients/types";
 import { budgetProgress, BudgetState } from "../../budgets/budgetProgress";
 import { formatMoney } from "../../money/formatMoney";
-import { tokens } from "../../theme/tokens";
 import DeltaChip from "../DeltaChip/DeltaChip";
 
 interface BudgetMeterProps {
@@ -16,31 +12,29 @@ interface BudgetMeterProps {
   actions?: ReactNode;
 }
 
-const barColour: Record<"light" | "dark", Record<BudgetState, string>> = {
-  light: {
-    "not-measuring": tokens.ink.light.muted,
-    "on-track": tokens.brand[500],
-    "projected-over": tokens.money.light.expenseOrdinary,
-    "threshold-passed": tokens.money.light.expenseOrdinary,
-    exceeded: tokens.money.light.expenseAlert,
-  },
-  dark: {
-    "not-measuring": tokens.ink.dark.muted,
-    "on-track": tokens.brand[400],
-    "projected-over": tokens.money.dark.expenseOrdinary,
-    "threshold-passed": tokens.money.dark.expenseOrdinary,
-    exceeded: tokens.money.dark.expenseAlert,
-  },
+const barToneByState: Record<BudgetState, "brand" | "warning" | "error" | "success"> = {
+  "not-measuring": "brand",
+  "on-track": "success",
+  "projected-over": "warning",
+  "threshold-passed": "warning",
+  exceeded: "error",
 };
 
 const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
   const progress = budgetProgress(budget, now);
   const period = budget.period;
+  const progressPercent = Math.min(progress.spentRatio, 1);
 
   return (
-    <Paper elevation={1} sx={{ padding: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 1 }}>
-        <Typography variant="h3">{budget.category.label}</Typography>
+    <Card style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          gap: 12,
+        }}>
+        <Subtitle2>{budget.category.label}</Subtitle2>
         {progress.state === "exceeded" && (
           <DeltaChip direction="up" tone="overBudget">
             Over budget
@@ -51,54 +45,39 @@ const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
             Projected over
           </DeltaChip>
         )}
-      </Box>
+      </div>
 
       {period === null ? (
-        <Typography variant="body2" color="text.secondary">
+        <Caption1 style={{ color: "var(--colorNeutralForeground3)" }}>
           Not measuring right now.
-        </Typography>
+        </Caption1>
       ) : (
         <>
-          <LinearProgress
-            variant="determinate"
-            value={Math.min(progress.spentRatio * 100, 100)}
-            aria-valuenow={Math.round(progress.spentRatio * 100)}
-            sx={{
-              height: 8,
-              borderRadius: `${tokens.radius.pill}px`,
-              "& .MuiLinearProgress-bar": {
-                backgroundColor: barColour.light[progress.state],
-                borderRadius: `${tokens.radius.pill}px`,
-                "[data-theme='dark'] &": {
-                  backgroundColor: barColour.dark[progress.state],
-                },
-              },
-            }}
+          <ProgressBar
+            value={progressPercent}
+            max={1}
+            color={barToneByState[progress.state]}
+            thickness="medium"
           />
-          <Typography variant="body2" color="text.secondary">
+          <Caption1 style={{ color: "var(--colorNeutralForeground2)" }}>
             {formatMoney(period.spent)} spent of {formatMoney(budget.amount)} ·{" "}
             {formatMoney(period.remaining)} left · {progress.daysRemaining} days left
-          </Typography>
+          </Caption1>
           {progress.hasUncounted && (
-            <Typography
-              variant="body2"
-              sx={{
-                color: tokens.money.light.expenseOrdinary,
-                "[data-theme='dark'] &": { color: tokens.money.dark.expenseOrdinary },
-              }}
-            >
+            <Caption1 style={{ color: "var(--colorStatusDangerForeground2)" }}>
               Uncounted in another currency:{" "}
               {period.uncounted.map((amount) => formatMoney(amount)).join(" · ")}
-            </Typography>
+            </Caption1>
           )}
         </>
       )}
+
       {actions && (
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, marginTop: "auto" }}>
+        <div style={{ marginTop: "auto", display: "flex", justifyContent: "flex-end", gap: 8 }}>
           {actions}
-        </Box>
+        </div>
       )}
-    </Paper>
+    </Card>
   );
 };
 
