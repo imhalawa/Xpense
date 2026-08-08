@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
 import { Subtitle1, makeStyles, tokens } from "@fluentui/react-components";
-
-const wideScreenQuery = "(min-width: 1024px)";
+import { useIsWideScreen } from "./useIsWideScreen";
 
 const useStyles = makeStyles({
   clipped: {
@@ -20,22 +18,6 @@ const useStyles = makeStyles({
     marginBlockEnd: tokens.spacingVerticalM,
   },
 });
-
-const useIsWideScreen = () => {
-  const evaluate = () => window.matchMedia(wideScreenQuery).matches;
-  const [isWideScreen, setIsWideScreen] = useState<boolean>(evaluate);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(wideScreenQuery);
-    const handleChange = () => setIsWideScreen(mediaQuery.matches);
-
-    handleChange();
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  return isWideScreen;
-};
 
 interface PageTitleProps {
   title: string;

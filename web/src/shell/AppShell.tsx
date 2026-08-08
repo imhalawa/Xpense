@@ -1,6 +1,8 @@
-import { ReactElement, ReactNode, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
+  Button,
   Hamburger,
   NavDrawer,
   NavDrawerBody,
@@ -8,13 +10,14 @@ import {
   NavDrawerHeader,
   NavItem,
   ProgressBar,
-  Subtitle1,
   makeStyles,
   mergeClasses,
   tokens,
 } from "@fluentui/react-components";
 import {
+  AddRegular,
   HomeRegular,
+  LockClosedRegular,
   ReceiptRegular,
   SettingsRegular,
   WalletRegular,
@@ -28,7 +31,19 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "../clients/notifications";
-import { INotificationResponse } from "../clients/types";
+import type { INotificationResponse } from "../clients/types";
+import { useVault } from "../vault/VaultProvider";
+import type { SpaceSummary, TaxonomyKind, TaxonomyValue } from "../vault/VaultProjection";
+import {
+  clearTransactionFilters,
+  serialiseTransactionFilter,
+  toggleTaxonomyFilter,
+} from "../transactions/transactionFilterState";
+import { useTransactionFilter } from "../transactions/useTransactionFilter";
+import IdentityMenu from "./IdentityMenu";
+import PageTitle from "./PageTitle";
+import SidebarFilters from "./SidebarFilters";
+import { useIsWideScreen } from "./useIsWideScreen";
 
 type Destination = {
   path: string;
@@ -43,31 +58,48 @@ const destinations: Destination[] = [
   { path: "/settings", label: "Manage", icon: <SettingsRegular /> },
 ];
 
-const wideScreenQuery = "(min-width: 1024px)";
+const fallbackSpace = "personal";
+const localDisplayName = "Local user";
+const localEmailPrefix = "local";
 const notificationsPageSize = 10;
+const taxonomyKinds: TaxonomyKind[] = ["category", "tag", "merchant"];
 
 const useStyles = makeStyles({
   root: {
     display: "flex",
     minHeight: "100vh",
-    backgroundColor: tokens.colorNeutralBackground2,
+    backgroundColor: tokens.colorNeutralBackground1,
   },
   drawer: {
     flexShrink: 0,
+    width: "280px",
+    minWidth: "280px",
+    maxWidth: "280px",
     height: "100vh",
     position: "sticky",
     top: 0,
-    backgroundColor: tokens.colorBrandBackground2,
+    backgroundColor: tokens.colorNeutralBackground2,
     borderInlineEndWidth: tokens.strokeWidthThin,
     borderInlineEndStyle: "solid",
-    borderInlineEndColor: tokens.colorBrandStroke2,
+    borderInlineEndColor: tokens.colorNeutralStroke2,
   },
   header: {
-    paddingTop: tokens.spacingVerticalXXL,
-  },
-  brand: {
+    paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalM,
-    color: tokens.colorBrandForeground1,
+  },
+  body: {
+    display: "flex",
+    flexDirection: "column",
+    paddingInline: tokens.spacingHorizontalM,
+  },
+  addTransaction: {
+    width: "100%",
+    justifyContent: "flex-start",
+    marginBlockEnd: tokens.spacingVerticalM,
+  },
+  navigation: {
+    display: "flex",
+    flexDirection: "column",
   },
   navItem: {
     backgroundColor: "transparent",
@@ -76,8 +108,14 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     gap: tokens.spacingVerticalS,
-    borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorBrandStroke2}`,
-    paddingTop: tokens.spacingVerticalM,
+    borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+    paddingBlock: tokens.spacingVerticalM,
+    paddingInline: tokens.spacingHorizontalM,
+  },
+  footerActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
   },
   menuButton: {
     position: "fixed",
@@ -89,14 +127,14 @@ const useStyles = makeStyles({
     boxSizing: "border-box",
     flexGrow: 1,
     minWidth: 0,
-    padding: tokens.spacingHorizontalXXL,
+    padding: tokens.spacingHorizontalXXXL,
   },
   mobileMain: {
     paddingTop: "64px",
   },
   content: {
     width: "100%",
-    maxWidth: "1120px",
+    maxWidth: "1200px",
     marginInline: "auto",
   },
   loading: {
@@ -107,21 +145,12 @@ const useStyles = makeStyles({
   },
 });
 
-const useIsWideScreen = () => {
-  const evaluate = () => window.matchMedia(wideScreenQuery).matches;
-  const [isWideScreen, setIsWideScreen] = useState<boolean>(evaluate);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(wideScreenQuery);
-    const handleChange = () => setIsWideScreen(mediaQuery.matches);
-
-    handleChange();
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  return isWideScreen;
-};
+const destinationForPath = (pathname: string): Destination =>
+  destinations.find((destination) =>
+    destination.path === "/"
+      ? pathname === "/"
+      : pathname === destination.path || pathname.startsWith(`${destination.path}/`),
+  ) ?? destinations[0];
 
 interface AppShellProps {
   children: ReactNode;
@@ -133,11 +162,16 @@ const AppShell = ({ children }: AppShellProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { loading } = useLoading();
+  const { projection, state } = useVault();
+  const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
+  const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
+  const [taxonomy, setTaxonomy] = useState<TaxonomyValue[]>([]);
   const [notifications, setNotifications] = useState<INotificationResponse[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsPage, setNotificationsPage] = useState(1);
   const [notificationPages, setNotificationPages] = useState(1);
+  const activeDestination = destinationForPath(location.pathname);
 
   const refreshNotifications = useCallback(() => {
     Promise.all([
@@ -160,10 +194,53 @@ const AppShell = ({ children }: AppShellProps) => {
     if (isWideScreen) setIsNavigationOpen(false);
   }, [isWideScreen]);
 
+  useEffect(() => {
+    if (state !== "ready") {
+      setSpaces([]);
+      setTaxonomy([]);
+      return;
+    }
+
+    let isCurrent = true;
+    Promise.all([
+      projection.listSpaces(),
+      ...taxonomyKinds.map((kind) => projection.listTaxonomy(transactionFilter.filter.space, kind)),
+    ])
+      .then(([loadedSpaces, ...taxonomyGroups]) => {
+        if (!isCurrent) return;
+        setSpaces(loadedSpaces);
+        setTaxonomy(taxonomyGroups.flat());
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setSpaces([]);
+        setTaxonomy([]);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [projection, state, transactionFilter.filter.space]);
+
+  const closeNavigation = () => setIsNavigationOpen(false);
+
   const navigateTo = (path: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    navigate(path);
-    setIsNavigationOpen(false);
+    const search = serialiseTransactionFilter(transactionFilter.filter).toString();
+    navigate({ pathname: path, search });
+    closeNavigation();
+  };
+
+  const selectSpace = (space: string) => {
+    const next = { ...clearTransactionFilters(transactionFilter.filter), space };
+    transactionFilter.setFilter(next);
+    closeNavigation();
+  };
+
+  const toggleTaxonomy = (kind: TaxonomyKind, id: string) => {
+    const next = toggleTaxonomyFilter(transactionFilter.filter, kind, id);
+    navigate({ pathname: "/transactions", search: serialiseTransactionFilter(next).toString() });
+    closeNavigation();
   };
 
   return (
@@ -179,29 +256,58 @@ const AppShell = ({ children }: AppShellProps) => {
 
       <NavDrawer
         className={styles.drawer}
+        role="presentation"
         type={isWideScreen ? "inline" : "overlay"}
         open={isWideScreen || isNavigationOpen}
-        selectedValue={location.pathname}
+        selectedValue={activeDestination.path}
         onOpenChange={(_event, data) => setIsNavigationOpen(Boolean(data.open))}>
         <NavDrawerHeader className={styles.header}>
-          <Subtitle1 as="span" className={styles.brand}>
-            Xpense
-          </Subtitle1>
+          <IdentityMenu
+            spaces={spaces}
+            activeSpace={transactionFilter.filter.space}
+            displayName={localDisplayName}
+            emailPrefix={localEmailPrefix}
+            isUnlocked={state === "ready"}
+            onSelectSpace={selectSpace}
+            onManageGroups={() => undefined}
+            onAccountSettings={() => undefined}
+            onLock={() => projection.lock()}
+            onSignOut={() => undefined}
+          />
         </NavDrawerHeader>
-        <NavDrawerBody>
-          {destinations.map(({ path, label, icon }) => (
-            <NavItem
-              key={path}
-              as="a"
-              href={path}
-              value={path}
-              className={styles.navItem}
-              icon={icon}
-              aria-current={location.pathname === path ? "page" : undefined}
-              onClick={navigateTo(path)}>
-              {label}
-            </NavItem>
-          ))}
+        <NavDrawerBody className={styles.body}>
+          <Button
+            className={styles.addTransaction}
+            appearance="primary"
+            icon={<AddRegular />}
+            onClick={() => {
+              navigate("/transactions/new");
+              closeNavigation();
+            }}>
+            Add transaction
+          </Button>
+
+          <nav className={styles.navigation} aria-label="Primary">
+            {destinations.map(({ path, label, icon }) => (
+              <NavItem
+                key={path}
+                as="a"
+                href={path}
+                value={path}
+                className={styles.navItem}
+                icon={icon}
+                aria-current={activeDestination.path === path ? "page" : undefined}
+                onClick={navigateTo(path)}>
+                {label}
+              </NavItem>
+            ))}
+          </nav>
+
+          <SidebarFilters
+            values={taxonomy}
+            filter={transactionFilter.filter}
+            onToggleTaxonomy={toggleTaxonomy}
+          />
         </NavDrawerBody>
         <NavDrawerFooter className={styles.footer}>
           <NotificationBell
@@ -216,12 +322,23 @@ const AppShell = ({ children }: AppShellProps) => {
             }
             onMarkAllRead={() => markAllNotificationsRead().then(refreshNotifications)}
           />
-          <ThemeModeToggle />
+          <div className={styles.footerActions}>
+            <ThemeModeToggle />
+            <Button
+              appearance="subtle"
+              icon={<LockClosedRegular />}
+              aria-label="Lock vault"
+              onClick={() => projection.lock()}
+            />
+          </div>
         </NavDrawerFooter>
       </NavDrawer>
 
       <main className={mergeClasses(styles.main, !isWideScreen && styles.mobileMain)}>
-        <div className={styles.content}>{children}</div>
+        <div className={styles.content} data-testid="app-content">
+          <PageTitle title={activeDestination.label} />
+          {children}
+        </div>
       </main>
     </div>
   );
