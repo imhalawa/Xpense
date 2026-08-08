@@ -1,5 +1,14 @@
 import "@testing-library/jest-dom/vitest";
+import "fake-indexeddb/auto";
+import { webcrypto } from "node:crypto";
 import { vi } from "vitest";
+
+if (!globalThis.crypto?.subtle) {
+  Object.defineProperty(globalThis, "crypto", {
+    configurable: true,
+    value: webcrypto,
+  });
+}
 
 if (!window.matchMedia) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
