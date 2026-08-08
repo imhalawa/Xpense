@@ -3,6 +3,7 @@ import {
   PROTOCOL_VERSION,
   encryptionIdentityAdditionalData,
   envelopeAdditionalData,
+  groupKeyAdditionalData,
   masterKeyAdditionalData,
   payloadAdditionalData,
 } from "./protocol";
@@ -56,6 +57,10 @@ describe("crypto protocol", () => {
     expect(text(encryptionIdentityAdditionalData({ userId: ownerId }))).toBe(
       `v1|identity|${ownerId}|x25519-private`,
     );
+  });
+
+  it("encodes group keys canonically", () => {
+    expect(text(groupKeyAdditionalData(groupId))).toBe(`v1|group-key|${groupId}`);
   });
 
   it("binds the payload revision", () => {

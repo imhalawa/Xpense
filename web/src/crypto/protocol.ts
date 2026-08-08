@@ -74,3 +74,6 @@ export const encryptionIdentityAdditionalData = (
   encoder.encode(
     `v${PROTOCOL_VERSION}|identity|${canonicalUuid(descriptor.userId)}|x25519-private`,
   );
+
+export const groupKeyAdditionalData = (groupId: string): Uint8Array =>
+  encoder.encode(`v${PROTOCOL_VERSION}|group-key|${canonicalUuid(groupId)}`);
