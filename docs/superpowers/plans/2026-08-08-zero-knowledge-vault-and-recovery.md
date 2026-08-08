@@ -389,10 +389,9 @@ Lock terminates the crypto worker, clears decrypted React state, and clears sens
 **Files:**
 - Create: `api/src/Xpense/Xpense.Domain/Entities/EncryptedRecord.cs`
 - Create: `api/src/Xpense/Xpense.Domain/Entities/RecordEnvelope.cs`
-- Create: `api/src/Xpense/Xpense.Domain/Entities/RecordGrant.cs`
 - Create: `api/src/Xpense/Xpense.Domain/Entities/SyncOperation.cs`
-- Create: `api/src/Xpense/Xpense.Domain/Enums/EncryptedRecordType.cs`, `api/src/Xpense/Xpense.Domain/Enums/GrantPermission.cs`
-- Create: `api/src/Xpense/Xpense.Persistence/TypeConfiguration/EncryptedRecordEntityTypeConfiguration.cs`, `RecordEnvelopeEntityTypeConfiguration.cs`, `RecordGrantEntityTypeConfiguration.cs`, `SyncOperationEntityTypeConfiguration.cs`
+- Create: `api/src/Xpense/Xpense.Domain/Enums/EncryptedRecordType.cs`
+- Create: `api/src/Xpense/Xpense.Persistence/TypeConfiguration/EncryptedRecordEntityTypeConfiguration.cs`, `RecordEnvelopeEntityTypeConfiguration.cs`, `SyncOperationEntityTypeConfiguration.cs`
 - Modify: `api/src/Xpense/Xpense.Persistence/XpenseDbContext.cs`
 - Create: `api/src/Xpense/Xpense.Persistence/Migrations/<timestamp>_AddEncryptedRecords.cs`
 - Create: `api/src/Xpense/Xpense.Tests/Integration/EncryptedRecordSchemaTests.cs`
@@ -401,7 +400,7 @@ Columns that matter:
 
 - `EncryptedRecords`: `Id` uuid PK, `RecordType` int, `OwnerUserId` uuid, `ParentResourceId` uuid null, `Revision` bigint, `ProtocolVersion` int, `Nonce` bytea, `Ciphertext` bytea, `IsDeleted` bool, `SequenceNumber` bigint from a Postgres sequence, `CreatedAt`, `UpdatedAt`.
 - `RecordEnvelopes`: `Id` uuid, `EncryptedRecordId`, `GroupId` uuid **nullable — null means the owner's personal envelope**, `WrappedKey` bytea, `Nonce` bytea, `EncapsulatedKey` bytea null, `ProtocolVersion`, unique on `(EncryptedRecordId, GroupId)`.
-- `RecordGrants`: `Id`, `ResourceId` uuid, `GroupId` uuid, `Permission`, `State`, `CreatedAt`, `RevokedAt` null.
+- `ResourceGrants` is the canonical grant table created by Task 3 of the identity plan. The sync surface reuses it rather than creating a narrower duplicate.
 - `SyncOperations`: `Id`, `UserId`, `IdempotencyKey` text, `EncryptedRecordId`, `CreatedAt`, unique on `(UserId, IdempotencyKey)`.
 
 `SequenceNumber` is the sync cursor. A database sequence is monotonic without clock skew, which a timestamp cursor is not.
@@ -529,7 +528,7 @@ Two endpoints, two files — the architecture rule. Only the record's **personal
 This is the API half of the acceptance criteria and it runs on every build from here on.
 
 - [ ] **Step 1: Write the failing tests.**
-  - Write a batch of records whose plaintext contains a marker string, then query `EncryptedRecords`, `RecordEnvelopes`, `RecordGrants` and `SyncOperations` directly and assert the marker appears in no column of any row.
+  - Write a batch of records whose plaintext contains a marker string, then query `EncryptedRecords`, `RecordEnvelopes`, `ResourceGrants` and `SyncOperations` directly and assert the marker appears in no column of any row.
   - Assert no `sync` slice reads `Ciphertext` for any purpose other than returning it — grep-style assertion over the compiled slice types, or simply assert the handlers never call a decrypt API, since none exists in the solution.
   - Assert `EncryptedRecord` has no navigation to `Transaction`, `Account`, `Category` or `Budget`. The encrypted graph and the plaintext graph do not touch.
   - Assert a full `/sync/changes` response body for user A, serialised, contains none of user B's ciphertext bytes.
@@ -760,7 +759,7 @@ The spec left these open. Each is a decision taken here so the plan is executabl
 3. **AAD encoding.** A canonical `|`-separated UTF-8 string, not JSON. JSON key order is not guaranteed and a re-serialised object would silently fail to decrypt.
 4. **Sync cursor.** Base64url of a Postgres `bigint` sequence value. A timestamp cursor loses rows under clock skew.
 5. **Record types.** The ten literals in Task 2, mirroring today's plaintext entities plus `userProfile`. The server rejects anything else.
-6. **Grants live in this plan, groups live in the identity plan.** `RecordGrants` is created here because the sync surface enforces it; `Groups` and `GroupMemberships` are the identity plan's tables.
+6. **Groups and grants live in the identity plan.** `ResourceGrants` is the single grant model used by group endpoints and the sync surface; this plan adds no duplicate grant table.
 7. **`ICurrentUser` is the only auth seam this plan builds.** The identity plan replaces the implementation. No second authentication system.
 8. **Idempotency scope.** Keys are unique per user, retained 30 days, then pruned. The spec says "device-independent"; per-user is the narrowest scope that satisfies it.
 9. **Ciphertext cap.** 64 KiB per record, 100 records per create batch, 500 records per `/sync/changes` page. The spec requires caps but names no numbers.

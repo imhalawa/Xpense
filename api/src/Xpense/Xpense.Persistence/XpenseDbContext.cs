@@ -43,10 +43,14 @@ namespace Xpense.Persistence
         public virtual DbSet<ResourceGrant> ResourceGrants { get; set; }
         public virtual DbSet<SharedResource> SharedResources { get; set; }
         public virtual DbSet<InvitationDelivery> InvitationDeliveries { get; set; }
+        public virtual DbSet<EncryptedRecord> EncryptedRecords { get; set; }
+        public virtual DbSet<RecordEnvelope> RecordEnvelopes { get; set; }
+        public virtual DbSet<SyncOperation> SyncOperations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.HasSequence<long>("EncryptedRecordSequence", "Xpense");
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
             ConfigureDecimalColumnsStore(modelBuilder, 18, 2);
             ConfigureUtcDateTimes(modelBuilder);
