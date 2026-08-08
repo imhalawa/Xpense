@@ -55,7 +55,8 @@ public sealed class PostgresFixture
     private static string ConnectionStringFor(string database) =>
         new NpgsqlConnectionStringBuilder(container.GetConnectionString())
         {
-            Database = database
+            Database = database,
+            Pooling = false
         }.ConnectionString;
 
     private static async Task ExecuteOnMaintenanceDatabase(string sql)
