@@ -1,6 +1,7 @@
 import { Currency } from "../../typings/enums/Currency";
 import {
   QuickAddAccount,
+  QuickAddCategoryReference,
   QuickAddField,
   QuickAddIssue,
   QuickAddOption,
@@ -30,6 +31,10 @@ const currencyAliases: Record<string, Currency> = {
   dollars: Currency.USD,
   usd: Currency.USD,
 };
+
+const isoCurrencyCodes = new Set(
+  "AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BOV BRL BSD BTN BWP BYN BZD CAD CDF CHE CHF CHW CLF CLP CNY COP COU CRC CUC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MXV MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SLL SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD USN UYI UYU UYW UZS VED VES VND VUV WST XAF XAG XAU XBA XBB XBC XBD XCD XCG XDR XOF XPD XPF XPT XSU XTS XUA XXX YER ZAR ZMW ZWL".split(" ")
+);
 
 const kindWords = [
   { expression: /\bwas\s+paid\b/gi, kind: "income" as const },
@@ -93,6 +98,16 @@ const optionReference = (label: string, options: QuickAddOption[]): QuickAddRefe
   const existing = options.find((option) => normalized(option.label) === normalized(label));
   return existing === undefined
     ? { id: "", label: label.trim(), create: true }
+    : { ...existing, create: false };
+};
+
+const categoryReference = (
+  label: string,
+  categories: QuickAddOption[]
+): QuickAddCategoryReference => {
+  const existing = categories.find((category) => normalized(category.label) === normalized(label));
+  return existing === undefined
+    ? { id: "", label: label.trim(), create: true, priority: "Medium" }
     : { ...existing, create: false };
 };
 
@@ -226,7 +241,8 @@ export const parseQuickAdd = (
   const kindCandidates: Candidate<"expense" | "income" | "transfer">[] = [];
   const amountCandidates: Candidate<number>[] = [];
   const currencyCandidates: Candidate<Currency>[] = [];
-  const categoryCandidates: Candidate<QuickAddReference | null>[] = [];
+  let currencyTokenCount = 0;
+  const categoryCandidates: Candidate<QuickAddCategoryReference | null>[] = [];
   const merchantCandidates: Candidate<QuickAddReference>[] = [];
   const sourceCandidates: Candidate<QuickAddAccount | null>[] = [];
   const destinationCandidates: Candidate<QuickAddAccount | null>[] = [];
@@ -245,11 +261,12 @@ export const parseQuickAdd = (
     const rangeId = addRange(start, end, field as QuickAddField, `${field}: ${value}`);
     if (name === "merchant") merchantCandidates.push({ value: optionReference(value, context.merchants), rangeId });
     if (name === "category") {
-      const category = context.categories.find((option) => normalized(option.label) === normalized(value));
-      categoryCandidates.push({
-        value: category === undefined ? null : { ...category, create: false },
-        rangeId,
-      });
+      const category = categoryReference(value, context.categories);
+      categoryCandidates.push({ value: category, rangeId });
+      const range = ranges.find((candidate) => candidate.id === rangeId);
+      if (category.create && range !== undefined) {
+        range.label = `New category ${category.label}, priority ${category.priority}`;
+      }
     }
     if (name === "source" || name === "destination") {
       const resolution = resolveAccount(value, context.accounts);
@@ -306,11 +323,11 @@ export const parseQuickAdd = (
             : "tag";
     const rangeId = addRange(start, end, field, `${field}: ${value}`);
     if (sigil === "#") {
-      const option = context.categories.find((category) => normalized(category.label) === normalized(value));
-      categoryCandidates.push({ value: option === undefined ? null : { ...option, create: false }, rangeId });
-      if (option === undefined) {
-        updateRanges([rangeId], "unresolved");
-        addIssue("unknown-category", "category", `No category matches ${value}`, [rangeId]);
+      const category = categoryReference(value, context.categories);
+      categoryCandidates.push({ value: category, rangeId });
+      if (category.create) {
+        const range = ranges.find((candidate) => candidate.id === rangeId);
+        if (range !== undefined) range.label = `New category ${category.label}, priority ${category.priority}`;
       }
     } else if (sigil === "~") {
       tagCandidates.push({ value: optionReference(value, context.tags), rangeId });
@@ -389,12 +406,15 @@ export const parseQuickAdd = (
 
   const currencyMatches = [
     ...input.matchAll(/€|\$|\b(?:euros?|dollars?|eur|usd)\b/gi),
-    ...input.matchAll(/\b[A-Z]{3}\b/g),
+    ...[...input.matchAll(/\b[a-z]{3}\b/gi)].filter((match) =>
+      isoCurrencyCodes.has(match[0].toLocaleUpperCase())
+    ),
   ].sort((left, right) => left.index - right.index);
   for (const match of currencyMatches) {
     const start = match.index;
     const end = start + match[0].length;
     if (!isFree(start, end)) continue;
+    currencyTokenCount += 1;
     const currency = currencyAliases[normalized(match[0])];
     const rangeId = addRange(start, end, "currency", currency === undefined ? "Unsupported currency" : `Currency ${currency}`);
     if (currency === undefined || !(context.supportedCurrencies ?? Object.values(Currency)).includes(currency)) {
@@ -534,6 +554,33 @@ export const parseQuickAdd = (
     return parts;
   };
 
+  const rejectNaturalTransferField = (
+    preposition: "at" | "for",
+    field: "merchant" | "category",
+    code: string,
+    message: string
+  ) => {
+    const expression = preposition === "at"
+      ? /\bat\s+(.+?)(?=\s+for\b|$)/i
+      : /\bfor\s+(.+?)(?=\s+at\b|$)/i;
+    for (const part of remainingParts()) {
+      const match = expression.exec(part.text);
+      if (match === null) continue;
+      const phraseOffset = match[0].indexOf(match[1]);
+      const start = part.start + match.index + phraseOffset;
+      const end = start + match[1].length;
+      if (!isFree(start, end)) continue;
+      consume(part.start + match.index, start);
+      const rangeId = addRange(start, end, field, `${field === "merchant" ? "Merchant" : "Category"} ${match[1]}`, "invalid");
+      addIssue(code, field, message, [rangeId]);
+    }
+  };
+
+  if (kind === "transfer") {
+    rejectNaturalTransferField("at", "merchant", "transfer-merchant", "A transfer cannot have a merchant");
+    rejectNaturalTransferField("for", "category", "transfer-category", "A transfer cannot have a category");
+  }
+
   const takeRemainder = (field: "merchant" | "reason") => {
     const parts = remainingParts();
     if (parts.length === 0) return;
@@ -556,8 +603,8 @@ export const parseQuickAdd = (
     else reasonCandidates.push({ value: text, rangeId });
   };
 
-  if (kind === "transfer") takeRemainder("reason");
-  else takeRemainder("merchant");
+  if (kind === "transfer" && reasonCandidates.length === 0) takeRemainder("reason");
+  if (kind !== "transfer" && merchantCandidates.length === 0) takeRemainder("merchant");
 
   const unresolved = remainingParts();
   for (const part of unresolved) {
@@ -588,7 +635,7 @@ export const parseQuickAdd = (
 
   let currency = currencyConflict ? null : (currencyCandidates[0]?.value ?? null);
   const chosenAccount = sourceAccount ?? destinationAccount;
-  if (currency === null && currencyCandidates.length === 0) currency = chosenAccount?.currency ?? null;
+  if (currency === null && currencyTokenCount === 0) currency = chosenAccount?.currency ?? null;
 
   if (sourceAccount !== null && destinationAccount !== null) {
     if (sourceAccount.id === destinationAccount.id) {
@@ -624,7 +671,7 @@ export const parseQuickAdd = (
   const reason = reasonConflict ? null : (reasonCandidates[0]?.value ?? null);
 
   if (amountCandidates.length === 0) addIssue("missing-amount", "amount", "Enter an amount");
-  if (currency === null && currencyCandidates.length === 0) addIssue("missing-currency", "currency", "Choose a currency or account");
+  if (currency === null && currencyTokenCount === 0) addIssue("missing-currency", "currency", "Choose a currency or account");
   if (kind === "expense" && sourceAccount === null && sourceCandidates.length === 0) addIssue("missing-source-account", "sourceAccount", "Choose a source account");
   if (kind === "income" && destinationAccount === null && destinationCandidates.length === 0) addIssue("missing-destination-account", "destinationAccount", "Choose a destination account");
   if (kind === "transfer" && sourceAccount === null && sourceCandidates.length === 0) addIssue("missing-source-account", "sourceAccount", "Choose a source account");
@@ -642,13 +689,19 @@ export const parseQuickAdd = (
     addIssue("transfer-category", "category", "A transfer cannot have a category", rangeIds);
   }
 
-  const recognisedLabels = ranges
-    .filter((range) => range.status === "recognized")
-    .map((range) => range.label);
-  const errorCount = issues.filter((issue) => issue.severity === "error").length;
+  if (kind !== "transfer" && reasonCandidates.length > 0) {
+    const rangeIds = reasonCandidates.map((candidate) => candidate.rangeId);
+    updateRanges(rangeIds, "invalid");
+    addIssue("non-transfer-reason", "reason", "Only transfers can have a reason", rangeIds);
+  }
+
+  const orderedRanges = [...ranges].sort((left, right) => left.start - right.start);
+  const lastRange = orderedRanges[orderedRanges.length - 1];
   const announcement = input.trim().length === 0
     ? "Quick Add is empty"
-    : `${recognisedLabels.join(", ") || "No fields recognised"}. ${errorCount} ${errorCount === 1 ? "issue" : "issues"}.`;
+    : lastRange === undefined
+      ? (issues[0]?.message ?? "No fields recognised")
+      : `${lastRange.label} ${lastRange.status}`;
 
   return {
     input,
@@ -664,7 +717,7 @@ export const parseQuickAdd = (
       tags: tagCandidates.map((candidate) => candidate.value),
       reason,
     },
-    ranges: ranges.sort((left, right) => left.start - right.start),
+    ranges: orderedRanges,
     issues,
     canSubmit: issues.every((issue) => issue.severity !== "error"),
     announcement,

@@ -1,7 +1,13 @@
 import { ChangeEvent, ComponentProps, useEffect, useMemo, useRef } from "react";
 import { Caption1, Label, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { parseQuickAdd } from "./parser";
-import { QuickAddField, QuickAddParseResult, QuickAddParserContext, QuickAddRange } from "./types";
+import {
+  QuickAddField,
+  QuickAddParseResult,
+  QuickAddParserContext,
+  QuickAddPickerRequest,
+  QuickAddRange,
+} from "./types";
 
 const fieldNames: Record<QuickAddField, string> = {
   kind: "Type",
@@ -79,6 +85,9 @@ const useStyles = makeStyles({
     backgroundColor: tokens.colorBrandBackground2,
     borderRadius: tokens.borderRadiusSmall,
     boxShadow: `inset 0 -1px ${tokens.colorBrandStroke1}`,
+    textDecorationLine: "underline",
+    textDecorationStyle: "solid",
+    textDecorationThickness: "2px",
   },
   unresolved: {
     textDecorationLine: "underline",
@@ -133,12 +142,14 @@ const useStyles = makeStyles({
   },
 });
 
-interface QuickAddInputProps
+export interface QuickAddInputProps
   extends Omit<ComponentProps<"input">, "value" | "onChange" | "children"> {
   value: string;
   context: QuickAddParserContext;
   onValueChange: (value: string) => void;
   onParseResult?: (result: QuickAddParseResult) => void;
+  onOpenPicker?: (request: QuickAddPickerRequest) => void;
+  onRangeFocus?: (range: QuickAddRange, result: QuickAddParseResult) => void;
   label?: string;
 }
 
@@ -154,7 +165,12 @@ const decoratedContent = (input: string, ranges: QuickAddRange[], styles: Return
           ? styles.unresolved
           : styles.invalid;
     content.push(
-      <span key={range.id} className={className} data-field={range.field}>
+      <span
+        key={range.id}
+        className={className}
+        data-field={range.field}
+        data-status={range.status}
+        data-signal={range.status === "recognized" ? "solid-underline" : range.status}>
         {input.slice(range.start, range.end)}
       </span>
     );
@@ -169,6 +185,8 @@ export const QuickAddInput = ({
   context,
   onValueChange,
   onParseResult,
+  onOpenPicker,
+  onRangeFocus,
   label = "Quick Add",
   id = "quick-add-transaction",
   placeholder = "Spent 5 euros at Albert Heijn #shopping",
@@ -176,15 +194,64 @@ export const QuickAddInput = ({
 }: QuickAddInputProps) => {
   const styles = useStyles();
   const inputReference = useRef<HTMLInputElement>(null);
+  const previousRangesReference = useRef<QuickAddRange[]>([]);
   const result = useMemo(() => parseQuickAdd(value, context), [context, value]);
+  const previousRanges = previousRangesReference.current;
+  const changedRange = [...result.ranges].reverse().find((range) =>
+    !previousRanges.some((previous) =>
+      previous.start === range.start &&
+      previous.end === range.end &&
+      previous.field === range.field &&
+      previous.text === range.text &&
+      previous.status === range.status
+    )
+  );
+  const removedRange = [...previousRanges].reverse().find((previous) =>
+    !result.ranges.some((range) =>
+      previous.start === range.start &&
+      previous.end === range.end &&
+      previous.field === range.field &&
+      previous.text === range.text &&
+      previous.status === range.status
+    )
+  );
+  const liveAnnouncement = changedRange !== undefined
+    ? `${fieldNames[changedRange.field]} ${changedRange.text} ${changedRange.status}`
+    : removedRange !== undefined
+      ? `${fieldNames[removedRange.field]} removed`
+      : result.input.trim().length === 0
+        ? "Quick Add is empty"
+        : (result.issues[0]?.message ?? "Quick Add ready");
 
   useEffect(() => {
     onParseResult?.(result);
+    previousRangesReference.current = result.ranges;
   }, [onParseResult, result]);
 
   const focusRange = (range: QuickAddRange) => {
     inputReference.current?.focus();
     inputReference.current?.setSelectionRange(range.start, range.end);
+    onRangeFocus?.(range, result);
+  };
+
+  const openPicker = (range: QuickAddRange) => {
+    focusRange(range);
+    onOpenPicker?.({
+      range,
+      result,
+      rewrite: (replacement) => {
+        onValueChange(`${value.slice(0, range.start)}${replacement}${value.slice(range.end)}`);
+      },
+    });
+  };
+
+  const chipText = (range: QuickAddRange) => {
+    const pendingCategory = range.field === "category" && result.draft.category?.create
+      ? result.draft.category
+      : null;
+    return pendingCategory === null
+      ? `${fieldNames[range.field]} · ${range.text}`
+      : `${fieldNames[range.field]} · ${range.text} · ${pendingCategory.priority}`;
   };
 
   return (
@@ -213,9 +280,10 @@ export const QuickAddInput = ({
             key={range.id}
             type="button"
             className={mergeClasses(styles.chip, range.status !== "recognized" && styles.chipError)}
-            aria-label={`${fieldNames[range.field]}: ${range.text}, ${range.status}`}
-            onClick={() => focusRange(range)}>
-            {fieldNames[range.field]} · {range.text}
+            aria-label={`${fieldNames[range.field]}: ${range.text}, ${range.status}${range.field === "category" && result.draft.category?.create ? `, priority ${result.draft.category.priority}` : ""}`}
+            aria-haspopup={onOpenPicker === undefined ? undefined : "dialog"}
+            onClick={() => openPicker(range)}>
+            {chipText(range)}
           </button>
         ))}
       </div>
@@ -225,7 +293,7 @@ export const QuickAddInput = ({
           : result.issues[0]?.message}
       </Caption1>
       <span className={styles.live} role="status" aria-live="polite" aria-atomic="true">
-        {result.announcement}
+        {liveAnnouncement}
       </span>
     </div>
   );

@@ -66,8 +66,74 @@ describe("parseQuickAdd accepted combinations", () => {
   });
 
   it.each([
+    ["purchased 5 at Cinema #Entertainment", "expense"],
+    ["charged 5 at Cinema #Entertainment", "expense"],
+    ["withdrew 5 at Cinema #Entertainment", "expense"],
+    ["earned 2400 from Employer #Salary >Checking", "income"],
+    ["was paid 2400 from Employer #Salary >Checking", "income"],
+    ["sent 500 from Checking to Savings", "transfer"],
+  ] as const)("recognises the natural kind in %s", (input, kind) => {
+    const result = parse(input);
+
+    expect(result.issues, result.issues.map((issue) => issue.message).join("; ")).toEqual([]);
+    expect(result.draft.kind).toBe(kind);
+  });
+
+  it("parses deposited dollar income with its dollar account", () => {
+    const result = parse("deposited $100 from Client #Freelance yesterday", {
+      defaultAccountId: "dollars",
+    });
+
+    expect(result.issues).toEqual([]);
+    expect(result.draft).toMatchObject({
+      kind: "income",
+      amountMinorUnits: 10000,
+      currency: Currency.USD,
+      destinationAccount: { id: "dollars" },
+      merchant: { label: "Client", create: true },
+      category: { id: "freelance", create: false },
+    });
+    expect(result.draft.occurredAt?.slice(0, 10)).toBe("2026-08-08");
+  });
+
+  it.each(["dollar", "dollars", "USD"])("recognises the dollar alias %s", (currency) => {
+    const result = parse(`spent 5 ${currency} @\"Dollar account\" at Cinema #Entertainment`);
+
+    expect(result.issues).toEqual([]);
+    expect(result.draft.currency).toBe(Currency.USD);
+  });
+
+  it("resolves an income destination from a natural to phrase", () => {
+    const result = parse("received 5 to Checking from Employer #Salary");
+
+    expect(result.issues).toEqual([]);
+    expect(result.draft.destinationAccount?.id).toBe("checking");
+    expect(result.draft.merchant?.label).toBe("Employer");
+  });
+
+  it("resolves a natural category only on an exact known match", () => {
+    const result = parse("spent 5 at Cinema for Entertainment");
+
+    expect(result.issues).toEqual([]);
+    expect(result.draft.merchant).toEqual({ id: "cinema", label: "Cinema", create: false });
+    expect(result.draft.category).toEqual({
+      id: "entertainment",
+      label: "Entertainment",
+      create: false,
+    });
+    expect(result.draft.category).not.toHaveProperty("priority");
+  });
+
+  it.each([
+    ["spent 18 at Cinema #Entertainment today", "2026-08-09"],
     ["spent 18 at Cinema #Entertainment yesterday", "2026-08-08"],
     ["spent 18 at Cinema #Entertainment last Friday", "2026-08-07"],
+    ["spent 18 at Cinema #Entertainment mon", "2026-08-03"],
+    ["spent 18 at Cinema #Entertainment Wednesday", "2026-08-05"],
+    ["spent 18 at Cinema #Entertainment Sunday", "2026-08-09"],
+    ["spent 18 at Cinema #Entertainment last Sunday", "2026-08-02"],
+    ["spent 18 at Cinema #Entertainment 5 Aug", "2026-08-05"],
+    ["spent 18 at Cinema #Entertainment Aug 5", "2026-08-05"],
     ["spent 18 at Cinema #Entertainment 2026-08-05", "2026-08-05"],
     ["spent 18 at Cinema #Entertainment 14:30", "2026-08-09"],
     ["spent 18 at Cinema #Entertainment date:2026-08-05 time:2pm", "2026-08-05"],
@@ -78,7 +144,23 @@ describe("parseQuickAdd accepted combinations", () => {
     expect(result.draft.occurredAt?.slice(0, 10)).toBe(expectedDate);
   });
 
-  it("creates unknown merchants and tags inline but not categories", () => {
+  it.each([
+    ["this morning", 9],
+    ["this afternoon", 15],
+    ["this evening", 19],
+    ["2pm", 14],
+    ["2:15am", 2],
+    ["14:30", 14],
+  ])("resolves natural time %s", (time, expectedHour) => {
+    const result = parse(`spent 18 at Cinema #Entertainment ${time}`);
+
+    expect(result.issues).toEqual([]);
+    const occurredAt = new Date(result.draft.occurredAt ?? "");
+    expect(occurredAt.getHours()).toBe(expectedHour);
+    if (time === "2:15am" || time === "14:30") expect(occurredAt.getMinutes()).toBe(time.endsWith("30") ? 30 : 15);
+  });
+
+  it("creates unknown merchants and tags inline", () => {
     const result = parse("spent 18 at New Shop #Shopping ~family ~weekend");
 
     expect(result.issues).toEqual([]);
@@ -89,6 +171,51 @@ describe("parseQuickAdd accepted combinations", () => {
     ]);
   });
 
+  it("keeps quoted multi-word tags as one created value", () => {
+    const result = parse("spent 18 at Cinema #Entertainment ~\"family trip\"");
+
+    expect(result.issues).toEqual([]);
+    expect(result.draft.tags).toEqual([{ id: "", label: "family trip", create: true }]);
+    expect(result.ranges.find((range) => range.field === "tag")?.text).toBe("~\"family trip\"");
+  });
+
+  it("resolves unique account prefixes against labels and ids", () => {
+    const result = parse("spent 18 @Che at Cinema #Entertainment");
+
+    expect(result.issues).toEqual([]);
+    expect(result.draft.sourceAccount?.id).toBe("checking");
+  });
+
+  it.each([
+    "spent 18 at New Shop #NewCategory",
+    "spent 18 merchant:\"New Shop\" category:\"New Category\"",
+  ])("creates an unknown explicit category with editable Medium priority in %s", (input) => {
+    const result = parse(input);
+
+    expect(result.issues).toEqual([]);
+    expect(result.canSubmit).toBe(true);
+    expect(result.draft.category).toEqual({
+      id: "",
+      label: input.includes("#") ? "NewCategory" : "New Category",
+      create: true,
+      priority: "Medium",
+    });
+    expect(result.ranges.find((range) => range.field === "category")?.label).toContain("priority Medium");
+  });
+
+  it.each(["eur", "EuR", "EURO", "Euros", "usd", "UsD"])(
+    "recognises supported currency %s case-insensitively",
+    (currency) => {
+      const isEuro = currency.toLocaleLowerCase().startsWith("e");
+      const result = parse(
+        `spent 5 ${currency} ${isEuro ? "" : "@\"Dollar account\""} at Cinema #Entertainment`
+      );
+
+      expect(result.issues).toEqual([]);
+      expect(result.draft.currency).toBe(isEuro ? Currency.EUR : Currency.USD);
+    }
+  );
+
   it.each([
     ["moved 500 from Checking to Savings", null],
     ["transferred 500 @Checking >Savings", null],
@@ -97,6 +224,7 @@ describe("parseQuickAdd accepted combinations", () => {
     ["moved 500 @Checking >Savings reason:\"rent buffer\"", "rent buffer"],
     ["moved 500 @Checking >Savings rent buffer", "rent buffer"],
     ["moved 500 @\"Joint checking\" >\"Rainy day\"", null],
+    ["moved 500 @Checking >Savings ~monthly ~saving", null],
   ])("parses transfer %s", (input, reason) => {
     const result = parse(input);
 
@@ -104,6 +232,9 @@ describe("parseQuickAdd accepted combinations", () => {
     expect(result.draft).toMatchObject({ kind: "transfer", amountMinorUnits: 50000, reason });
     expect(result.draft.sourceAccount).not.toBeNull();
     expect(result.draft.destinationAccount).not.toBeNull();
+    if (input.includes("~monthly")) {
+      expect(result.draft.tags.map((tag) => tag.label)).toEqual(["monthly", "saving"]);
+    }
   });
 
   it("preserves all resolved values when optional tags are added", () => {
@@ -129,8 +260,18 @@ describe("parseQuickAdd accepted combinations", () => {
       const result = parse(input);
 
       expect(result.issues, `${input}: ${result.issues.map((issue) => issue.message).join("; ")}`).toEqual([]);
-      expect(result.draft.kind).toBe("expense");
-      expect(result.draft.amountMinorUnits).toBe(500);
+      expect(result.draft).toMatchObject({
+        kind: "expense",
+        amountMinorUnits: 500,
+        currency: Currency.EUR,
+        sourceAccount: { id: withAccount ? "checking" : "cash" },
+        destinationAccount: null,
+        merchant: { id: "cinema", label: "Cinema", create: false },
+        category: { id: "entertainment", label: "Entertainment", create: false },
+      });
+      expect(result.draft.tags.map((tag) => tag.label)).toEqual(withTag ? ["family"] : []);
+      expect(new Date(result.draft.occurredAt ?? "").getDate()).toBe(withDate ? 8 : 9);
+      if (withTime) expect(new Date(result.draft.occurredAt ?? "").getHours()).toBe(9);
     }
   );
 
@@ -149,8 +290,18 @@ describe("parseQuickAdd accepted combinations", () => {
       const result = parse(input);
 
       expect(result.issues, `${input}: ${result.issues.map((issue) => issue.message).join("; ")}`).toEqual([]);
-      expect(result.draft.kind).toBe("income");
-      expect(result.draft.amountMinorUnits).toBe(500);
+      expect(result.draft).toMatchObject({
+        kind: "income",
+        amountMinorUnits: 500,
+        currency: Currency.EUR,
+        sourceAccount: null,
+        destinationAccount: { id: withAccount ? "checking" : "cash" },
+        merchant: { id: "employer", label: "Employer", create: false },
+        category: { id: "salary", label: "Salary", create: false },
+      });
+      expect(result.draft.tags.map((tag) => tag.label)).toEqual(withTag ? ["family"] : []);
+      expect(new Date(result.draft.occurredAt ?? "").getDate()).toBe(withDate ? 8 : 9);
+      if (withTime) expect(new Date(result.draft.occurredAt ?? "").getHours()).toBe(9);
     }
   );
 
@@ -168,8 +319,19 @@ describe("parseQuickAdd accepted combinations", () => {
       const result = parse(input);
 
       expect(result.issues, `${input}: ${result.issues.map((issue) => issue.message).join("; ")}`).toEqual([]);
-      expect(result.draft.kind).toBe("transfer");
-      expect(result.draft.amountMinorUnits).toBe(500);
+      expect(result.draft).toMatchObject({
+        kind: "transfer",
+        amountMinorUnits: 500,
+        currency: Currency.EUR,
+        sourceAccount: { id: "checking" },
+        destinationAccount: { id: "savings" },
+        merchant: null,
+        category: null,
+        reason: withReason ? "rent buffer" : null,
+      });
+      expect(result.draft.tags.map((tag) => tag.label)).toEqual(withTag ? ["family"] : []);
+      expect(new Date(result.draft.occurredAt ?? "").getDate()).toBe(withDate ? 8 : 9);
+      if (withTime) expect(new Date(result.draft.occurredAt ?? "").getHours()).toBe(9);
     }
   );
 });
@@ -181,11 +343,16 @@ describe("parseQuickAdd rejected and unresolved combinations", () => {
     ["spent -5 at Cinema #Entertainment", "invalid-amount"],
     ["spent 5 6 at Cinema #Entertainment", "conflicting-amount"],
     ["spent 5 GBP at Cinema #Entertainment", "unsupported-currency"],
+    ["spent 5 gbp at Cinema #Entertainment", "unsupported-currency"],
+    ["spent 5 GbP at Cinema #Entertainment", "unsupported-currency"],
     ["spent 5 at Cinema", "missing-category"],
     ["spent 5 #Entertainment", "missing-merchant"],
-    ["spent 5 at Cinema #Unknown", "unknown-category"],
     ["spent 5 at Cinema for Unknown", "unknown-category"],
     ["moved 5 @Checking >Savings #Shopping", "transfer-category"],
+    ["moved 5 @Checking >Savings for Shopping", "transfer-category"],
+    ["moved 5 @Checking >Savings at Cinema", "transfer-merchant"],
+    ["spent 5 at Cinema #Entertainment reason:\"not allowed\"", "non-transfer-reason"],
+    ["received 5 from Employer #Salary reason:\"not allowed\"", "non-transfer-reason"],
     ["moved 5 @Checking >Checking", "same-transfer-account"],
     ["moved 5 @Checking >\"Dollar account\"", "cross-currency-transfer"],
     ["spent 5 at Cinema #Entertainment date:2026-02-30", "invalid-date"],
@@ -214,16 +381,81 @@ describe("parseQuickAdd rejected and unresolved combinations", () => {
     );
   });
 
+  it("keeps an unknown account unresolved with an exact source range", () => {
+    const input = "spent 5 @Unknown at Cinema #Entertainment";
+    const result = parse(input);
+    const range = result.ranges.find((candidate) => candidate.field === "sourceAccount");
+
+    expect(result.issues.map((issue) => issue.code)).toContain("unknown-account");
+    expect(range).toMatchObject({
+      start: input.indexOf("@Unknown"),
+      end: input.indexOf("@Unknown") + "@Unknown".length,
+      text: "@Unknown",
+      status: "unresolved",
+    });
+  });
+
+  it.each([
+    "spent 5 merchant:\"Cinema\" #Entertainment extra words",
+    "moved 5 @Checking >Savings reason:\"buffer\" extra words",
+  ])("never silently discards text after all supported fields resolve in %s", (input) => {
+    const result = parse(input);
+    const unresolved = result.ranges.find((range) => range.field === "text");
+
+    expect(result.issues.map((issue) => issue.code)).toContain("unresolved-text");
+    expect(unresolved).toMatchObject({
+      start: input.indexOf("extra words"),
+      end: input.indexOf("extra words") + "extra words".length,
+      text: "extra words",
+      status: "unresolved",
+    });
+  });
+
+  it.each(["gbp", "GbP", "GBP"])(
+    "keeps unsupported ISO currency %s out of merchant text and does not apply the account default",
+    (currency) => {
+      const result = parse(`spent 5 ${currency} at Cinema #Entertainment`);
+
+      expect(result.draft.currency).toBeNull();
+      expect(result.draft.merchant?.label).toBe("Cinema");
+      expect(result.issues.map((issue) => issue.code)).toEqual(["unsupported-currency"]);
+    }
+  );
+
   it.each([
     ["spent paid 5 at Cinema #Entertainment", "conflicting-kind"],
     ["spent 5 at Cinema #Shopping #Entertainment", "conflicting-category"],
     ["spent 5 USD EUR at Cinema #Entertainment", "conflicting-currency"],
     ["spent 5 at Cinema #Entertainment yesterday today", "conflicting-date"],
+    ["spent 5 @Cash @Checking at Cinema #Entertainment", "conflicting-sourceAccount"],
+    ["received 5 from Employer #Salary >Cash >Checking", "conflicting-destinationAccount"],
+    ["spent 5 at Cinema #Entertainment time:9am time:10am", "conflicting-time"],
+    ["moved 5 @Checking >Savings reason:\"one\" reason:\"two\"", "conflicting-reason"],
   ])("does not use last-write-wins for %s", (input, code) => {
     const result = parse(input);
 
     expect(result.issues.map((issue) => issue.code)).toContain(code);
     expect(result.ranges.some((range) => range.status === "conflict")).toBe(true);
+  });
+
+  it.each([
+    ["spent -5 at Cinema #Entertainment", "amount", "-5", "invalid"],
+    ["spent 5 gbp at Cinema #Entertainment", "currency", "gbp", "invalid"],
+    ["spent 5 at Cinema #Entertainment date:2026-02-30", "date", "date:2026-02-30", "invalid"],
+    ["moved 5 @Checking >Savings at Cinema", "merchant", "Cinema", "invalid"],
+    ["moved 5 @Checking >Savings for Shopping", "category", "Shopping", "invalid"],
+  ] as const)("returns the exact invalid range for %s", (input, field, text, status) => {
+    const result = parse(input);
+    const range = result.ranges.find(
+      (candidate) => candidate.field === field && candidate.text === text
+    );
+
+    expect(range).toMatchObject({
+      start: input.indexOf(text),
+      end: input.indexOf(text) + text.length,
+      text,
+      status,
+    });
   });
 });
 
@@ -241,6 +473,7 @@ describe("parseQuickAdd decoration ranges", () => {
       "~family",
     ]);
     expect(result.ranges.every((range) => range.status === "recognized")).toBe(true);
-    expect(result.announcement).toContain("0 issues");
+    expect(result.announcement).toBe("tag: family recognized");
+    expect(result.announcement).not.toContain(input);
   });
 });

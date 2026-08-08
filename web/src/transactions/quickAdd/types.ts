@@ -53,6 +53,18 @@ export interface QuickAddReference extends QuickAddOption {
   create: boolean;
 }
 
+export type QuickAddCategoryPriority = "Low" | "Medium" | "High";
+
+export type QuickAddCategoryReference =
+  | (QuickAddOption & {
+      create: true;
+      priority: QuickAddCategoryPriority;
+    })
+  | (QuickAddOption & {
+      create: false;
+      priority?: never;
+    });
+
 export interface QuickAddParserContext {
   accounts: QuickAddAccount[];
   categories: QuickAddOption[];
@@ -72,7 +84,7 @@ export interface QuickAddDraft {
   sourceAccount: QuickAddAccount | null;
   destinationAccount: QuickAddAccount | null;
   merchant: QuickAddReference | null;
-  category: QuickAddReference | null;
+  category: QuickAddCategoryReference | null;
   tags: QuickAddReference[];
   reason: string | null;
 }
@@ -86,3 +98,8 @@ export interface QuickAddParseResult {
   announcement: string;
 }
 
+export interface QuickAddPickerRequest {
+  range: QuickAddRange;
+  result: QuickAddParseResult;
+  rewrite: (replacement: string) => void;
+}
