@@ -167,7 +167,7 @@ const SidebarFilters = ({ values, filter, onToggleTaxonomy }: SidebarFiltersProp
   const [viewAllSection, setViewAllSection] = useState<TaxonomyKind | null>(null);
   const [search, setSearch] = useState("");
   const [recencyVersion, setRecencyVersion] = useState(0);
-  const viewAllTriggers = useRef<Partial<Record<TaxonomyKind, HTMLButtonElement | null>>>({});
+  const viewAllTriggers = useRef<Partial<Record<TaxonomyKind, HTMLElement | null>>>({});
 
   const orderedValues = useMemo(
     () =>

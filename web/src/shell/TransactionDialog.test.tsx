@@ -152,7 +152,9 @@ describe("TransactionDialog", () => {
     await waitFor(() => expect(addTransaction).toBeEnabled());
     fireEvent.click(addTransaction);
     const dialog = await screen.findByRole("dialog");
-    await waitFor(() => expect(dialog).toContainElement(document.activeElement));
+    await waitFor(() =>
+      expect(dialog).toContainElement(document.activeElement as HTMLElement | null),
+    );
 
     fireEvent.keyDown(dialog, { key: "Escape" });
 

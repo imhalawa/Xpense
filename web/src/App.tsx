@@ -12,7 +12,6 @@ import { darkTheme, lightTheme } from "./fluent/theme.ts";
 import { useColorScheme } from "./fluent/useColorScheme.ts";
 import GlobalStyles from "./fluent/GlobalStyles.tsx";
 import { LoadingContextProvider } from "./contexts/LoadingContext.tsx";
-import { TransactionUtilitiesContextProvider } from "./contexts/TransactionUtilitiesContext.tsx";
 import { VaultProvider } from "./vault/VaultProvider.tsx";
 import { plaintextProjection } from "./vault/plaintextProjection.ts";
 
@@ -41,17 +40,15 @@ function App() {
       <GlobalStyles />
       <VaultProvider projection={projection}>
         <LoadingContextProvider>
-          <TransactionUtilitiesContextProvider>
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Overview />} />
-                <Route path="/transactions" element={<Transactions />} />
-                <Route path="/transactions/new" element={<Transactions />} />
-                <Route path="/budgets" element={<Budgets />} />
-                <Route path="/settings" element={<Settings />} />
-              </Route>
-            </Routes>
-          </TransactionUtilitiesContextProvider>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Overview />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/transactions/new" element={<Transactions />} />
+              <Route path="/budgets" element={<Budgets />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+          </Routes>
         </LoadingContextProvider>
       </VaultProvider>
     </FluentProvider>

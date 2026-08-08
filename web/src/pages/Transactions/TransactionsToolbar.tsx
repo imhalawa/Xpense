@@ -100,7 +100,10 @@ const TransactionsToolbar = ({
         value={selectedAccount?.label ?? "All accounts"}
         selectedOptions={filter.account === null ? [""] : [filter.account]}
         onOptionSelect={(_event, data) =>
-          onFilterChange({ ...filter, account: data.optionValue === "" ? null : data.optionValue })
+          onFilterChange({
+            ...filter,
+            account: data.optionValue === undefined || data.optionValue === "" ? null : data.optionValue,
+          })
         }>
         <Option value="">All accounts</Option>
         {accounts.map((account) => (

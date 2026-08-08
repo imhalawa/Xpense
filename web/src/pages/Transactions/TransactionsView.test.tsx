@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Currency } from "../../typings/enums/Currency";
 import { fixtureProjection } from "../../vault/fixtureProjection";
