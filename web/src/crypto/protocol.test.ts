@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PROTOCOL_VERSION,
+  encryptionIdentityAdditionalData,
   envelopeAdditionalData,
   masterKeyAdditionalData,
   payloadAdditionalData,
@@ -49,6 +50,12 @@ describe("crypto protocol", () => {
         }),
       ),
     ).toBe(`v1|master|${ownerId}|recoveryPassword|${wrapperId}`);
+  });
+
+  it("encodes encrypted identities canonically", () => {
+    expect(text(encryptionIdentityAdditionalData({ userId: ownerId }))).toBe(
+      `v1|identity|${ownerId}|x25519-private`,
+    );
   });
 
   it("binds the payload revision", () => {

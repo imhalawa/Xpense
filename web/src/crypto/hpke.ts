@@ -23,6 +23,21 @@ const copyBytes = (bytes: Uint8Array): Uint8Array<ArrayBuffer> =>
 export const generateEncryptionIdentity = (): Promise<CryptoKeyPair> =>
   suite.kem.generateKeyPair();
 
+export const serializeEncryptionPublicKey = async (key: CryptoKey): Promise<Uint8Array> =>
+  new Uint8Array(await suite.kem.serializePublicKey(key));
+
+export const serializeEncryptionPrivateKey = async (key: CryptoKey): Promise<Uint8Array> =>
+  new Uint8Array(await suite.kem.serializePrivateKey(key));
+
+export const importEncryptionPublicKey = (bytes: Uint8Array): Promise<CryptoKey> =>
+  suite.kem.deserializePublicKey(copyBytes(bytes));
+
+export const importEncryptionPrivateKey = async (bytes: Uint8Array): Promise<CryptoKey> => {
+  const extractableKey = await suite.kem.deserializePrivateKey(copyBytes(bytes));
+  const jsonWebKey = await crypto.subtle.exportKey("jwk", extractableKey);
+  return crypto.subtle.importKey("jwk", jsonWebKey, { name: "X25519" }, false, ["deriveBits"]);
+};
+
 export const sealToPublicKey = async (
   recipientPublicKey: CryptoKey,
   plaintext: Uint8Array,

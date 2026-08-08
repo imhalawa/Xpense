@@ -16,8 +16,17 @@ export const randomBytes = (length: number): Uint8Array => {
   return crypto.getRandomValues(new Uint8Array(length));
 };
 
-export const generateSymmetricKey = (): Promise<CryptoKey> =>
-  crypto.subtle.generateKey({ name: "AES-GCM", length: aesKeyBits }, false, ["encrypt", "decrypt"]);
+export const generateSymmetricKey = (
+  options: { extractable?: boolean } = {},
+): Promise<CryptoKey> =>
+  crypto.subtle.generateKey(
+    { name: "AES-GCM", length: aesKeyBits },
+    options.extractable ?? false,
+    ["encrypt", "decrypt"],
+  );
+
+export const exportSymmetricKey = async (key: CryptoKey): Promise<Uint8Array> =>
+  new Uint8Array(await crypto.subtle.exportKey("raw", key));
 
 export const importSymmetricKey = (
   bytes: Uint8Array,

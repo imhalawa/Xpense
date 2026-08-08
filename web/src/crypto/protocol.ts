@@ -37,6 +37,10 @@ export interface MasterKeyWrapperDescriptor {
   wrapperId: string;
 }
 
+export interface EncryptionIdentityDescriptor {
+  userId: string;
+}
+
 const canonicalUuid = (value: string): string => {
   const normalised = value.toLowerCase();
   if (!canonicalUuidPattern.test(normalised)) throw new Error("The identifier must be a valid UUID");
@@ -62,4 +66,11 @@ export const masterKeyAdditionalData = (
 ): Uint8Array =>
   encoder.encode(
     `v${PROTOCOL_VERSION}|master|${canonicalUuid(descriptor.userId)}|${descriptor.wrapperKind}|${canonicalUuid(descriptor.wrapperId)}`,
+  );
+
+export const encryptionIdentityAdditionalData = (
+  descriptor: EncryptionIdentityDescriptor,
+): Uint8Array =>
+  encoder.encode(
+    `v${PROTOCOL_VERSION}|identity|${canonicalUuid(descriptor.userId)}|x25519-private`,
   );
