@@ -1,55 +1,94 @@
-import { useState } from "react";
-import { Field, makeStyles, tokens } from "@fluentui/react-components";
-import { DatePicker } from "@fluentui/react-datepicker-compat";
-import dayjs, { Dayjs } from "dayjs";
-import TransactionsGrid from "./TransactionsGrid/TransactionsGrid";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import {
+  MessageBar,
+  MessageBarActions,
+  MessageBarBody,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
+import { Button } from "@fluentui/react-components";
+import { useTransactionFilter } from "../../transactions/useTransactionFilter";
+import { useVault } from "../../vault/VaultProvider";
+import type { AccountView } from "../../vault/VaultProjection";
+import TransactionsToolbar from "./TransactionsToolbar";
+import TransactionsView from "./TransactionsView";
+
+const fallbackSpace = "personal";
 
 const useStyles = makeStyles({
-  body: {
+  root: {
     display: "flex",
     flexDirection: "column",
-    gap: tokens.spacingVerticalL,
-  },
-  filters: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(180px, 1fr))",
-    gap: tokens.spacingHorizontalM,
-    maxWidth: "480px",
-    "@media (max-width: 479px)": {
-      gridTemplateColumns: "1fr",
-    },
+    gap: tokens.spacingVerticalM,
   },
 });
 
 const Transactions = () => {
   const styles = useStyles();
-  const [from, setFrom] = useState<Dayjs | null>(dayjs().startOf("month"));
-  const [to, setTo] = useState<Dayjs | null>(dayjs().endOf("month"));
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { projection, state } = useVault();
+  const transactionFilter = useTransactionFilter(projection, fallbackSpace);
+  const [accounts, setAccounts] = useState<AccountView[]>([]);
+
+  useEffect(() => {
+    if (state !== "ready") {
+      setAccounts([]);
+      return;
+    }
+
+    let isCurrent = true;
+    projection
+      .listAccounts(transactionFilter.filter.space)
+      .then((loadedAccounts) => {
+        if (isCurrent) setAccounts(loadedAccounts);
+      })
+      .catch(() => {
+        if (isCurrent) setAccounts([]);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [projection, state, transactionFilter.filter.space]);
+
+  const addTransaction = () =>
+    navigate("/transactions/new", {
+      state: { returnTo: `${location.pathname}${location.search}` },
+    });
 
   return (
-    <div className={styles.body}>
-      <div className={styles.filters}>
-        <Field label="From">
-          <DatePicker
-            value={from?.toDate() ?? null}
-            formatDate={(date) =>
-              date === undefined ? "" : dayjs(date).format("YYYY-MM-DD")
+    <div className={styles.root}>
+      {transactionFilter.removedMessage !== null && (
+        <MessageBar intent="warning">
+          <MessageBarBody>{transactionFilter.removedMessage}</MessageBarBody>
+          <MessageBarActions
+            containerAction={
+              <Button
+                appearance="transparent"
+                icon={<DismissRegular />}
+                aria-label="Dismiss filter message"
+                onClick={transactionFilter.dismissRemovedMessage}
+              />
             }
-            onSelectDate={(date) => setFrom(date == null ? null : dayjs(date))}
           />
-        </Field>
-        <Field label="To">
-          <DatePicker
-            value={to?.toDate() ?? null}
-            formatDate={(date) =>
-              date === undefined ? "" : dayjs(date).format("YYYY-MM-DD")
-            }
-            onSelectDate={(date) => setTo(date == null ? null : dayjs(date))}
-          />
-        </Field>
-      </div>
+        </MessageBar>
+      )}
 
-      <TransactionsGrid size={10} from={from} to={to} />
+      <TransactionsToolbar
+        filter={transactionFilter.filter}
+        accounts={accounts}
+        onFilterChange={transactionFilter.setFilter}
+        onClearFilters={transactionFilter.clearFilters}
+      />
+      <TransactionsView
+        filter={transactionFilter.filter}
+        activeFilterCount={transactionFilter.activeFilterCount}
+        onAddTransaction={addTransaction}
+        onClearFilters={transactionFilter.clearFilters}
+      />
     </div>
   );
 };

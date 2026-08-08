@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import dayjs from "dayjs";
 import { Caption1, Title3, makeStyles, tokens } from "@fluentui/react-components";
 import AccountBalances from "../../components/AccountBalances/AccountBalances";
@@ -6,6 +7,11 @@ import BudgetMeter from "../../components/BudgetMeter/BudgetMeter";
 import { listAccounts } from "../../clients/options";
 import { listBudgets } from "../../clients/budgets";
 import { IAccountResponse, IBudgetResponse } from "../../clients/types";
+import { useVault } from "../../vault/VaultProvider";
+import { useTransactionFilter } from "../../transactions/useTransactionFilter";
+import TransactionsView from "../Transactions/TransactionsView";
+
+const fallbackSpace = "personal";
 
 const useStyles = makeStyles({
   sections: {
@@ -30,6 +36,10 @@ const useStyles = makeStyles({
 
 const Overview = () => {
   const styles = useStyles();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { projection } = useVault();
+  const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [accounts, setAccounts] = useState<IAccountResponse[]>([]);
   const [budgets, setBudgets] = useState<IBudgetResponse[]>([]);
   const now = dayjs();
@@ -61,6 +71,24 @@ const Overview = () => {
             ))}
           </div>
         )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="recent-transactions-heading">
+        <Title3 as="h2" id="recent-transactions-heading">
+          Recent transactions
+        </Title3>
+        <TransactionsView
+          filter={transactionFilter.filter}
+          activeFilterCount={transactionFilter.activeFilterCount}
+          limit={5}
+          hidePagination
+          onAddTransaction={() =>
+            navigate("/transactions/new", {
+              state: { returnTo: `${location.pathname}${location.search}` },
+            })
+          }
+          onClearFilters={transactionFilter.clearFilters}
+        />
       </section>
     </div>
   );
