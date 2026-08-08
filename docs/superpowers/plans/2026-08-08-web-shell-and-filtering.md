@@ -38,6 +38,17 @@ The API is not touched by this plan. No `api/` file is edited, added or deleted.
 - **Styling is Griffel `makeStyles`.** No inline style objects.
 - **Never sum across currencies.**
 
+## Corrections found while executing
+
+Facts that came out of Tasks 1, 2, 5 and 12 and change what a later task must do.
+
+- **Task 12 does not wire itself up.** It lists `TransactionsView.tsx` and `SidebarFilters.tsx` as files to modify, but those are created by Tasks 11 and 7, which run later. Task 7 must import `resolveTagColors` and `categoryPaletteSlot` from `src/theme/tagColors.ts` itself, and Task 11 must do the same. Task 12 created the module and nothing else.
+- **Task 8 must lift `useIsWideScreen`.** `AppShell.tsx` and `PageTitle.tsx` now hold the same private `matchMedia` hook against `(min-width: 1024px)`. Task 8 rewrites `AppShell` and owns the deduplication. A CSS media query cannot replace it: jsdom does not evaluate media queries, and Tasks 13 and 14 need the branch observable from a test.
+- **`clip` must use the comma form.** jsdom's `cssstyle` silently drops `clip: rect(0 0 0 0)`; `getComputedStyle(...).clip` reads back empty. `clip: rect(0px, 0px, 0px, 0px)` parses correctly. Tasks 13 and 14 assert on this.
+- **`space` is never stripped.** `FilterFacet` includes `"space"`, but `TransactionFilter.space` is non-nullable. `stripFacets` skips it and `resolveFilter` never reports it. An inaccessible space is a redirect to the fallback space, not a stripped facet.
+- **No page renders an `h1` until Task 8.** `PageTitle` exists but nothing mounts it. This is the intended intermediate state; Task 8 mounts it in `AppShell` from the matched destination.
+- **`Transactions.tsx` keeps its `New transaction` button** until Task 9 replaces it with the shell-owned dialog. Task 5's wording implied otherwise; removing it early would leave no way to add a transaction across Tasks 5 to 8.
+
 ## Test files that must pass UNCHANGED
 
 Editing one of these means behaviour broke, not that the test needs updating:
