@@ -60,6 +60,8 @@ public static class IoC
         services.AddSwaggerGen(options =>
         {
             options.CustomSchemaIds(SchemaId);
+            options.TagActionsBy(description => new[] { SwaggerTags.ForRoute(description.RelativePath) });
+            options.OrderActionsBy(description => SwaggerTags.ForRoute(description.RelativePath));
             options.SwaggerDoc(
                 "v1",
                 new OpenApiInfo
