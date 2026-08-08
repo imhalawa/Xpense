@@ -45,8 +45,29 @@ Components confirmed present in the stable package by parsing its type declarati
 **MUI is removed entirely.** `@mui/material`, `@mui/x-date-pickers`, `@mui/x-charts`,
 `@emotion/react` and `@emotion/styled` all go. `@mui/x-charts` is used by exactly one file,
 `XpenseLineCharts.tsx`, which nothing imports — deleting it removes charts as a dependency concern
-today, and leaves the Insights chart library as a clean decision when Insights is built rather than
-a reason to keep MUI around.
+today.
+
+**Charts come from `@fluentui/react-charts` 9.3.23**, which is v9-native and allows React
+`<20.0.0`. This was researched after the first draft of this spec claimed Fluent had no chart story;
+that claim was wrong. It covers every form the information-architecture spec calls for:
+
+| Analytic | Component |
+|---|---|
+| Q2 spending by category and merchant | `HorizontalBarChartWithAxis` |
+| Q3 trend and cashflow | `LineChart`, `AreaChart` |
+| Q5 essential versus discretionary | `VerticalStackedBarChart` |
+| Overview cashflow sparkline | `Sparkline` |
+| Legends for any multi-series chart | `Legends` |
+
+Also available and unused for now: `GaugeChart`, `DonutChart`, `HeatMapChart`, `ScatterChart`,
+`FunnelChart`, `SankeyChart`, `GanttChart`, `PolarChart`, `ChartTable`. Series colours are set per
+data point, so the validated categorical palette carries over unchanged. `DonutChart` stays
+rejected for spending-by-category — the reason was never the library, it was that a many-sliced
+pie is the wrong form.
+
+**Preview packages are banned.** `@fluentui/react-nav-preview`, `@fluentui/react-search-preview`
+and `@fluentui/react-list-preview` all cap at React `<19.0.0` and cannot be installed here. Check
+the `react` peer range of any `@fluentui/*` package before adding it.
 
 **Icons come from `@fluentui/react-icons`.** The 25 custom SVG icons and their base `Icon` component
 are deleted, along with `icons.test.tsx`. This is a deliberate loss: the sun, moon and monitor icons
@@ -163,6 +184,13 @@ component library itself.
 
 ## Testing
 
+**A Vitest setup file is a prerequisite.** jsdom does not implement `window.matchMedia`, and Fluent
+v9 needs it — as does any colour-scheme detection. The project currently has no `setupFiles` entry
+at all, which is also why `@testing-library/jest-dom` was installed months ago and never wired up.
+Add `web/vitest.setup.ts` mocking `matchMedia` and importing `@testing-library/jest-dom`, and
+reference it from `vitest.config.ts`. Without it the component suite fails at import time, not with
+a useful assertion error.
+
 Eight test files are library-agnostic and must pass **unchanged** — treat any edit to them as a
 signal that behaviour was broken: `budgetFormRules`, `budgetProgress`, `formatMoney`, `contrast`,
 `density`, `useDebouncedValue`, `clients/options`, `clients/transactions`.
@@ -180,8 +208,9 @@ The 178 API tests are untouched.
   a native v9 component. It works on React 19, but it is the piece most likely to look or behave
   slightly off, and the least likely to improve.
 - **No pagination component.** It gets built from primitives.
-- **No chart story.** Deferred to Insights, but there is no Fluent chart library, so that spec will
-  need to choose a neutral one and style it with the palette above.
+- **`@fluentui/react-charts` is unproven in this codebase.** It resolves the chart question on
+  paper, but nothing here renders one yet. The Insights plan should build the smallest real chart
+  early rather than discovering its API at the end.
 - **A big-bang branch means a long unreviewable stretch.** Chosen deliberately over incremental.
   The mitigation is that the API and the logic tests are untouched, so the blast radius is the view
   layer only.
@@ -196,6 +225,6 @@ The 178 API tests are untouched.
 
 ## Open questions
 
-- **Insights chart library.** Decide when Insights is built, not now.
+- ~~Insights chart library.~~ **Resolved:** `@fluentui/react-charts` 9.3.23.
 - **Whether the system font is acceptable on macOS**, or whether Selawik should be shipped to get
   closer to Segoe metrics. Answerable only by looking at it.
