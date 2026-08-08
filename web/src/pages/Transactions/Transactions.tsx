@@ -7,10 +7,10 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Grid from "@mui/material/Grid";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs, { Dayjs } from "dayjs";
-import Page from "../../components/Page/Page";
 import TransactionsGrid from "./TransactionsGrid/TransactionsGrid";
 import TransactionsForm from "./TransactionsForm/TransactionsForm";
 import { DateIcon, PlusIcon } from "../../icons/icons";
+import PageHeader from "../../shell/PageHeader";
 
 const Transactions = () => {
   const [from, setFrom] = useState<Dayjs | null>(dayjs().startOf("month"));
@@ -18,7 +18,18 @@ const Transactions = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   return (
-    <Page title="Transactions">
+    <>
+      <PageHeader
+        title="Transactions"
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<PlusIcon size={18} />}
+            onClick={() => setIsFormOpen(true)}>
+            New transaction
+          </Button>
+        }
+      />
       <Grid size={12}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
           <Box
@@ -42,14 +53,7 @@ const Transactions = () => {
               slotProps={{ textField: { size: "small" } }}
               onChange={(picked) => setTo(picked)}
             />
-            <Box sx={{ marginLeft: "auto" }}>
-              <Button
-                variant="contained"
-                startIcon={<PlusIcon size={18} />}
-                onClick={() => setIsFormOpen(true)}>
-                New transaction
-              </Button>
-            </Box>
+            <Box sx={{ marginLeft: "auto" }} />
           </Box>
 
           <TransactionsGrid size={10} from={from} to={to} />
@@ -71,7 +75,7 @@ const Transactions = () => {
           )}
         </DialogContent>
       </Dialog>
-    </Page>
+    </>
   );
 };
 

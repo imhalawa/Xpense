@@ -3,12 +3,12 @@ import dayjs from "dayjs";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
-import Page from "../../components/Page/Page";
 import AccountBalances from "../../components/AccountBalances/AccountBalances";
 import BudgetMeter from "../../components/BudgetMeter/BudgetMeter";
 import { listAccounts } from "../../clients/options";
 import { listBudgets } from "../../clients/budgets";
 import { IAccountResponse, IBudgetResponse } from "../../clients/types";
+import PageHeader from "../../shell/PageHeader";
 
 const Overview = () => {
   const [accounts, setAccounts] = useState<IAccountResponse[]>([]);
@@ -21,7 +21,8 @@ const Overview = () => {
   }, []);
 
   return (
-    <Page title="Overview">
+    <>
+      <PageHeader title="Overview" />
       <Grid size={12}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3, width: "100%" }}>
           <Box>
@@ -54,7 +55,7 @@ const Overview = () => {
           </Box>
         </Box>
       </Grid>
-    </Page>
+    </>
   );
 };
 

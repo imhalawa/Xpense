@@ -1,13 +1,14 @@
 import Typography from "@mui/material/Typography";
-import Page from "../../components/Page/Page";
+import PageHeader from "../../shell/PageHeader";
 
 const Settings = () => {
   return (
-    <Page title="Settings">
+    <>
+      <PageHeader title="Settings" />
       <Typography variant="body1" sx={{ color: "text.secondary" }}>
         Account, category, merchant and tag management is coming here soon.
       </Typography>
-    </Page>
+    </>
   );
 };
 

@@ -9,7 +9,6 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
-import Page from "../../components/Page/Page";
 import BudgetForm from "../../components/BudgetForm/BudgetForm";
 import BudgetMeter from "../../components/BudgetMeter/BudgetMeter";
 import { createBudget, deleteBudget, listBudgets, updateBudget } from "../../clients/budgets";
@@ -18,6 +17,7 @@ import { IBudgetResponse, ICategoryResponse, Recurrence } from "../../clients/ty
 import { BudgetFormValues, toCreateRequest } from "../../budgets/budgetFormRules";
 import { toMajorUnits } from "../../money/formatMoney";
 import { Currency } from "../../typings/enums/Currency";
+import PageHeader from "../../shell/PageHeader";
 
 const dayFormat = "YYYY-MM-DD";
 
@@ -72,15 +72,17 @@ const Budgets = () => {
   };
 
   return (
-    <Page title="Budgets">
+    <>
+      <PageHeader
+        title="Budgets"
+        actions={
+          <Button variant="contained" onClick={() => setEditing("new")}>
+            New budget
+          </Button>
+        }
+      />
       <Grid size={12}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button variant="contained" onClick={() => setEditing("new")}>
-              New budget
-            </Button>
-          </Box>
-
           {budgets.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
               No budgets yet.
@@ -154,7 +156,7 @@ const Budgets = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Page>
+    </>
   );
 };
 
