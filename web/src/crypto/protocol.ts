@@ -1,5 +1,6 @@
 export const PROTOCOL_VERSION = 1;
 export const PASSKEY_WRAPPING_INFO = "Xpense passkey vault wrap v1";
+export const RECOVERY_FILE_WRAPPING_INFO = "Xpense recovery file vault wrap v1";
 
 const canonicalUuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

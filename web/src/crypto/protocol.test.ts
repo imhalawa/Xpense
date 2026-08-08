@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   PROTOCOL_VERSION,
   PASSKEY_WRAPPING_INFO,
+  RECOVERY_FILE_WRAPPING_INFO,
   encryptionIdentityAdditionalData,
   envelopeAdditionalData,
   groupKeyAdditionalData,
@@ -19,6 +20,7 @@ describe("crypto protocol", () => {
   it("pins protocol version one", () => {
     expect(PROTOCOL_VERSION).toBe(1);
     expect(PASSKEY_WRAPPING_INFO).toBe("Xpense passkey vault wrap v1");
+    expect(RECOVERY_FILE_WRAPPING_INFO).toBe("Xpense recovery file vault wrap v1");
   });
 
   it("encodes payload additional data canonically", () => {
