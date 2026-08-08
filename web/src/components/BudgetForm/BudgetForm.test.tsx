@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { ThemeProvider } from "@mui/material/styles";
-import { LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import theme from "../../theme/theme";
 import { Currency } from "../../typings/enums/Currency";
 import { ICategoryResponse } from "../../clients/types";
 import { BudgetFormValues } from "../../budgets/budgetFormRules";
@@ -31,18 +27,14 @@ const initialValues: BudgetFormValues = {
 
 const renderForm = (onSubmit = vi.fn(), values = initialValues, isEditing = false) => {
   render(
-    <ThemeProvider theme={theme}>
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <BudgetForm
-          categories={categories}
-          initialValues={values}
-          onSubmit={onSubmit}
-          onCancel={vi.fn()}
-          submitLabel="Save"
-          isEditing={isEditing}
-        />
-      </LocalizationProvider>
-    </ThemeProvider>
+    <BudgetForm
+      categories={categories}
+      initialValues={values}
+      onSubmit={onSubmit}
+      onCancel={vi.fn()}
+      submitLabel="Save"
+      isEditing={isEditing}
+    />
   );
   return onSubmit;
 };
@@ -79,14 +71,12 @@ describe("BudgetForm", () => {
 
   it("locks the category while editing because the update endpoint cannot change it", () => {
     renderForm(vi.fn(), initialValues, true);
-    expect(screen.getByRole("combobox", { name: "Category" }).getAttribute("aria-disabled")).toBe(
-      "true"
-    );
+    expect(screen.getByRole("combobox", { name: "Category" }).hasAttribute("disabled")).toBe(true);
     cleanup();
     renderForm(vi.fn(), initialValues, false);
-    expect(
-      screen.getByRole("combobox", { name: "Category" }).getAttribute("aria-disabled")
-    ).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Category" }).hasAttribute("disabled")).toBe(
+      false
+    );
   });
 
   it("names the currency by symbol and iso code so a dollar is never ambiguous", () => {

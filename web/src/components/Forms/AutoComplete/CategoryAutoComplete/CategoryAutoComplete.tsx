@@ -1,6 +1,6 @@
-import { Autocomplete, Grid, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { ICategory, IPriority } from "../../../../typings";
+import { Badge, Combobox, Field, Option, makeStyles, tokens } from "@fluentui/react-components";
+import { ICategory } from "../../../../typings";
 import { listCategories } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
 
@@ -11,23 +11,28 @@ interface ICategoryAutoCompleteProps {
   helperText?: string;
   onChange: (value: ICategory | null) => void;
 }
-const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICategoryAutoCompleteProps) => {
+
+const useStyles = makeStyles({
+  option: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    gap: tokens.spacingHorizontalM,
+  },
+});
+
+const CategoryAutoComplete = ({
+  label,
+  value,
+  error,
+  helperText,
+  onChange,
+}: ICategoryAutoCompleteProps) => {
+  const styles = useStyles();
   const { setLoading } = useLoading();
   const [categoryOptions, setCategoryOptions] = useState<ICategory[]>([]);
-  const [selected, setSelected] = useState<ICategory | null>(null);
-
-  const priorityColor = (priority: IPriority): string => {
-    switch (priority.weight) {
-      case 1:
-        return "success.main";
-      case 2:
-        return "warning.main";
-      case 3:
-        return "error.main";
-      default:
-        return "text.secondary";
-    }
-  };
+  const [selected, setSelected] = useState<ICategory | null>(value);
 
   useEffect(() => {
     setLoading(true);
@@ -35,13 +40,16 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
       .then((categories) => {
         setCategoryOptions(categories);
         setSelected(
-          value ||
-            ([...categories].sort((left, right) => right.priority.weight - left.priority.weight)[0] ?? null)
+          value ??
+            [...categories].sort(
+              (left, right) => right.priority.weight - left.priority.weight
+            )[0] ??
+            null
         );
         setLoading(false);
       })
-      .catch((error) => {
-        console.error(error);
+      .catch((loadError) => {
+        console.error(loadError);
         setLoading(false);
       });
   }, []);
@@ -51,48 +59,29 @@ const CategoryAutoComplete = ({ label, value, error, helperText, onChange }: ICa
   }, [selected]);
 
   return (
-    <Autocomplete
-      id="category-autocomplete"
-      options={categoryOptions}
-      isOptionEqualToValue={(a, b) => a.id === b.id}
-      autoHighlight
-      value={selected}
-      onChange={(_, newValue: ICategory | null) => setSelected(newValue)}
-      getOptionLabel={(option) => option.label}
-      renderOption={(props, option) => {
-        const { key, ...optionProps } = props;
-        return (
-          <Grid container spacing={1} key={key} component="li" {...optionProps}>
-            <Grid size={10}>
-              <Typography variant="body2">{option.label}&nbsp;</Typography>
-            </Grid>
-            <Grid size={2}>
-              <Typography variant="caption" color={priorityColor(option.priority)}>
-                {option.priority.label}
-              </Typography>
-            </Grid>
-          </Grid>
-        );
-      }}
-      renderInput={(params) => (
-        <TextField
-          required
-          {...params}
-          label={label}
-          value={selected}
-          error={error}
-          helperText={helperText}
-          slotProps={{
-            ...params.slotProps,
-
-            htmlInput: {
-              ...params.slotProps.htmlInput,
-              autoComplete: "new-password",
-            }
-          }}
-        />
-      )}
-    />
+    <Field
+      label={label}
+      required
+      validationState={error ? "error" : "none"}
+      validationMessage={helperText}>
+      <Combobox
+        value={selected?.label ?? ""}
+        selectedOptions={selected?.id === null || selected === null ? [] : [String(selected.id)]}
+        onOptionSelect={(_event, data) =>
+          setSelected(
+            categoryOptions.find((category) => String(category.id) === data.optionValue) ?? null
+          )
+        }>
+        {categoryOptions.map((category) => (
+          <Option key={category.id} value={String(category.id)} text={category.label}>
+            <span className={styles.option}>
+              {category.label}
+              <Badge appearance="tint">{category.priority.label}</Badge>
+            </span>
+          </Option>
+        ))}
+      </Combobox>
+    </Field>
   );
 };
 

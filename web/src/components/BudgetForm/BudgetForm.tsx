@@ -1,16 +1,17 @@
-import { FormEvent, MouseEvent, useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import MenuItem from "@mui/material/MenuItem";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import Typography from "@mui/material/Typography";
-import { DatePicker } from "@mui/x-date-pickers";
+import { FormEvent, useState } from "react";
+import {
+  Button,
+  Dropdown,
+  Field,
+  Input,
+  Option,
+  ToggleButton,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
+import { DatePicker } from "@fluentui/react-datepicker-compat";
 import dayjs from "dayjs";
 import CurrencyOption from "../CurrencyOption/CurrencyOption";
-import { DateIcon } from "../../icons/icons";
 import { ICategoryResponse, Recurrence } from "../../clients/types";
 import { Currency } from "../../typings/enums/Currency";
 import {
@@ -29,16 +30,37 @@ interface BudgetFormProps {
 }
 
 const dayFormat = "YYYY-MM-DD";
-
 const recurrences: Recurrence[] = ["None", "Weekly", "Monthly", "Yearly"];
-
 const currencies: Currency[] = Object.values(Currency);
-
 const alertPresets: number[] = [25, 50, 75];
-
 const noAlertChoice = "none";
-
 const customAlertChoice = "custom";
+
+const useStyles = makeStyles({
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalL,
+    paddingTop: tokens.spacingVerticalS,
+  },
+  thresholdGroup: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    gap: tokens.spacingHorizontalXS,
+    "@media (max-width: 479px)": {
+      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    },
+  },
+  control: {
+    minWidth: 0,
+    width: "100%",
+  },
+  actions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: tokens.spacingHorizontalS,
+  },
+});
 
 const choiceForThreshold = (thresholdPercent: number | null): string => {
   if (thresholdPercent === null) return noAlertChoice;
@@ -54,6 +76,7 @@ const BudgetForm = ({
   submitLabel,
   isEditing = false,
 }: BudgetFormProps) => {
+  const styles = useStyles();
   const [values, setValues] = useState<BudgetFormValues>(initialValues);
   const [errors, setErrors] = useState<BudgetFormErrors>({});
   const [alertChoice, setAlertChoice] = useState<string>(
@@ -68,167 +91,150 @@ const BudgetForm = ({
     onSubmit(values);
   };
 
-  const handleAlertChoice = (_changeEvent: MouseEvent<HTMLElement>, choice: string | null) => {
-    if (choice === null) return;
+  const selectAlertChoice = (choice: string) => {
     setAlertChoice(choice);
-    if (choice === noAlertChoice) setValues({ ...values, alertThresholdPercent: null });
-    else if (choice !== customAlertChoice)
+    if (choice === noAlertChoice) {
+      setValues({ ...values, alertThresholdPercent: null });
+    } else if (choice !== customAlertChoice) {
       setValues({ ...values, alertThresholdPercent: Number(choice) });
+    }
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} noValidate>
-      <Stack spacing={2} sx={{ paddingTop: 1 }}>
-        <TextField
-          select
-          label="Category"
-          value={values.categoryId === null ? "" : String(values.categoryId)}
+    <form className={styles.form} onSubmit={handleSubmit} noValidate>
+      <Field label="Category" required validationMessage={errors.categoryId}>
+        <Dropdown
+          className={styles.control}
           disabled={isEditing}
-          error={errors.categoryId !== undefined}
-          helperText={errors.categoryId}
-          onChange={(changeEvent) =>
-            setValues({ ...values, categoryId: Number(changeEvent.target.value) })
-          }
-        >
+          value={categories.find((category) => category.id === values.categoryId)?.label ?? ""}
+          selectedOptions={values.categoryId === null ? [] : [String(values.categoryId)]}
+          onOptionSelect={(_event, data) =>
+            setValues({ ...values, categoryId: Number(data.optionValue) })
+          }>
           {categories.map((category) => (
-            <MenuItem key={category.id} value={String(category.id)}>
+            <Option key={category.id} value={String(category.id)}>
               {category.label}
-            </MenuItem>
+            </Option>
           ))}
-        </TextField>
+        </Dropdown>
+      </Field>
 
-        <TextField
-          label="Amount"
+      <Field label="Amount" required validationMessage={errors.amountMajorUnits}>
+        <Input
+          className={styles.control}
+          inputMode="decimal"
           value={values.amountMajorUnits}
-          slotProps={{ htmlInput: { inputMode: "decimal" } }}
-          error={errors.amountMajorUnits !== undefined}
-          helperText={errors.amountMajorUnits}
-          onChange={(changeEvent) =>
-            setValues({ ...values, amountMajorUnits: changeEvent.target.value })
-          }
+          onChange={(_event, data) => setValues({ ...values, amountMajorUnits: data.value })}
         />
+      </Field>
 
-        <TextField
-          select
-          label="Currency"
+      <Field label="Currency" required validationMessage={errors.currency}>
+        <Dropdown
+          className={styles.control}
           value={values.currency}
-          error={errors.currency !== undefined}
-          helperText={errors.currency}
-          slotProps={{
-            select: {
-              renderValue: (selected) => <CurrencyOption currency={selected as Currency} />,
-            },
-          }}
-          onChange={(changeEvent) =>
-            setValues({ ...values, currency: changeEvent.target.value as Currency })
-          }
-        >
+          selectedOptions={[values.currency]}
+          onOptionSelect={(_event, data) =>
+            setValues({ ...values, currency: data.optionValue as Currency })
+          }>
           {currencies.map((currency) => (
-            <MenuItem key={currency} value={currency}>
+            <Option key={currency} value={currency} text={currency}>
               <CurrencyOption currency={currency} />
-            </MenuItem>
+            </Option>
           ))}
-        </TextField>
+        </Dropdown>
+      </Field>
 
-        <TextField
-          select
-          label="Recurrence"
+      <Field label="Recurrence" required validationMessage={errors.recurrence}>
+        <Dropdown
+          className={styles.control}
           value={values.recurrence}
-          error={errors.recurrence !== undefined}
-          helperText={errors.recurrence}
-          onChange={(changeEvent) =>
-            setValues({ ...values, recurrence: changeEvent.target.value as Recurrence })
-          }
-        >
+          selectedOptions={[values.recurrence]}
+          onOptionSelect={(_event, data) =>
+            setValues({ ...values, recurrence: data.optionValue as Recurrence })
+          }>
           {recurrences.map((recurrence) => (
-            <MenuItem key={recurrence} value={recurrence}>
+            <Option key={recurrence} value={recurrence}>
               {recurrence}
-            </MenuItem>
+            </Option>
           ))}
-        </TextField>
+        </Dropdown>
+      </Field>
 
+      <Field label="Starts on" required validationMessage={errors.startsOn}>
         <DatePicker
-          label="Starts on"
-          value={dayjs(values.startsOn)}
-          slots={{ openPickerIcon: DateIcon }}
-          slotProps={{
-            textField: {
-              error: errors.startsOn !== undefined,
-              helperText: errors.startsOn,
-            },
-          }}
-          onChange={(picked) =>
-            setValues({ ...values, startsOn: picked === null ? "" : picked.format(dayFormat) })
+          className={styles.control}
+          value={dayjs(values.startsOn).toDate()}
+          formatDate={(date) => (date === undefined ? "" : dayjs(date).format(dayFormat))}
+          onSelectDate={(date) =>
+            setValues({ ...values, startsOn: date == null ? "" : dayjs(date).format(dayFormat) })
           }
         />
+      </Field>
 
+      <Field label="Ends on" validationMessage={errors.endsOn}>
         <DatePicker
-          label="Ends on"
-          value={values.endsOn === null ? null : dayjs(values.endsOn)}
-          slots={{ openPickerIcon: DateIcon }}
-          slotProps={{
-            textField: {
-              error: errors.endsOn !== undefined,
-              helperText: errors.endsOn,
-            },
-          }}
-          onChange={(picked) =>
-            setValues({ ...values, endsOn: picked === null ? null : picked.format(dayFormat) })
+          className={styles.control}
+          value={values.endsOn === null ? null : dayjs(values.endsOn).toDate()}
+          formatDate={(date) => (date === undefined ? "" : dayjs(date).format(dayFormat))}
+          onSelectDate={(date) =>
+            setValues({
+              ...values,
+              endsOn: date === null || date === undefined ? null : dayjs(date).format(dayFormat),
+            })
           }
         />
+      </Field>
 
-        <Box>
-          <Typography variant="body2" sx={{ color: "text.secondary", marginBottom: 1 }}>
-            Alert threshold
-          </Typography>
-          <ToggleButtonGroup
-            exclusive
-            fullWidth
-            size="small"
-            value={alertChoice}
-            onChange={handleAlertChoice}
-            aria-label="Alert threshold">
-            <ToggleButton value={noAlertChoice}>No alert</ToggleButton>
-            {alertPresets.map((preset) => (
-              <ToggleButton key={preset} value={String(preset)}>
-                {preset}%
-              </ToggleButton>
-            ))}
-            <ToggleButton value={customAlertChoice}>Custom</ToggleButton>
-          </ToggleButtonGroup>
+      <Field label="Alert threshold" validationMessage={errors.alertThresholdPercent}>
+        <div className={styles.thresholdGroup} role="group" aria-label="Alert threshold">
+          <ToggleButton
+            checked={alertChoice === noAlertChoice}
+            onClick={() => selectAlertChoice(noAlertChoice)}>
+            No alert
+          </ToggleButton>
+          {alertPresets.map((preset) => (
+            <ToggleButton
+              key={preset}
+              checked={alertChoice === String(preset)}
+              onClick={() => selectAlertChoice(String(preset))}>
+              {preset}%
+            </ToggleButton>
+          ))}
+          <ToggleButton
+            checked={alertChoice === customAlertChoice}
+            onClick={() => selectAlertChoice(customAlertChoice)}>
+            Custom
+          </ToggleButton>
+        </div>
+      </Field>
 
-          {alertChoice === customAlertChoice && (
-            <TextField
-              type="number"
-              fullWidth
-              label="Alert threshold percent"
-              sx={{ marginTop: 2 }}
-              value={
-                values.alertThresholdPercent === null ? "" : String(values.alertThresholdPercent)
-              }
-              error={errors.alertThresholdPercent !== undefined}
-              helperText={errors.alertThresholdPercent}
-              onChange={(changeEvent) =>
-                setValues({
-                  ...values,
-                  alertThresholdPercent:
-                    changeEvent.target.value === "" ? null : Number(changeEvent.target.value),
-                })
-              }
-            />
-          )}
-        </Box>
+      {alertChoice === customAlertChoice && (
+        <Field label="Alert threshold percent" validationMessage={errors.alertThresholdPercent}>
+          <Input
+            className={styles.control}
+            type="number"
+            value={
+              values.alertThresholdPercent === null ? "" : String(values.alertThresholdPercent)
+            }
+            onChange={(_event, data) =>
+              setValues({
+                ...values,
+                alertThresholdPercent: data.value === "" ? null : Number(data.value),
+              })
+            }
+          />
+        </Field>
+      )}
 
-        <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
-          <Button type="button" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="contained">
-            {submitLabel}
-          </Button>
-        </Stack>
-      </Stack>
-    </Box>
+      <div className={styles.actions}>
+        <Button type="button" appearance="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" appearance="primary">
+          {submitLabel}
+        </Button>
+      </div>
+    </form>
   );
 };
 

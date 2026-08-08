@@ -9,7 +9,7 @@
 <body>
 <script>
     (function () {
-        var stored = localStorage.getItem("mui-mode");
+        var stored = localStorage.getItem("xpense-color-scheme");
         var dark = stored === "dark" || (stored !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
     })();

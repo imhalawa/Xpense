@@ -1,35 +1,40 @@
-import { useColorScheme } from "@mui/material/styles";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import { DarkModeIcon, LightModeIcon, SystemModeIcon } from "../../icons/icons";
+import { ToggleButton, makeStyles, tokens } from "@fluentui/react-components";
+import { DesktopRegular, WeatherMoonRegular, WeatherSunnyRegular } from "@fluentui/react-icons";
+import { ColorSchemeMode, useColorScheme } from "../../fluent/useColorScheme";
 
 const modes = [
-  { value: "light", label: "Light", Icon: LightModeIcon },
-  { value: "dark", label: "Dark", Icon: DarkModeIcon },
-  { value: "system", label: "System", Icon: SystemModeIcon },
+  { value: "light", label: "Light", icon: <WeatherSunnyRegular /> },
+  { value: "dark", label: "Dark", icon: <WeatherMoonRegular /> },
+  { value: "system", label: "System", icon: <DesktopRegular /> },
 ] as const;
 
+const useStyles = makeStyles({
+  root: {
+    display: "flex",
+    gap: tokens.spacingHorizontalXS,
+  },
+  button: {
+    flexGrow: 1,
+  },
+});
+
 const ThemeModeToggle = () => {
+  const styles = useStyles();
   const { mode, setMode } = useColorScheme();
 
   return (
-    <ToggleButtonGroup
-      size="small"
-      exclusive
-      value={mode ?? "system"}
-      onChange={(_event, next) => next && setMode(next)}
-    >
-      {modes.map(({ value, label, Icon }) => (
+    <div className={styles.root} role="group" aria-label="Color scheme">
+      {modes.map(({ value, label, icon }) => (
         <ToggleButton
+          className={styles.button}
           key={value}
-          value={value}
+          icon={icon}
+          checked={mode === value}
           aria-label={label}
-          sx={{ paddingInline: 1, paddingBlock: 0.5, border: "none" }}
-        >
-          <Icon size={16} />
-        </ToggleButton>
+          onClick={() => setMode(value as ColorSchemeMode)}
+        />
       ))}
-    </ToggleButtonGroup>
+    </div>
   );
 };
 

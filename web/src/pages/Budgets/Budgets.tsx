@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import dayjs from "dayjs";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-import Grid from "@mui/material/Grid";
-import Typography from "@mui/material/Typography";
+import {
+  Button,
+  Caption1,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
+import { AddRegular, DeleteRegular, EditRegular } from "@fluentui/react-icons";
 import BudgetForm from "../../components/BudgetForm/BudgetForm";
 import BudgetMeter from "../../components/BudgetMeter/BudgetMeter";
 import { createBudget, deleteBudget, listBudgets, updateBudget } from "../../clients/budgets";
@@ -20,6 +24,17 @@ import { Currency } from "../../typings/enums/Currency";
 import PageHeader from "../../shell/PageHeader";
 
 const dayFormat = "YYYY-MM-DD";
+
+const useStyles = makeStyles({
+  grid: {
+    display: "grid",
+    gap: tokens.spacingHorizontalL,
+    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+  },
+  empty: {
+    color: tokens.colorNeutralForeground2,
+  },
+});
 
 const valuesForNewBudget = (): BudgetFormValues => ({
   categoryId: null,
@@ -42,6 +57,7 @@ const valuesForExistingBudget = (budget: IBudgetResponse): BudgetFormValues => (
 });
 
 const Budgets = () => {
+  const styles = useStyles();
   const [budgets, setBudgets] = useState<IBudgetResponse[]>([]);
   const [categories, setCategories] = useState<ICategoryResponse[]>([]);
   const [editing, setEditing] = useState<IBudgetResponse | "new" | null>(null);
@@ -76,85 +92,90 @@ const Budgets = () => {
       <PageHeader
         title="Budgets"
         actions={
-          <Button variant="contained" onClick={() => setEditing("new")}>
+          <Button appearance="primary" icon={<AddRegular />} onClick={() => setEditing("new")}>
             New budget
           </Button>
         }
       />
-      <Grid size={12}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
-          {budgets.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No budgets yet.
-            </Typography>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gap: 2,
-                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              }}>
-              {budgets.map((budget) => (
-                <BudgetMeter
-                  key={budget.id}
-                  budget={budget}
-                  now={now}
-                  actions={
-                    <>
-                      <Button
-                        size="small"
-                        aria-label={`Edit the ${budget.category.label} budget`}
-                        onClick={() => setEditing(budget)}>
-                        Edit
-                      </Button>
-                      <Button
-                        size="small"
-                        color="error"
-                        aria-label={`Delete the ${budget.category.label} budget`}
-                        onClick={() => setPendingDelete(budget)}>
-                        Delete
-                      </Button>
-                    </>
-                  }
-                />
-              ))}
-            </Box>
-          )}
-        </Box>
-      </Grid>
 
-      <Dialog open={editing !== null} onClose={() => setEditing(null)} fullWidth maxWidth="sm">
-        <DialogTitle>{editing === "new" ? "New budget" : "Edit budget"}</DialogTitle>
-        <DialogContent>
-          {editing !== null && (
-            <BudgetForm
-              categories={categories}
-              initialValues={
-                editing === "new" ? valuesForNewBudget() : valuesForExistingBudget(editing)
+      {budgets.length === 0 ? (
+        <Caption1 className={styles.empty}>No budgets yet.</Caption1>
+      ) : (
+        <div className={styles.grid}>
+          {budgets.map((budget) => (
+            <BudgetMeter
+              key={budget.id}
+              budget={budget}
+              now={now}
+              actions={
+                <>
+                  <Button
+                    size="small"
+                    appearance="subtle"
+                    icon={<EditRegular />}
+                    aria-label={`Edit the ${budget.category.label} budget`}
+                    onClick={() => setEditing(budget)}>
+                    Edit
+                  </Button>
+                  <Button
+                    size="small"
+                    appearance="subtle"
+                    icon={<DeleteRegular />}
+                    aria-label={`Delete the ${budget.category.label} budget`}
+                    onClick={() => setPendingDelete(budget)}>
+                    Delete
+                  </Button>
+                </>
               }
-              onSubmit={handleSubmit}
-              onCancel={() => setEditing(null)}
-              submitLabel={editing === "new" ? "Create" : "Save"}
-              isEditing={editing !== "new"}
             />
-          )}
-        </DialogContent>
+          ))}
+        </div>
+      )}
+
+      <Dialog
+        open={editing !== null}
+        onOpenChange={(_event, data) => !data.open && setEditing(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>{editing === "new" ? "New budget" : "Edit budget"}</DialogTitle>
+            <DialogContent>
+              {editing !== null && (
+                <BudgetForm
+                  categories={categories}
+                  initialValues={
+                    editing === "new" ? valuesForNewBudget() : valuesForExistingBudget(editing)
+                  }
+                  onSubmit={handleSubmit}
+                  onCancel={() => setEditing(null)}
+                  submitLabel={editing === "new" ? "Create" : "Save"}
+                  isEditing={editing !== "new"}
+                />
+              )}
+            </DialogContent>
+          </DialogBody>
+        </DialogSurface>
       </Dialog>
 
-      <Dialog open={pendingDelete !== null} onClose={() => setPendingDelete(null)}>
-        <DialogTitle>Delete this budget?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            The {pendingDelete?.category.label} budget will be removed. The transactions it tracked
-            are not deleted with it.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPendingDelete(null)}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleDelete}>
-            Delete
-          </Button>
-        </DialogActions>
+      <Dialog
+        open={pendingDelete !== null}
+        onOpenChange={(_event, data) => !data.open && setPendingDelete(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Delete this budget?</DialogTitle>
+            <DialogContent>
+              The {pendingDelete?.category.label} budget will be removed. The transactions it
+              tracked are not deleted with it.
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setPendingDelete(null)}>
+                Cancel
+              </Button>
+              <Button appearance="primary" onClick={handleDelete}>
+                Delete
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
       </Dialog>
     </>
   );

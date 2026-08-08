@@ -1,27 +1,43 @@
-import { Alert, Link, Typography } from "@mui/material";
 import {
-  AccountIcon,
-  AmountIcon,
-  CategoryIcon,
-  DateIcon,
-  DollarIcon,
-  EuroIcon,
-  MerchantIcon,
-  TagsIcon,
-} from "../../../icons/icons";
-import CategoryChip from "../../../components/Chips/CategoryChip/CategoryChip";
-import DataGrid, { IDataGridHeader } from "../../../components/DataGrid/DataGrid";
+  Badge,
+  Body1,
+  Button,
+  Caption1,
+  DataGrid,
+  DataGridBody,
+  DataGridCell,
+  DataGridHeader,
+  DataGridHeaderCell,
+  DataGridRow,
+  Link,
+  MessageBar,
+  MessageBarBody,
+  TableColumnDefinition,
+  createTableColumn,
+  makeStyles,
+  mergeClasses,
+  tokens,
+} from "@fluentui/react-components";
+import {
+  CalendarRegular,
+  ChevronLeftRegular,
+  ChevronRightRegular,
+  FolderRegular,
+  MoneyRegular,
+  PaymentRegular,
+  BuildingShopRegular,
+  TagRegular,
+} from "@fluentui/react-icons";
 import { formatIsoDate } from "../../../utils/DateUtils";
-import { Currency } from "../../../typings/enums/Currency";
-import { ICategory } from "../../../typings/models/ICategory";
 import { toSingle } from "../../../typings/models/IMoney";
 import { ITransactionResponse } from "../../../clients/types";
 import { useLoading } from "../../../contexts/LoadingContext";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { listTransactions } from "../../../clients/transactions";
 import { listCategories } from "../../../clients/options";
 import { useTransctionUtilities } from "../../../contexts/TransactionUtilitiesContext";
 import { Dayjs } from "dayjs";
+import { ICategory } from "../../../typings/models/ICategory";
 
 interface ITransactionsGridProps {
   size?: number;
@@ -32,96 +48,147 @@ interface ITransactionsGridProps {
   hidePagination?: boolean;
 }
 
-const buildHeaders = (
-  categories: Map<number, ICategory>
-): IDataGridHeader<ITransactionResponse>[] => [
-  {
-    headerName: "Amount",
-    field: "amount",
-    icon: <AmountIcon />,
-    order: 2,
-    render: (row: ITransactionResponse) => (
-      <Typography variant="body2" color={row.kind === "income" ? "success.main" : "error.main"}>
-        {row.amount.currency === Currency.EUR ? <EuroIcon size={12} /> : <DollarIcon size={12} />}
-        {toSingle(row.amount)}
-      </Typography>
-    ),
+const useStyles = makeStyles({
+  surface: {
+    borderRadius: tokens.borderRadiusLarge,
+    backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: tokens.shadow4,
+    borderTop: `${tokens.strokeWidthThick} solid ${tokens.colorBrandStroke1}`,
   },
-  {
-    headerName: "Date",
-    field: "occurredAt",
-    order: 3,
-    icon: <DateIcon />,
-    render: (row: ITransactionResponse) => <>{formatIsoDate(row.occurredAt)}</>,
+  amount: {
+    display: "block",
+    width: "100%",
+    textAlign: "right",
+    fontVariantNumeric: "tabular-nums",
   },
-  {
-    headerName: "Category",
-    field: "categoryId",
-    order: 4,
-    icon: <CategoryIcon />,
-    render: (row: ITransactionResponse) => {
-      const category = row.categoryId === null ? undefined : categories.get(row.categoryId);
-      if (category === undefined) return <>&mdash;</>;
-      return <CategoryChip id={category.id!} name={category.label} priority={category.priority} />;
+  desktopGrid: {
+    overflowX: "auto",
+    "@media (max-width: 767px)": {
+      display: "none",
     },
   },
-  {
-    headerName: "Merchant",
-    field: "merchant",
-    order: 5,
-    icon: <MerchantIcon />,
-    render: (row: ITransactionResponse) => <>{row.merchant?.label ?? "—"}</>,
+  mobileList: {
+    display: "none",
+    "@media (max-width: 767px)": {
+      display: "flex",
+      flexDirection: "column",
+    },
   },
-  {
-    headerName: "Account Number",
-    field: "sourceAccountNumber",
-    order: 6,
-    icon: <AccountIcon />,
-    render: (row: ITransactionResponse) => (
-      <>{row.sourceAccountNumber ?? row.destinationAccountNumber}</>
-    ),
+  mobileItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalM,
+    padding: tokens.spacingHorizontalM,
+    borderBottomWidth: tokens.strokeWidthThin,
+    borderBottomStyle: "solid",
+    borderBottomColor: tokens.colorNeutralStroke2,
+    ":last-child": {
+      borderBottomWidth: "0",
+    },
   },
-  {
-    headerName: "Tags",
-    field: "tags",
-    order: 7,
-    icon: <TagsIcon />,
-    render: (row: ITransactionResponse) => (
-      <>
-        {row.tags.map((tag) => (
-          <Link
-            key={tag.id}
-            underline="hover"
-            sx={{
-              mr: 1,
-              "&:hover": {
-                cursor: "pointer",
-              },
-            }}
-            color="primary"
-          >
-            #{tag.label}
-          </Link>
-        ))}
-      </>
-    ),
+  mobileHeader: {
+    display: "flex",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: tokens.spacingHorizontalM,
   },
-];
+  mobileAmount: {
+    fontWeight: tokens.fontWeightSemibold,
+    fontVariantNumeric: "tabular-nums",
+  },
+  mobileDetails: {
+    display: "grid",
+    gridTemplateColumns: "88px minmax(0, 1fr)",
+    alignItems: "center",
+    rowGap: tokens.spacingVerticalS,
+    columnGap: tokens.spacingHorizontalM,
+  },
+  mobileLabel: {
+    color: tokens.colorNeutralForeground2,
+  },
+  income: {
+    color: "var(--xpense-income)",
+  },
+  expense: {
+    color: "var(--xpense-expense)",
+  },
+  category0: {
+    boxShadow: "inset 3px 0 0 var(--xpense-category-0)",
+  },
+  category1: {
+    boxShadow: "inset 3px 0 0 var(--xpense-category-1)",
+  },
+  category2: {
+    boxShadow: "inset 3px 0 0 var(--xpense-category-2)",
+  },
+  category3: {
+    boxShadow: "inset 3px 0 0 var(--xpense-category-3)",
+  },
+  category4: {
+    boxShadow: "inset 3px 0 0 var(--xpense-category-4)",
+  },
+  category5: {
+    boxShadow: "inset 3px 0 0 var(--xpense-category-5)",
+  },
+  category6: {
+    boxShadow: "inset 3px 0 0 var(--xpense-category-6)",
+  },
+  category7: {
+    boxShadow: "inset 3px 0 0 var(--xpense-category-7)",
+  },
+  header: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
+  },
+  tags: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: tokens.spacingHorizontalXS,
+  },
+  empty: {
+    margin: tokens.spacingHorizontalM,
+  },
+  pagination: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: tokens.spacingHorizontalS,
+    padding: tokens.spacingHorizontalM,
+  },
+});
 
-const TransactionsGrid = ({ size, hidePagination, dense, day, from, to }: ITransactionsGridProps) => {
+const TransactionsGrid = ({
+  size,
+  hidePagination,
+  dense,
+  day,
+  from,
+  to,
+}: ITransactionsGridProps) => {
+  const styles = useStyles();
   const { setLoading } = useLoading();
   const [transactions, setTransactions] = useState<ITransactionResponse[]>([]);
   const [categories, setCategories] = useState<Map<number, ICategory>>(new Map());
   const [pageSize, setPageSize] = useState<number>(size ?? 10);
   const [page, setPage] = useState<number>(1);
   const [pages, setPages] = useState<number>(0);
-
   const { submittedTransaction, setSubmittedTransaction } = useTransctionUtilities();
+  const categoryTones = [
+    styles.category0,
+    styles.category1,
+    styles.category2,
+    styles.category3,
+    styles.category4,
+    styles.category5,
+    styles.category6,
+    styles.category7,
+  ];
 
   useEffect(() => {
     listCategories()
       .then((all) => setCategories(new Map(all.map((category) => [category.id, category]))))
-      .catch((error) => console.error(error));
+      .catch((loadError) => console.error(loadError));
   }, []);
 
   const loadTransactions = useCallback(() => {
@@ -135,8 +202,8 @@ const TransactionsGrid = ({ size, hidePagination, dense, day, from, to }: ITrans
         setPages(response.totalPages);
         setLoading(false);
       })
-      .catch((error) => {
-        console.error(error);
+      .catch((loadError) => {
+        console.error(loadError);
         setLoading(false);
       });
   }, [page, pageSize, day, from, to]);
@@ -151,25 +218,214 @@ const TransactionsGrid = ({ size, hidePagination, dense, day, from, to }: ITrans
     loadTransactions();
   }, [submittedTransaction]);
 
-  const onPageChange = (page: number) => {
-    setPage(page);
-  };
+  const columns = useMemo<TableColumnDefinition<ITransactionResponse>[]>(
+    () => [
+      createTableColumn({
+        columnId: "amount",
+        renderHeaderCell: () => (
+          <span className={styles.header}>
+            <MoneyRegular /> Amount
+          </span>
+        ),
+        renderCell: (item) => (
+          <Body1
+            className={mergeClasses(
+              styles.amount,
+              item.kind === "income"
+                ? styles.income
+                : item.kind === "expense"
+                  ? styles.expense
+                  : undefined
+            )}>
+            {toSingle(item.amount)} {item.amount.currency}
+          </Body1>
+        ),
+      }),
+      createTableColumn({
+        columnId: "date",
+        renderHeaderCell: () => (
+          <span className={styles.header}>
+            <CalendarRegular /> Date
+          </span>
+        ),
+        renderCell: (item) => formatIsoDate(item.occurredAt),
+      }),
+      createTableColumn({
+        columnId: "category",
+        renderHeaderCell: () => (
+          <span className={styles.header}>
+            <FolderRegular /> Category
+          </span>
+        ),
+        renderCell: (item) => {
+          const category = item.categoryId === null ? undefined : categories.get(item.categoryId);
+          return category === undefined ? (
+            "—"
+          ) : (
+            <Badge
+              appearance="outline"
+              className={
+                categoryTones[Math.abs(item.categoryId ?? 0) % categoryTones.length]
+              }>
+              {category.label}
+            </Badge>
+          );
+        },
+      }),
+      createTableColumn({
+        columnId: "merchant",
+        renderHeaderCell: () => (
+          <span className={styles.header}>
+            <BuildingShopRegular /> Merchant
+          </span>
+        ),
+        renderCell: (item) => item.merchant?.label ?? "—",
+      }),
+      createTableColumn({
+        columnId: "account",
+        renderHeaderCell: () => (
+          <span className={styles.header}>
+            <PaymentRegular /> Account
+          </span>
+        ),
+        renderCell: (item) => item.sourceAccountNumber ?? item.destinationAccountNumber ?? "—",
+      }),
+      createTableColumn({
+        columnId: "tags",
+        renderHeaderCell: () => (
+          <span className={styles.header}>
+            <TagRegular /> Tags
+          </span>
+        ),
+        renderCell: (item) => (
+          <span className={styles.tags}>
+            {item.tags.map((tag) => (
+              <Link key={tag.id} as="span">
+                #{tag.label}
+              </Link>
+            ))}
+          </span>
+        ),
+      }),
+    ],
+    [categories, styles]
+  );
 
   return (
-    <DataGrid
-      headers={buildHeaders(categories)}
-      rows={transactions}
-      paginated={!hidePagination && true}
-      dense={dense ?? false}
-      activePage={page}
-      onPageChange={onPageChange}
-      count={pages}
-      emptyAlert={
-        <Alert severity="info" sx={{ width: "100%" }}>
-          No transactions found
-        </Alert>
-      }
-    />
+    <div className={styles.surface}>
+      {transactions.length === 0 ? (
+        <MessageBar className={styles.empty} intent="info">
+          <MessageBarBody>No transactions found</MessageBarBody>
+        </MessageBar>
+      ) : (
+        <>
+          <div className={styles.desktopGrid}>
+            <DataGrid
+              items={transactions}
+              columns={columns}
+              size={dense ? "small" : "medium"}
+              getRowId={(item) => item.id}>
+              <DataGridHeader>
+                <DataGridRow>
+                  {({ renderHeaderCell }) => (
+                    <DataGridHeaderCell>{renderHeaderCell()}</DataGridHeaderCell>
+                  )}
+                </DataGridRow>
+              </DataGridHeader>
+              <DataGridBody<ITransactionResponse>>
+                {({ item, rowId }) => (
+                  <DataGridRow<ITransactionResponse> key={rowId}>
+                    {({ renderCell }) => <DataGridCell>{renderCell(item)}</DataGridCell>}
+                  </DataGridRow>
+                )}
+              </DataGridBody>
+            </DataGrid>
+          </div>
+          <div className={styles.mobileList}>
+            {transactions.map((item) => {
+              const category =
+                item.categoryId === null ? undefined : categories.get(item.categoryId);
+              const amountTone =
+                item.kind === "income"
+                  ? styles.income
+                  : item.kind === "expense"
+                    ? styles.expense
+                    : undefined;
+
+              return (
+                <article
+                  key={item.id}
+                  className={styles.mobileItem}
+                  aria-label={`${toSingle(item.amount)} ${item.amount.currency} on ${formatIsoDate(item.occurredAt)}`}>
+                  <div className={styles.mobileHeader}>
+                    <Body1 className={mergeClasses(styles.mobileAmount, amountTone)}>
+                      {toSingle(item.amount)} {item.amount.currency}
+                    </Body1>
+                    <Caption1>{formatIsoDate(item.occurredAt)}</Caption1>
+                  </div>
+                  <div className={styles.mobileDetails}>
+                    <Caption1 className={styles.mobileLabel}>Category</Caption1>
+                    <span>
+                      {category === undefined ? (
+                        "—"
+                      ) : (
+                        <Badge
+                          appearance="outline"
+                          className={
+                            categoryTones[
+                              Math.abs(item.categoryId ?? 0) % categoryTones.length
+                            ]
+                          }>
+                          {category.label}
+                        </Badge>
+                      )}
+                    </span>
+                    <Caption1 className={styles.mobileLabel}>Merchant</Caption1>
+                    <span>{item.merchant?.label ?? "—"}</span>
+                    <Caption1 className={styles.mobileLabel}>Account</Caption1>
+                    <span>
+                      {item.sourceAccountNumber ?? item.destinationAccountNumber ?? "—"}
+                    </span>
+                    <Caption1 className={styles.mobileLabel}>Tags</Caption1>
+                    <span className={styles.tags}>
+                      {item.tags.length === 0
+                        ? "—"
+                        : item.tags.map((tag) => (
+                            <Link key={tag.id} as="span">
+                              #{tag.label}
+                            </Link>
+                          ))}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {!hidePagination && pages > 1 && (
+        <div className={styles.pagination}>
+          <Button
+            appearance="subtle"
+            icon={<ChevronLeftRegular />}
+            aria-label="Previous page"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => current - 1)}
+          />
+          <Body1>
+            Page {page} of {pages}
+          </Body1>
+          <Button
+            appearance="subtle"
+            icon={<ChevronRightRegular />}
+            aria-label="Next page"
+            disabled={page >= pages}
+            onClick={() => setPage((current) => current + 1)}
+          />
+        </div>
+      )}
+    </div>
   );
 };
 

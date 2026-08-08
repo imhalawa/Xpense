@@ -1,6 +1,13 @@
 import { ReactNode } from "react";
 import { Dayjs } from "dayjs";
-import { Caption1, Card, ProgressBar, Subtitle2 } from "@fluentui/react-components";
+import {
+  Caption1,
+  Card,
+  ProgressBar,
+  Subtitle2,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
 import { IBudgetResponse } from "../../clients/types";
 import { budgetProgress, BudgetState } from "../../budgets/budgetProgress";
 import { formatMoney } from "../../money/formatMoney";
@@ -20,20 +27,45 @@ const barToneByState: Record<BudgetState, "brand" | "warning" | "error" | "succe
   exceeded: "error",
 };
 
+const useStyles = makeStyles({
+  card: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalM,
+    padding: tokens.spacingHorizontalL,
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    gap: tokens.spacingHorizontalM,
+  },
+  secondary: {
+    color: tokens.colorNeutralForeground2,
+  },
+  muted: {
+    color: tokens.colorNeutralForeground3,
+  },
+  danger: {
+    color: tokens.colorStatusDangerForeground2,
+  },
+  actions: {
+    marginTop: "auto",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: tokens.spacingHorizontalS,
+  },
+});
+
 const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
+  const styles = useStyles();
   const progress = budgetProgress(budget, now);
   const period = budget.period;
   const progressPercent = Math.min(progress.spentRatio, 1);
 
   return (
-    <Card style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          gap: 12,
-        }}>
+    <Card className={styles.card}>
+      <div className={styles.header}>
         <Subtitle2>{budget.category.label}</Subtitle2>
         {progress.state === "exceeded" && (
           <DeltaChip direction="up" tone="overBudget">
@@ -48,9 +80,7 @@ const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
       </div>
 
       {period === null ? (
-        <Caption1 style={{ color: "var(--colorNeutralForeground3)" }}>
-          Not measuring right now.
-        </Caption1>
+        <Caption1 className={styles.muted}>Not measuring right now.</Caption1>
       ) : (
         <>
           <ProgressBar
@@ -59,12 +89,12 @@ const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
             color={barToneByState[progress.state]}
             thickness="medium"
           />
-          <Caption1 style={{ color: "var(--colorNeutralForeground2)" }}>
+          <Caption1 className={styles.secondary}>
             {formatMoney(period.spent)} spent of {formatMoney(budget.amount)} ·{" "}
             {formatMoney(period.remaining)} left · {progress.daysRemaining} days left
           </Caption1>
           {progress.hasUncounted && (
-            <Caption1 style={{ color: "var(--colorStatusDangerForeground2)" }}>
+            <Caption1 className={styles.danger}>
               Uncounted in another currency:{" "}
               {period.uncounted.map((amount) => formatMoney(amount)).join(" · ")}
             </Caption1>
@@ -72,11 +102,7 @@ const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
         </>
       )}
 
-      {actions && (
-        <div style={{ marginTop: "auto", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          {actions}
-        </div>
-      )}
+      {actions && <div className={styles.actions}>{actions}</div>}
     </Card>
   );
 };

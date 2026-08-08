@@ -1,18 +1,41 @@
 import { useState } from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import Grid from "@mui/material/Grid";
-import { DatePicker } from "@mui/x-date-pickers";
+import {
+  Button,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  Field,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
+import { DatePicker } from "@fluentui/react-datepicker-compat";
+import { AddRegular } from "@fluentui/react-icons";
 import dayjs, { Dayjs } from "dayjs";
 import TransactionsGrid from "./TransactionsGrid/TransactionsGrid";
 import TransactionsForm from "./TransactionsForm/TransactionsForm";
-import { DateIcon, PlusIcon } from "../../icons/icons";
 import PageHeader from "../../shell/PageHeader";
 
+const useStyles = makeStyles({
+  body: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalL,
+  },
+  filters: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(180px, 1fr))",
+    gap: tokens.spacingHorizontalM,
+    maxWidth: "480px",
+    "@media (max-width: 479px)": {
+      gridTemplateColumns: "1fr",
+    },
+  },
+});
+
 const Transactions = () => {
+  const styles = useStyles();
   const [from, setFrom] = useState<Dayjs | null>(dayjs().startOf("month"));
   const [to, setTo] = useState<Dayjs | null>(dayjs().endOf("month"));
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -23,57 +46,55 @@ const Transactions = () => {
         title="Transactions"
         actions={
           <Button
-            variant="contained"
-            startIcon={<PlusIcon size={18} />}
+            appearance="primary"
+            icon={<AddRegular />}
             onClick={() => setIsFormOpen(true)}>
             New transaction
           </Button>
         }
       />
-      <Grid size={12}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
-          <Box
-            sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              gap: 2,
-            }}>
-            <DatePicker
-              label="From"
-              value={from}
-              slots={{ openPickerIcon: DateIcon }}
-              slotProps={{ textField: { size: "small" } }}
-              onChange={(picked) => setFrom(picked)}
-            />
-            <DatePicker
-              label="To"
-              value={to}
-              slots={{ openPickerIcon: DateIcon }}
-              slotProps={{ textField: { size: "small" } }}
-              onChange={(picked) => setTo(picked)}
-            />
-            <Box sx={{ marginLeft: "auto" }} />
-          </Box>
 
-          <TransactionsGrid size={10} from={from} to={to} />
-        </Box>
-      </Grid>
+      <div className={styles.body}>
+        <div className={styles.filters}>
+          <Field label="From">
+            <DatePicker
+              value={from?.toDate() ?? null}
+              formatDate={(date) =>
+                date === undefined ? "" : dayjs(date).format("YYYY-MM-DD")
+              }
+              onSelectDate={(date) => setFrom(date == null ? null : dayjs(date))}
+            />
+          </Field>
+          <Field label="To">
+            <DatePicker
+              value={to?.toDate() ?? null}
+              formatDate={(date) =>
+                date === undefined ? "" : dayjs(date).format("YYYY-MM-DD")
+              }
+              onSelectDate={(date) => setTo(date == null ? null : dayjs(date))}
+            />
+          </Field>
+        </div>
+
+        <TransactionsGrid size={10} from={from} to={to} />
+      </div>
 
       <Dialog
         open={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        fullWidth
-        maxWidth="sm">
-        <DialogTitle>New transaction</DialogTitle>
-        <DialogContent>
-          {isFormOpen && (
-            <TransactionsForm
-              onCancel={() => setIsFormOpen(false)}
-              onSubmitted={() => setIsFormOpen(false)}
-            />
-          )}
-        </DialogContent>
+        onOpenChange={(_event, data) => setIsFormOpen(Boolean(data.open))}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>New transaction</DialogTitle>
+            <DialogContent>
+              {isFormOpen && (
+                <TransactionsForm
+                  onCancel={() => setIsFormOpen(false)}
+                  onSubmitted={() => setIsFormOpen(false)}
+                />
+              )}
+            </DialogContent>
+          </DialogBody>
+        </DialogSurface>
       </Dialog>
     </>
   );

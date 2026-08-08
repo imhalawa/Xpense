@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Badge } from "@fluentui/react-badge";
+import { Badge } from "@fluentui/react-components";
 import { ArrowSortDownRegular, ArrowSortUpRegular } from "@fluentui/react-icons";
 
 interface DeltaChipProps {
@@ -20,15 +20,14 @@ const DeltaChip = ({ direction, tone, children }: DeltaChipProps) => {
         <ArrowSortDownRegular />
       </span>
     );
-  const color = tone === "overBudget" ? "danger" : "warning";
 
   return (
     <Badge
-      appearance="filled"
-      color={color}
+      appearance="tint"
+      color={tone === "overBudget" ? "danger" : "brand"}
       icon={icon}
       iconPosition="before"
-      size="extra-small">
+      size="small">
       {children}
     </Badge>
   );

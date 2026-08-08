@@ -14,6 +14,14 @@ if (!window.matchMedia) {
   }));
 }
 
+if (!window.ResizeObserver) {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 const approximateCharacterWidth = 8;
 
 HTMLCanvasElement.prototype.getContext = vi.fn().mockImplementation(() => ({

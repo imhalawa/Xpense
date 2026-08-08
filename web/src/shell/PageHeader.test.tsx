@@ -13,7 +13,7 @@ describe("PageHeader", () => {
       />
     );
 
-    expect(screen.getByRole("heading", { name: "Budgets", level: 2 })).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Budgets", level: 1 })).toBeDefined();
     expect(screen.getByText("Manage spending limits")).toBeDefined();
     expect(screen.getByRole("button", { name: "New budget" })).toBeDefined();
   });
