@@ -1,6 +1,6 @@
 import "./App.css";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Route, Routes } from "react-router";
 import { FluentProvider, makeStyles } from "@fluentui/react-components";
 import Overview from "./pages/Overview/Overview.tsx";
@@ -13,6 +13,8 @@ import { useColorScheme } from "./fluent/useColorScheme.ts";
 import GlobalStyles from "./fluent/GlobalStyles.tsx";
 import { LoadingContextProvider } from "./contexts/LoadingContext.tsx";
 import { TransactionUtilitiesContextProvider } from "./contexts/TransactionUtilitiesContext.tsx";
+import { VaultProvider } from "./vault/VaultProvider.tsx";
+import { plaintextProjection } from "./vault/plaintextProjection.ts";
 
 const useStyles = makeStyles({
   root: {
@@ -25,6 +27,8 @@ function App() {
 
   const { resolved } = useColorScheme();
 
+  const projection = useMemo(() => plaintextProjection(), []);
+
   useEffect(() => {
     document.documentElement.dataset.theme = resolved;
   }, [resolved]);
@@ -35,18 +39,20 @@ function App() {
       data-theme={resolved}
       theme={resolved === "dark" ? darkTheme : lightTheme}>
       <GlobalStyles />
-      <LoadingContextProvider>
-        <TransactionUtilitiesContextProvider>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Overview />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/budgets" element={<Budgets />} />
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-          </Routes>
-        </TransactionUtilitiesContextProvider>
-      </LoadingContextProvider>
+      <VaultProvider projection={projection}>
+        <LoadingContextProvider>
+          <TransactionUtilitiesContextProvider>
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Overview />} />
+                <Route path="/transactions" element={<Transactions />} />
+                <Route path="/budgets" element={<Budgets />} />
+                <Route path="/settings" element={<Settings />} />
+              </Route>
+            </Routes>
+          </TransactionUtilitiesContextProvider>
+        </LoadingContextProvider>
+      </VaultProvider>
     </FluentProvider>
   );
 }
