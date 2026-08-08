@@ -18,8 +18,8 @@ const value = (kind: TaxonomyKind, id: string, label: string): TaxonomyValue => 
   id,
   kind,
   label,
-  foregroundHex: kind === "tag" ? "#111111" : null,
-  backgroundHex: kind === "tag" ? "#ffffff" : null,
+  foregroundHex: null,
+  backgroundHex: null,
 });
 
 const values: TaxonomyValue[] = [
