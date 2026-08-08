@@ -11,12 +11,26 @@ export const listCategories = async (): Promise<ICategoryResponse[]> => {
   return response.data;
 };
 
-export const listMerchants = async (): Promise<IMerchantResponse[]> => {
-  const response = await axios.get<IMerchantResponse[]>("/api/v1/merchants");
+export interface IOptionQuery {
+  search?: string;
+  limit?: number;
+}
+
+const optionParams = ({ search, limit }: IOptionQuery) => ({
+  search: search?.trim() ? search.trim() : undefined,
+  limit,
+});
+
+export const listMerchants = async (query: IOptionQuery = {}): Promise<IMerchantResponse[]> => {
+  const response = await axios.get<IMerchantResponse[]>("/api/v1/merchants", {
+    params: optionParams(query),
+  });
   return response.data;
 };
 
-export const listTags = async (): Promise<ITagResponse[]> => {
-  const response = await axios.get<ITagResponse[]>("/api/v1/tags");
+export const listTags = async (query: IOptionQuery = {}): Promise<ITagResponse[]> => {
+  const response = await axios.get<ITagResponse[]>("/api/v1/tags", {
+    params: optionParams(query),
+  });
   return response.data;
 };

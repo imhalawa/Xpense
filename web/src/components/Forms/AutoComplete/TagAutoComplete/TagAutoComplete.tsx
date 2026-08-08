@@ -3,6 +3,7 @@ import { ITag } from "../../../../typings/models/ITag";
 import { useEffect, useState } from "react";
 import { listTags } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
+import { useDebouncedValue } from "../../../../hooks/useDebouncedValue";
 
 interface ITagAutoCompleteProps {
   label: string;
@@ -14,28 +15,42 @@ interface ITagAutoCompleteProps {
 
 const filter = createFilterOptions<ITag>();
 
+const searchDelayMilliseconds = 250;
+
 const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAutoCompleteProps) => {
   const { setLoading } = useLoading();
 
   const [tagOptions, setTagOptions] = useState<ITag[]>([]);
   const [selected, setSelected] = useState<ITag[]>([]);
+  const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const debouncedSearch = useDebouncedValue(search, searchDelayMilliseconds);
 
   useEffect(() => {
     onChange(selected);
   }, [selected]);
 
   useEffect(() => {
+    if (!searching) return;
+
+    let stale = false;
     setLoading(true);
-    listTags()
+    listTags({ search: debouncedSearch })
       .then((tags) => {
+        if (stale) return;
         setTagOptions(tags.map((tag) => ({ ...tag, create: false })));
         setLoading(false);
       })
       .catch((error) => {
+        if (stale) return;
         console.error(error);
         setLoading(false);
       });
-  }, []);
+
+    return () => {
+      stale = true;
+    };
+  }, [searching, debouncedSearch]);
 
   return (
     <Autocomplete
@@ -43,6 +58,10 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       freeSolo
       id="tags-Create"
       options={tagOptions}
+      onInputChange={(_event, newInputValue) => {
+        setSearching(true);
+        setSearch(newInputValue);
+      }}
       onChange={(_, newValue, reason, details) => {
         if (details?.option.create && reason !== "removeOption") {
           setSelected([
@@ -116,6 +135,7 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       renderInput={(params) => (
         <TextField
           {...params}
+          onFocus={() => setSearching(true)}
           label={label}
           value={value}
           placeholder={label}
