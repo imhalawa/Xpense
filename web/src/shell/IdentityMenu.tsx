@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import {
   Avatar,
   Body1,
@@ -78,9 +79,15 @@ const IdentityMenu = ({
   onThemeModeChange,
 }: IdentityMenuProps) => {
   const styles = useStyles();
+  const firstThemeOptionRef = useRef<HTMLDivElement>(null);
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const identityLabel = isUnlocked ? displayName : emailPrefix;
   const activeSpaceName = spaces.find((space) => space.id === activeSpace)?.name ?? "";
   const triggerLabel = activeSpaceName ? `${identityLabel}, ${activeSpaceName}` : identityLabel;
+
+  useEffect(() => {
+    if (isThemeMenuOpen) firstThemeOptionRef.current?.focus();
+  }, [isThemeMenuOpen]);
 
   return (
     <Menu
@@ -111,11 +118,14 @@ const IdentityMenu = ({
             <MenuItem onClick={onAccountSettings}>Account and passkeys</MenuItem>
           )}
           <Menu
+            open={isThemeMenuOpen}
+            onOpenChange={(_event, data) => setIsThemeMenuOpen(data.open)}
             checkedValues={{ [themeRadioName]: [themeMode] }}
             onCheckedValueChange={(_event, data) => {
               const [chosenMode] = data.checkedItems;
               if (chosenMode === "system" || chosenMode === "light" || chosenMode === "dark") {
                 onThemeModeChange(chosenMode);
+                setIsThemeMenuOpen(false);
               }
             }}>
             <MenuTrigger disableButtonEnhancement>
@@ -124,7 +134,11 @@ const IdentityMenu = ({
             <MenuPopover>
               <MenuList>
                 {themeOptions.map((option) => (
-                  <MenuItemRadio key={option.value} name={themeRadioName} value={option.value}>
+                  <MenuItemRadio
+                    ref={option.value === "system" ? firstThemeOptionRef : undefined}
+                    key={option.value}
+                    name={themeRadioName}
+                    value={option.value}>
                     {option.label}
                   </MenuItemRadio>
                 ))}

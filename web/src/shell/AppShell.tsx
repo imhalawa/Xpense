@@ -5,6 +5,8 @@ import {
   Button,
   Caption1,
   Hamburger,
+  MessageBar,
+  MessageBarBody,
   NavDrawer,
   NavDrawerBody,
   NavDrawerHeader,
@@ -68,6 +70,7 @@ const localDisplayName = "Local user";
 const localEmailPrefix = "local";
 const notificationsPageSize = 10;
 const taxonomyKinds: TaxonomyKind[] = ["category", "tag", "merchant"];
+const unlockFailureMessage = "The vault could not be unlocked. Try again.";
 
 const useStyles = makeStyles({
   root: {
@@ -179,6 +182,7 @@ const AppShell = ({ children }: AppShellProps) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsPage, setNotificationsPage] = useState(1);
   const [notificationPages, setNotificationPages] = useState(1);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
   const activeDestination = destinationForPath(location.pathname);
   const addTransactionRef = useRef<HTMLButtonElement>(null);
 
@@ -279,6 +283,11 @@ const AppShell = ({ children }: AppShellProps) => {
     closeNavigation();
   };
 
+  const unlockVault = useCallback(() => {
+    setUnlockError(null);
+    projection.unlock().catch(() => setUnlockError(unlockFailureMessage));
+  }, [projection]);
+
   return (
     <div className={styles.root}>
       {loading && <ProgressBar className={styles.loading} />}
@@ -308,7 +317,7 @@ const AppShell = ({ children }: AppShellProps) => {
               themeMode={themeMode}
               onSelectSpace={selectSpace}
               onLock={() => projection.lock()}
-              onUnlock={() => void projection.unlock()}
+              onUnlock={unlockVault}
               onThemeModeChange={setThemeMode}
             />
           </div>
@@ -384,6 +393,11 @@ const AppShell = ({ children }: AppShellProps) => {
 
       <main className={mergeClasses(styles.main, !isWideScreen && styles.mobileMain)}>
         <div className={styles.content} data-testid="app-content">
+          {unlockError !== null && (
+            <MessageBar intent="error" role="alert">
+              <MessageBarBody>{unlockError}</MessageBarBody>
+            </MessageBar>
+          )}
           <PageTitle title={activeDestination.label} />
           {children}
         </div>

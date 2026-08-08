@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { tokens } from "@fluentui/react-components";
 import { useState } from "react";
 import type { SpaceSummary } from "../vault/VaultProjection";
@@ -186,6 +186,37 @@ describe("IdentityMenu", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Dark" }));
 
     expect(handlers.onThemeModeChange).toHaveBeenCalledWith("dark");
+  });
+
+  it("enters, selects and exits the theme submenu with the keyboard", async () => {
+    const handlers = renderIdentityMenu({ themeMode: "system" });
+    const trigger = screen.getByRole("button", { name: "Mohamed Halawa, Personal" });
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+
+    const theme = await screen.findByRole("menuitem", { name: "Theme" });
+    theme.focus();
+    fireEvent.keyDown(theme, { key: "ArrowRight" });
+
+    const system = await screen.findByRole("menuitemradio", { name: "System" });
+    await waitFor(() => expect(document.activeElement).toBe(system));
+    fireEvent.keyDown(system, { key: "Enter" });
+
+    expect(handlers.onThemeModeChange).toHaveBeenCalledWith("system");
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    const reopenedTheme = await screen.findByRole("menuitem", { name: "Theme" });
+    reopenedTheme.focus();
+    fireEvent.keyDown(reopenedTheme, { key: "ArrowRight" });
+    const reopenedSystem = await screen.findByRole("menuitemradio", { name: "System" });
+    await waitFor(() => expect(document.activeElement).toBe(reopenedSystem));
+    fireEvent.keyDown(reopenedSystem, { key: "Escape" });
+
+    await waitFor(() => expect(document.activeElement).toBe(reopenedTheme));
+    fireEvent.keyDown(reopenedTheme, { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("uses the Fluent eight pixel spacing token between avatar and identity text", () => {

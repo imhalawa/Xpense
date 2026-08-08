@@ -6,6 +6,7 @@ import { Currency } from "../typings/enums/Currency";
 import { fixtureProjection } from "../vault/fixtureProjection";
 import type { FixtureSeed } from "../vault/fixtureProjection";
 import { VaultProvider } from "../vault/VaultProvider";
+import type { VaultProjection } from "../vault/VaultProjection";
 import AppShell from "./AppShell";
 
 vi.mock("../clients/notifications", () => ({
@@ -68,8 +69,7 @@ const setWindowWidth = (isWide: boolean) => {
   }));
 };
 
-const renderShell = (path: string) => {
-  const projection = fixtureProjection(seed);
+const renderShell = (path: string, projection: VaultProjection = fixtureProjection(seed)) => {
   render(
     <MemoryRouter initialEntries={[path]}>
       <VaultProvider projection={projection}>
@@ -124,6 +124,26 @@ describe("AppShell", () => {
 
     await waitFor(() => expect(unlock).toHaveBeenCalledTimes(1));
     expect(await screen.findByRole("button", { name: "Local user, Personal" })).toBeDefined();
+  });
+
+  it("reports a failed manual unlock without exposing its error or rejecting globally", async () => {
+    setWindowWidth(true);
+    const projection = fixtureProjection(seed);
+    vi.spyOn(projection, "unlock").mockRejectedValue(new Error("private unwrap detail"));
+    const unhandledRejection = vi.fn();
+    window.addEventListener("unhandledrejection", unhandledRejection);
+    renderShell("/budgets?space=personal", projection);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Local user, Personal" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Lock vault" }));
+    fireEvent.click(await screen.findByRole("button", { name: "local" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Unlock vault" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("The vault could not be unlocked. Try again.");
+    expect(alert.textContent).not.toContain("private unwrap detail");
+    expect(unhandledRejection).not.toHaveBeenCalled();
+    window.removeEventListener("unhandledrejection", unhandledRejection);
   });
 
   it("changes the color scheme through the identity submenu", async () => {
