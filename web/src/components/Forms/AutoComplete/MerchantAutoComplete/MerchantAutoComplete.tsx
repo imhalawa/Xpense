@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { IMerchant } from "../../../../typings";
 import { listMerchants } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
+import { useDebouncedValue } from "../../../../hooks/useDebouncedValue";
 
 interface IMerchantAutoCompleteProps {
   label: string;
@@ -14,24 +15,38 @@ interface IMerchantAutoCompleteProps {
 
 const filter = createFilterOptions<IMerchant>();
 
+const searchDelayMilliseconds = 250;
+
 const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMerchantAutoCompleteProps) => {
   const { setLoading } = useLoading();
 
   const [merchantOptions, setMerchantOptions] = useState<IMerchant[]>([]);
   const [selected, setSelected] = useState<IMerchant | null>(null);
+  const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const debouncedSearch = useDebouncedValue(search, searchDelayMilliseconds);
 
   useEffect(() => {
+    if (!searching) return;
+
+    let stale = false;
     setLoading(true);
-    listMerchants()
+    listMerchants({ search: debouncedSearch })
       .then((merchants) => {
+        if (stale) return;
         setMerchantOptions(merchants);
         setLoading(false);
       })
       .catch((error) => {
+        if (stale) return;
         console.error(error);
         setLoading(false);
       });
-  }, []);
+
+    return () => {
+      stale = true;
+    };
+  }, [searching, debouncedSearch]);
 
   useEffect(() => {
     onChange(selected);
@@ -41,8 +56,11 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
     <Autocomplete
       freeSolo
       id="tags-Create"
-      size="small"
       options={merchantOptions}
+      onInputChange={(_event, newInputValue) => {
+        setSearching(true);
+        setSearch(newInputValue);
+      }}
       onChange={(_event, newValue, _reason, _details) => {
         if (typeof newValue === "string") {
           setSelected({
@@ -51,7 +69,6 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
             create: true,
           });
         } else if (newValue && newValue.create) {
-          // Create a new value from the user input
           setSelected({
             id: null,
             label: newValue.label,
@@ -66,7 +83,6 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
         const filtered = filter(options, params);
 
         const { inputValue } = params;
-        // Suggest the creation of a new value
         const isExisting = options.some((option) => inputValue === option.label);
         if (inputValue !== "" && !isExisting) {
           filtered.push({
@@ -98,9 +114,9 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
         <TextField
           required
           {...params}
+          onFocus={() => setSearching(true)}
           label={label}
           value={value}
-          variant="standard"
           placeholder={label}
           error={error}
           helperText={helperText}

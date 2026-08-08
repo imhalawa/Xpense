@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import Box from "@mui/material/Box";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon } from "../../icons/icons";
 import { tokens } from "../../theme/tokens";
 
 interface DeltaChipProps {
@@ -10,7 +10,7 @@ interface DeltaChipProps {
 }
 
 const DeltaChip = ({ direction, tone, children }: DeltaChipProps) => {
-  const Arrow = direction === "up" ? ArrowUp : ArrowDown;
+  const Arrow = direction === "up" ? ArrowUpIcon : ArrowDownIcon;
   const arrowLabel = direction === "up" ? "increase" : "decrease";
 
   return (
@@ -33,7 +33,7 @@ const DeltaChip = ({ direction, tone, children }: DeltaChipProps) => {
         },
       }}
     >
-      <Arrow size={13} aria-label={arrowLabel} />
+      <Arrow size={13} title={arrowLabel} />
       {children}
     </Box>
   );

@@ -1,9 +1,16 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, MouseEvent, useState } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Typography from "@mui/material/Typography";
+import { DatePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
+import CurrencyOption from "../CurrencyOption/CurrencyOption";
+import { DateIcon } from "../../icons/icons";
 import { ICategoryResponse, Recurrence } from "../../clients/types";
 import { Currency } from "../../typings/enums/Currency";
 import {
@@ -21,9 +28,23 @@ interface BudgetFormProps {
   isEditing?: boolean;
 }
 
+const dayFormat = "YYYY-MM-DD";
+
 const recurrences: Recurrence[] = ["None", "Weekly", "Monthly", "Yearly"];
 
 const currencies: Currency[] = Object.values(Currency);
+
+const alertPresets: number[] = [25, 50, 75];
+
+const noAlertChoice = "none";
+
+const customAlertChoice = "custom";
+
+const choiceForThreshold = (thresholdPercent: number | null): string => {
+  if (thresholdPercent === null) return noAlertChoice;
+  if (alertPresets.includes(thresholdPercent)) return String(thresholdPercent);
+  return customAlertChoice;
+};
 
 const BudgetForm = ({
   categories,
@@ -35,6 +56,9 @@ const BudgetForm = ({
 }: BudgetFormProps) => {
   const [values, setValues] = useState<BudgetFormValues>(initialValues);
   const [errors, setErrors] = useState<BudgetFormErrors>({});
+  const [alertChoice, setAlertChoice] = useState<string>(
+    choiceForThreshold(initialValues.alertThresholdPercent)
+  );
 
   const handleSubmit = (submitEvent: FormEvent<HTMLFormElement>) => {
     submitEvent.preventDefault();
@@ -42,6 +66,14 @@ const BudgetForm = ({
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     onSubmit(values);
+  };
+
+  const handleAlertChoice = (_changeEvent: MouseEvent<HTMLElement>, choice: string | null) => {
+    if (choice === null) return;
+    setAlertChoice(choice);
+    if (choice === noAlertChoice) setValues({ ...values, alertThresholdPercent: null });
+    else if (choice !== customAlertChoice)
+      setValues({ ...values, alertThresholdPercent: Number(choice) });
   };
 
   return (
@@ -82,13 +114,18 @@ const BudgetForm = ({
           value={values.currency}
           error={errors.currency !== undefined}
           helperText={errors.currency}
+          slotProps={{
+            select: {
+              renderValue: (selected) => <CurrencyOption currency={selected as Currency} />,
+            },
+          }}
           onChange={(changeEvent) =>
             setValues({ ...values, currency: changeEvent.target.value as Currency })
           }
         >
           {currencies.map((currency) => (
             <MenuItem key={currency} value={currency}>
-              {currency}
+              <CurrencyOption currency={currency} />
             </MenuItem>
           ))}
         </TextField>
@@ -110,45 +147,77 @@ const BudgetForm = ({
           ))}
         </TextField>
 
-        <TextField
-          type="date"
+        <DatePicker
           label="Starts on"
-          value={values.startsOn}
-          slotProps={{ inputLabel: { shrink: true } }}
-          error={errors.startsOn !== undefined}
-          helperText={errors.startsOn}
-          onChange={(changeEvent) => setValues({ ...values, startsOn: changeEvent.target.value })}
+          value={dayjs(values.startsOn)}
+          slots={{ openPickerIcon: DateIcon }}
+          slotProps={{
+            textField: {
+              error: errors.startsOn !== undefined,
+              helperText: errors.startsOn,
+            },
+          }}
+          onChange={(picked) =>
+            setValues({ ...values, startsOn: picked === null ? "" : picked.format(dayFormat) })
+          }
         />
 
-        <TextField
-          type="date"
+        <DatePicker
           label="Ends on"
-          value={values.endsOn ?? ""}
-          slotProps={{ inputLabel: { shrink: true } }}
-          error={errors.endsOn !== undefined}
-          helperText={errors.endsOn}
-          onChange={(changeEvent) =>
-            setValues({
-              ...values,
-              endsOn: changeEvent.target.value === "" ? null : changeEvent.target.value,
-            })
+          value={values.endsOn === null ? null : dayjs(values.endsOn)}
+          slots={{ openPickerIcon: DateIcon }}
+          slotProps={{
+            textField: {
+              error: errors.endsOn !== undefined,
+              helperText: errors.endsOn,
+            },
+          }}
+          onChange={(picked) =>
+            setValues({ ...values, endsOn: picked === null ? null : picked.format(dayFormat) })
           }
         />
 
-        <TextField
-          type="number"
-          label="Alert threshold percent"
-          value={values.alertThresholdPercent === null ? "" : String(values.alertThresholdPercent)}
-          error={errors.alertThresholdPercent !== undefined}
-          helperText={errors.alertThresholdPercent}
-          onChange={(changeEvent) =>
-            setValues({
-              ...values,
-              alertThresholdPercent:
-                changeEvent.target.value === "" ? null : Number(changeEvent.target.value),
-            })
-          }
-        />
+        <Box>
+          <Typography variant="body2" sx={{ color: "text.secondary", marginBottom: 1 }}>
+            Alert threshold
+          </Typography>
+          <ToggleButtonGroup
+            exclusive
+            fullWidth
+            size="small"
+            value={alertChoice}
+            onChange={handleAlertChoice}
+            aria-label="Alert threshold">
+            <ToggleButton value={noAlertChoice}>No alert</ToggleButton>
+            {alertPresets.map((preset) => (
+              <ToggleButton key={preset} value={String(preset)}>
+                {preset}%
+              </ToggleButton>
+            ))}
+            <ToggleButton value={customAlertChoice}>Custom</ToggleButton>
+          </ToggleButtonGroup>
+
+          {alertChoice === customAlertChoice && (
+            <TextField
+              type="number"
+              fullWidth
+              label="Alert threshold percent"
+              sx={{ marginTop: 2 }}
+              value={
+                values.alertThresholdPercent === null ? "" : String(values.alertThresholdPercent)
+              }
+              error={errors.alertThresholdPercent !== undefined}
+              helperText={errors.alertThresholdPercent}
+              onChange={(changeEvent) =>
+                setValues({
+                  ...values,
+                  alertThresholdPercent:
+                    changeEvent.target.value === "" ? null : Number(changeEvent.target.value),
+                })
+              }
+            />
+          )}
+        </Box>
 
         <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
           <Button type="button" onClick={onCancel}>

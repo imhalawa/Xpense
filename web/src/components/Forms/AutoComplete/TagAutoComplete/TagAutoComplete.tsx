@@ -3,6 +3,7 @@ import { ITag } from "../../../../typings/models/ITag";
 import { useEffect, useState } from "react";
 import { listTags } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
+import { useDebouncedValue } from "../../../../hooks/useDebouncedValue";
 
 interface ITagAutoCompleteProps {
   label: string;
@@ -14,36 +15,53 @@ interface ITagAutoCompleteProps {
 
 const filter = createFilterOptions<ITag>();
 
+const searchDelayMilliseconds = 250;
+
 const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAutoCompleteProps) => {
   const { setLoading } = useLoading();
 
   const [tagOptions, setTagOptions] = useState<ITag[]>([]);
   const [selected, setSelected] = useState<ITag[]>([]);
+  const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const debouncedSearch = useDebouncedValue(search, searchDelayMilliseconds);
 
   useEffect(() => {
     onChange(selected);
   }, [selected]);
 
   useEffect(() => {
+    if (!searching) return;
+
+    let stale = false;
     setLoading(true);
-    listTags()
+    listTags({ search: debouncedSearch })
       .then((tags) => {
+        if (stale) return;
         setTagOptions(tags.map((tag) => ({ ...tag, create: false })));
         setLoading(false);
       })
       .catch((error) => {
+        if (stale) return;
         console.error(error);
         setLoading(false);
       });
-  }, []);
+
+    return () => {
+      stale = true;
+    };
+  }, [searching, debouncedSearch]);
 
   return (
     <Autocomplete
       multiple
       freeSolo
       id="tags-Create"
-      size="small"
       options={tagOptions}
+      onInputChange={(_event, newInputValue) => {
+        setSearching(true);
+        setSearch(newInputValue);
+      }}
       onChange={(_, newValue, reason, details) => {
         if (details?.option.create && reason !== "removeOption") {
           setSelected([
@@ -83,7 +101,6 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
         const filtered = filter(options, params);
 
         const { inputValue } = params;
-        // Suggest the creation of a new value
         const isExisting = options.some((option) => inputValue === option.label);
         if (inputValue !== "" && !isExisting) {
           filtered.push({
@@ -102,15 +119,12 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       clearOnBlur
       handleHomeEndKeys
       getOptionLabel={(option) => {
-        // Value selected with enter, right from the input
         if (typeof option === "string") {
           return option;
         }
-        // Add "xxx" option created dynamically
         if (option.create) {
           return option.label;
         }
-        // Regular option
         return option.label;
       }}
       renderOption={(props, option) => (
@@ -121,9 +135,9 @@ const TagAutoComplete = ({ label, value, onChange, error, helperText }: ITagAuto
       renderInput={(params) => (
         <TextField
           {...params}
+          onFocus={() => setSearching(true)}
           label={label}
           value={value}
-          variant="standard"
           placeholder={label}
           error={error}
           helperText={helperText}

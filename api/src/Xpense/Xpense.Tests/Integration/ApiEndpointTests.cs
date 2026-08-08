@@ -1183,6 +1183,88 @@ public class ApiEndpointTests
     }
 
 
+    [TestCase("/api/v1/merchants")]
+    [TestCase("/api/v1/tags")]
+    public async Task Options_without_parameters_return_at_most_the_default_limit(string route)
+    {
+        await SeedOptionLabels(Enumerable.Range(1, 25).Select(number => $"Shop {number:00}").ToArray());
+
+        var labels = await GetLabels(route);
+
+        labels.Should().HaveCount(20);
+    }
+
+    [TestCase("/api/v1/merchants")]
+    [TestCase("/api/v1/tags")]
+    public async Task Options_search_ignores_letter_casing(string route)
+    {
+        await SeedOptionLabels("Albert Heijn", "Jumbo");
+
+        var labels = await GetLabels($"{route}?search=albert");
+
+        labels.Should().Equal("Albert Heijn");
+    }
+
+    [TestCase("/api/v1/merchants")]
+    [TestCase("/api/v1/tags")]
+    public async Task Options_search_matches_inside_the_label_and_not_only_at_the_start(string route)
+    {
+        await SeedOptionLabels("Albert Heijn", "Jumbo");
+
+        var labels = await GetLabels($"{route}?search=eij");
+
+        labels.Should().Equal("Albert Heijn");
+    }
+
+    [TestCase("/api/v1/merchants")]
+    [TestCase("/api/v1/tags")]
+    public async Task Options_search_without_a_match_returns_an_empty_array(string route)
+    {
+        await SeedOptionLabels("Albert Heijn", "Jumbo");
+
+        var response = await client.GetAsync($"{route}?search=nothing-like-this");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
+        document.RootElement.GetArrayLength().Should().Be(0);
+    }
+
+    [TestCase("/api/v1/merchants")]
+    [TestCase("/api/v1/tags")]
+    public async Task Options_limit_caps_how_many_come_back(string route)
+    {
+        await SeedOptionLabels("Albert Heijn", "Coop", "Jumbo", "Lidl");
+
+        var labels = await GetLabels($"{route}?limit=2");
+
+        labels.Should().Equal("Albert Heijn", "Coop");
+    }
+
+    [TestCase("/api/v1/merchants")]
+    [TestCase("/api/v1/tags")]
+    public async Task Options_limit_above_the_maximum_is_clamped_rather_than_rejected(string route)
+    {
+        await SeedOptionLabels(Enumerable.Range(1, 120).Select(number => $"Shop {number:000}").ToArray());
+
+        var response = await client.GetAsync($"{route}?limit=5000");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetArrayLength().Should().Be(100);
+    }
+
+    [TestCase("/api/v1/merchants")]
+    [TestCase("/api/v1/tags")]
+    public async Task Options_come_back_ordered_by_label(string route)
+    {
+        await SeedOptionLabels("Zabka", "Albert Heijn", "Marqt");
+
+        var labels = await GetLabels(route);
+
+        labels.Should().Equal("Albert Heijn", "Marqt", "Zabka");
+    }
+
     [TestCase("/api/category")]
     [TestCase("/api/tag")]
     [TestCase("/api/merchant")]
@@ -1295,6 +1377,32 @@ public class ApiEndpointTests
             dbContext.Categories.Add(new Category { Label = "Food", Priority = priority, CreatedAt = DateTime.UtcNow });
             await dbContext.SaveChangesAsync();
         }
+    }
+
+    private async Task SeedOptionLabels(params string[] labels)
+    {
+        var dbContext = NewDbContext(out var scope);
+        using (scope)
+        {
+            foreach (var label in labels)
+            {
+                dbContext.Merchants.Add(new Merchant { Label = label, CreatedAt = DateTime.UtcNow });
+                dbContext.Tags.Add(new Tag { Label = label, CreatedAt = DateTime.UtcNow });
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
+    }
+
+    private async Task<string[]> GetLabels(string route)
+    {
+        var response = await client.GetAsync(route);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.EnumerateArray()
+            .Select(element => element.GetProperty("label").GetString()!)
+            .ToArray();
     }
 
     private async Task SeedOneOfEachResource()

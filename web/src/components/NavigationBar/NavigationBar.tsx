@@ -6,9 +6,15 @@ import LinearProgress from "@mui/material/LinearProgress";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { Link, useLocation } from "react-router";
-import { Activity, ArrowLeftRight, Settings, Wallet } from "lucide-react";
+import {
+  BudgetsIcon,
+  ManageIcon,
+  OverviewIcon,
+  TransactionsIcon,
+} from "../../icons/icons";
 import { useLoading } from "../../contexts/LoadingContext";
 import NotificationBell from "../NotificationBell/NotificationBell";
+import ThemeModeToggle from "../ThemeModeToggle/ThemeModeToggle";
 import {
   getUnreadCount,
   listNotifications,
@@ -18,10 +24,10 @@ import {
 import { INotificationResponse } from "../../clients/types";
 
 const destinations = [
-  { path: "/", label: "Overview", Icon: Activity },
-  { path: "/transactions", label: "Transactions", Icon: ArrowLeftRight },
-  { path: "/budgets", label: "Budgets", Icon: Wallet },
-  { path: "/settings", label: "Manage", Icon: Settings },
+  { path: "/", label: "Overview", Icon: OverviewIcon },
+  { path: "/transactions", label: "Transactions", Icon: TransactionsIcon },
+  { path: "/budgets", label: "Budgets", Icon: BudgetsIcon },
+  { path: "/settings", label: "Manage", Icon: ManageIcon },
 ];
 
 const notificationsPage = 1;
@@ -71,6 +77,8 @@ const NavigationBar = () => {
             </Button>
           ))}
         </Box>
+
+        <ThemeModeToggle />
 
         <NotificationBell
           notifications={notifications}
