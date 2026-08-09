@@ -55,11 +55,12 @@ public sealed class SoftwareAuthenticator : IPasskeyHandler<XpenseUser>
     {
         var values = context.AttestationState?.Split('|', 3);
 
-        if (values is not { Length: 3 } || context.CredentialJson != Credential(values[0]))
+        if (values is not { Length: 3 } ||
+            !TryGetAttestedCredentialId(context.CredentialJson, values[0], out var credentialId))
             return Task.FromResult(PasskeyAttestationResult.Fail(new PasskeyException("The passkey attestation is invalid.")));
 
         var passkey = new UserPasskeyInfo(
-            CredentialId,
+            credentialId,
             PublicKey,
             DateTimeOffset.UtcNow,
             0,
@@ -96,13 +97,15 @@ public sealed class SoftwareAuthenticator : IPasskeyHandler<XpenseUser>
             : PasskeyAssertionResult.Success(passkey, user);
     }
 
-    public static string CreateCredential(string optionsJson)
+    public static string CreateCredential(string optionsJson, byte[]? credentialId = null)
     {
         using var options = JsonDocument.Parse(optionsJson);
-        return Credential(options.RootElement.GetProperty("challenge").GetString()!);
+        return Credential(options.RootElement.GetProperty("challenge").GetString()!, credentialId);
     }
 
-    private static string Credential(string challenge) => "software-authenticator-credential:" + challenge;
+    private static string Credential(string challenge, byte[]? credentialId = null) =>
+        "software-authenticator-credential:" + challenge +
+        (credentialId is null ? string.Empty : ":" + Convert.ToBase64String(credentialId));
 
     public static string CreateAssertion(string optionsJson, byte[]? credentialId = null)
     {
@@ -136,6 +139,31 @@ public sealed class SoftwareAuthenticator : IPasskeyHandler<XpenseUser>
         try
         {
             credentialId = Convert.FromBase64String(credentialJson[(prefix.Length + challenge.Length + 1)..]);
+            return credentialId.Length > 0;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetAttestedCredentialId(string? credentialJson, string challenge, out byte[] credentialId)
+    {
+        credentialId = [];
+        var expected = Credential(challenge);
+
+        if (credentialJson == expected)
+        {
+            credentialId = CredentialId;
+            return true;
+        }
+
+        if (credentialJson is null || !credentialJson.StartsWith(expected + ":", StringComparison.Ordinal))
+            return false;
+
+        try
+        {
+            credentialId = Convert.FromBase64String(credentialJson[(expected.Length + 1)..]);
             return credentialId.Length > 0;
         }
         catch (FormatException)
