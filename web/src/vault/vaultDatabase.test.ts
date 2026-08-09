@@ -79,8 +79,8 @@ const fixtures: Array<{
   },
   {
     store: "quarantine",
-    key: recordId,
-    value: { recordId, ciphertext: bytes(70), reason: "authentication-failed" },
+    key: [recordId, 1],
+    value: { recordId, revision: 1, ciphertext: bytes(70), reason: "authentication-failed" },
   },
 ];
 
