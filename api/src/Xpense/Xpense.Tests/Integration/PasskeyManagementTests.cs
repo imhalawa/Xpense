@@ -103,7 +103,9 @@ public class PasskeyManagementTests
         await SignIn("missing-wrapper@example.test", FirstCredentialId);
         var options = await CreateManagementOptions(client);
 
-        var response = await client.PostAsJsonAsync(
+        var response = await SendMutation(
+            client,
+            HttpMethod.Post,
             "/api/v1/users/me/passkeys",
             new AddPasskeyRequest(
                 options.PendingRegistrationId,
@@ -162,7 +164,9 @@ public class PasskeyManagementTests
         await SignIn("invalid-add@example.test", FirstCredentialId);
         var options = await CreateManagementOptions(client);
 
-        var response = await client.PostAsJsonAsync(
+        var response = await SendMutation(
+            client,
+            HttpMethod.Post,
             "/api/v1/users/me/passkeys",
             new AddPasskeyRequest(options.PendingRegistrationId, "invalid", ValidWrapper, 1));
 
@@ -202,21 +206,27 @@ public class PasskeyManagementTests
         await AddUser("invalid-wrapper@example.test", (FirstCredentialId, "Existing", null));
         await SignIn("invalid-wrapper@example.test", FirstCredentialId);
         var options = await CreateManagementOptions(client);
-        var protocol = await client.PostAsJsonAsync(
+        var protocol = await SendMutation(
+            client,
+            HttpMethod.Post,
             "/api/v1/users/me/passkeys",
             new AddPasskeyRequest(
                 options.PendingRegistrationId,
                 SoftwareAuthenticator.CreateCredential(options.OptionsJson, SecondCredentialId),
                 ValidWrapper,
                 2));
-        var label = await client.PostAsJsonAsync(
+        var label = await SendMutation(
+            client,
+            HttpMethod.Post,
             "/api/v1/users/me/passkeys",
             new AddPasskeyRequest(
                 options.PendingRegistrationId,
                 SoftwareAuthenticator.CreateCredential(options.OptionsJson, SecondCredentialId),
                 ValidWrapper with { Label = new string('x', 101) },
                 1));
-        var oversized = await client.PostAsJsonAsync(
+        var oversized = await SendMutation(
+            client,
+            HttpMethod.Post,
             "/api/v1/users/me/passkeys",
             new AddPasskeyRequest(
                 options.PendingRegistrationId,
@@ -324,7 +334,10 @@ public class PasskeyManagementTests
         await AddUser("delete@example.test", (FirstCredentialId, "First", null), (SecondCredentialId, "Second", null));
         await SignIn("delete@example.test", FirstCredentialId);
 
-        var response = await client.DeleteAsync($"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(FirstCredentialId)}");
+        var response = await SendMutation(
+            client,
+            HttpMethod.Delete,
+            $"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(FirstCredentialId)}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await PasskeysFor("DELETE@EXAMPLE.TEST")).Select(passkey => passkey.CredentialId)
@@ -342,7 +355,10 @@ public class PasskeyManagementTests
         await AddUser("last@example.test", (FirstCredentialId, "Only", null));
         await SignIn("last@example.test", FirstCredentialId);
 
-        var response = await client.DeleteAsync($"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(FirstCredentialId)}");
+        var response = await SendMutation(
+            client,
+            HttpMethod.Delete,
+            $"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(FirstCredentialId)}");
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
@@ -359,7 +375,10 @@ public class PasskeyManagementTests
         await AddRecoveryWrapper($"RECOVERY-{kind.ToString().ToUpperInvariant()}@EXAMPLE.TEST", kind);
         await SignIn($"recovery-{kind}@example.test", FirstCredentialId);
 
-        var response = await client.DeleteAsync($"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(FirstCredentialId)}");
+        var response = await SendMutation(
+            client,
+            HttpMethod.Delete,
+            $"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(FirstCredentialId)}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await PasskeysFor($"RECOVERY-{kind.ToString().ToUpperInvariant()}@EXAMPLE.TEST")).Should().BeEmpty();
@@ -374,8 +393,14 @@ public class PasskeyManagementTests
         await AddUser("delete-other@example.test", (SecondCredentialId, "Other", null));
         await SignIn("delete-owner@example.test", FirstCredentialId);
 
-        var other = await client.DeleteAsync($"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(SecondCredentialId)}");
-        var missing = await client.DeleteAsync($"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode([31, 30, 29, 28])}");
+        var other = await SendMutation(
+            client,
+            HttpMethod.Delete,
+            $"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(SecondCredentialId)}");
+        var missing = await SendMutation(
+            client,
+            HttpMethod.Delete,
+            $"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode([31, 30, 29, 28])}");
 
         other.StatusCode.Should().Be(HttpStatusCode.NotFound);
         missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -390,7 +415,10 @@ public class PasskeyManagementTests
         await SignIn("orphan@example.test", FirstCredentialId);
         await RemoveWrapper("ORPHAN@EXAMPLE.TEST", FirstCredentialId);
 
-        var response = await client.DeleteAsync($"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(FirstCredentialId)}");
+        var response = await SendMutation(
+            client,
+            HttpMethod.Delete,
+            $"/api/v1/users/me/passkeys/{WebEncoders.Base64UrlEncode(FirstCredentialId)}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await PasskeysFor("ORPHAN@EXAMPLE.TEST")).Should().HaveCount(1);
@@ -495,7 +523,10 @@ public class PasskeyManagementTests
 
     private static async Task<OptionsResponse> CreateManagementOptions(HttpClient httpClient)
     {
-        var response = await httpClient.PostAsync("/api/v1/users/me/passkeys/options", null);
+        var response = await SendMutation(
+            httpClient,
+            HttpMethod.Post,
+            "/api/v1/users/me/passkeys/options");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         return (await response.Content.ReadFromJsonAsync<OptionsResponse>())!;
     }
@@ -505,13 +536,31 @@ public class PasskeyManagementTests
         OptionsResponse options,
         byte[] credentialId,
         VaultWrapperRequest wrapper) =>
-        httpClient.PostAsJsonAsync(
+        SendMutation(
+            httpClient,
+            HttpMethod.Post,
             "/api/v1/users/me/passkeys",
             new AddPasskeyRequest(
                 options.PendingRegistrationId,
                 SoftwareAuthenticator.CreateCredential(options.OptionsJson, credentialId),
                 wrapper,
                 1));
+
+    private static async Task<HttpResponseMessage> SendMutation(
+        HttpClient httpClient,
+        HttpMethod method,
+        string path,
+        object? body = null)
+    {
+        var tokenResponse = await httpClient.GetAsync("/api/v1/auth/antiforgery");
+        var token = (await tokenResponse.Content.ReadFromJsonAsync<AntiforgeryResponse>())!.RequestToken;
+        using var request = new HttpRequestMessage(method, path)
+        {
+            Content = body is null ? null : JsonContent.Create(body)
+        };
+        request.Headers.Add("X-Xpense-Antiforgery", token);
+        return await httpClient.SendAsync(request);
+    }
 
     private async Task<IList<UserPasskeyInfo>> PasskeysFor(string normalizedEmail)
     {
@@ -557,6 +606,8 @@ public class PasskeyManagementTests
     private sealed record PasskeyResponse(string CredentialId, string? Label, DateTime? LastUsedAt);
 
     private sealed record OptionsResponse(string OptionsJson, Guid PendingRegistrationId);
+
+    private sealed record AntiforgeryResponse(string RequestToken);
 
     private sealed record AddPasskeyRequest(
         Guid PendingRegistrationId,

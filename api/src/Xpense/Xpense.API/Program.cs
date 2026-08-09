@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -43,7 +44,11 @@ app.UseRateLimiter();
 
 app.MapEndpoints();
 
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health")
+    .WithMetadata(new HttpMethodMetadata(["GET"]))
+    .WithName("Health")
+    .WithDisplayName("Service health")
+    .AllowAnonymous();
 
 if (app.Environment.IsDevelopment())
 {

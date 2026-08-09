@@ -241,7 +241,12 @@ public class AuthenticationConfigurationTests
             foreach (var setting in Settings)
                 builder.UseSetting(setting.Key, setting.Value!);
 
-            builder.ConfigureServices(services => services.AddSingleton<IStartupFilter, ProtectedEndpointStartupFilter>());
+            builder.ConfigureServices(services =>
+            {
+                services.Configure<SecurityStampValidatorOptions>(options =>
+                    options.ValidationInterval = TimeSpan.FromDays(1));
+                services.AddSingleton<IStartupFilter, ProtectedEndpointStartupFilter>();
+            });
         }
     }
 
@@ -261,8 +266,10 @@ public class AuthenticationConfigurationTests
                     .RequireAuthorization();
                 endpoints.MapGet("/test/authentication/forbidden", () => Results.Ok())
                     .RequireAuthorization(policy => policy.RequireClaim("permission", "granted"));
-                endpoints.MapGet("/test/authentication/sign-in", SignIn);
+                endpoints.MapGet("/test/authentication/sign-in", SignIn)
+                    .AllowAnonymous();
                 endpoints.MapGet("/test/authentication/rate-limited", () => Results.Ok())
+                    .AllowAnonymous()
                     .RequireRateLimiting("auth");
             });
         };

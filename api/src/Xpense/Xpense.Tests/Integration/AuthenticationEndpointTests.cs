@@ -5,6 +5,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xpense.API.Infrastructure.Authentication;
@@ -481,7 +483,12 @@ public class AuthenticationEndpointTests
         var options = await CreatePasskeyOptions(anonymousClient, "replay-sign-in@example.test");
 
         (await SignIn(anonymousClient, options)).StatusCode.Should().Be(HttpStatusCode.OK);
-        var replay = await SignIn(anonymousClient, options);
+        var replay = await PostWithAntiforgery(
+            anonymousClient,
+            "/api/v1/auth/passkey/sign-in",
+            new PasskeySignInRequest(
+                options.PendingPasskeyAssertionId,
+                SoftwareAuthenticator.CreateAssertion(options.OptionsJson)));
 
         replay.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -696,7 +703,10 @@ public class AuthenticationEndpointTests
         using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
 
         var first = await SignInWithRecoveryFile(anonymousClient, authenticationToken);
-        var second = await SignInWithRecoveryFile(anonymousClient, authenticationToken);
+        var second = await PostWithAntiforgery(
+            anonymousClient,
+            "/api/v1/auth/recovery/sign-in",
+            new RecoveryFileSignInRequest(authenticationToken));
 
         first.StatusCode.Should().Be(HttpStatusCode.OK);
         first.Headers.TryGetValues("Set-Cookie", out var cookies).Should().BeTrue();
@@ -716,7 +726,10 @@ public class AuthenticationEndpointTests
 
         var unknown = await SignInWithRecoveryFile(anonymousClient, "unknown-recovery-file-authentication-token");
         var invalid = await SignInWithRecoveryFile(anonymousClient, authenticationToken);
-        var replay = await SignInWithRecoveryFile(anonymousClient, authenticationToken);
+        var replay = await PostWithAntiforgery(
+            anonymousClient,
+            "/api/v1/auth/recovery/sign-in",
+            new RecoveryFileSignInRequest(authenticationToken));
 
         unknown.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         invalid.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -750,7 +763,7 @@ public class AuthenticationEndpointTests
             "A memorable recovery password 1!")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await client.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var response = await client.PostAsync("/api/v1/auth/logout", null);
+        var response = await PostWithAntiforgery(client, "/api/v1/auth/logout");
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         response.Headers.GetValues("Set-Cookie").Should().Contain(cookie =>
@@ -777,7 +790,10 @@ public class AuthenticationEndpointTests
         using var currentSession = ClientWithCookie(sessionCookie);
         using var oldSession = ClientWithCookie(sessionCookie);
 
-        (await currentSession.PostAsync("/api/v1/auth/logout", null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await PostWithAntiforgery(
+            currentSession,
+            "/api/v1/auth/logout",
+            sessionCookie: sessionCookie)).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         (await UserFor("LOGOUT-EVERYWHERE@EXAMPLE.TEST")).SecurityStamp.Should().NotBe(securityStamp);
         (await oldSession.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -834,6 +850,38 @@ public class AuthenticationEndpointTests
         var response = await client.GetAsync("/api/v1/auth/me");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task A_protected_read_without_a_session_is_refused()
+    {
+        var response = await client.GetAsync("/api/v1/categories");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public void Every_production_route_except_the_documented_anonymous_set_requires_authentication()
+    {
+        string[] expected =
+        [
+            "GET /health",
+            "GET /api/v1/auth/antiforgery",
+            "POST /api/v1/auth/register/options",
+            "POST /api/v1/auth/register",
+            "POST /api/v1/auth/passkey/options",
+            "POST /api/v1/auth/passkey/sign-in",
+            "POST /api/v1/auth/password/sign-in",
+            "POST /api/v1/auth/recovery/sign-in"
+        ];
+        var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<TestEndpointMetadata>() is null)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+            .SelectMany(endpoint => endpoint.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods
+                .Select(method => $"{method} {endpoint.RoutePattern.RawText}"));
+
+        endpoints.Should().BeEquivalentTo(expected);
     }
 
     [Test]
@@ -931,6 +979,51 @@ public class AuthenticationEndpointTests
         missingCookie.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Test]
+    public async Task Production_routes_enforce_the_authenticated_antiforgery_lifecycle()
+    {
+        var anonymousTokenResponse = await client.GetAsync("/api/v1/auth/antiforgery");
+        var anonymousToken = (await anonymousTokenResponse.Content
+            .ReadFromJsonAsync<AntiforgeryResponse>())!.RequestToken;
+        await AddRecoveryPassword("boundary@example.test", "A memorable recovery password 1!");
+        (await SignInWithRecoveryPassword(
+            client,
+            "boundary@example.test",
+            "A memorable recovery password 1!")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        (await client.GetAsync("/api/v1/categories")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var missing = AntiforgeryMutation("/api/v1/auth/logout", null);
+        (await client.SendAsync(missing)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var wrong = AntiforgeryMutation("/api/v1/auth/logout", "not-the-issued-request-token");
+        (await client.SendAsync(wrong)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var stale = AntiforgeryMutation("/api/v1/auth/logout", anonymousToken);
+        (await client.SendAsync(stale)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var authenticatedTokenResponse = await client.GetAsync("/api/v1/auth/antiforgery");
+        var authenticatedToken = (await authenticatedTokenResponse.Content
+            .ReadFromJsonAsync<AntiforgeryResponse>())!.RequestToken;
+        using var valid = AntiforgeryMutation("/api/v1/auth/logout", authenticatedToken);
+
+        (await client.SendAsync(valid)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task An_anonymous_mutation_without_a_session_cookie_reaches_its_handler()
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/auth/register/options",
+            new OptionsRequest("anonymous-boundary@example.test"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     [TestCase(null, "A memorable recovery password 1!")]
     [TestCase("recovery-password-input@example.test", null)]
     public async Task Recovery_password_sign_in_requires_an_email_and_password(string? email, string? password)
@@ -992,6 +1085,33 @@ public class AuthenticationEndpointTests
 
     private static Task<HttpResponseMessage> SignInWithRecoveryFile(HttpClient httpClient, string? authenticationToken) =>
         httpClient.PostAsJsonAsync("/api/v1/auth/recovery/sign-in", new RecoveryFileSignInRequest(authenticationToken));
+
+    private static async Task<HttpResponseMessage> PostWithAntiforgery(
+        HttpClient httpClient,
+        string path,
+        object? body = null,
+        string? sessionCookie = null)
+    {
+        var tokenResponse = await httpClient.GetAsync("/api/v1/auth/antiforgery");
+        var token = (await tokenResponse.Content.ReadFromJsonAsync<AntiforgeryResponse>())!.RequestToken;
+        using var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = body is null ? null : JsonContent.Create(body)
+        };
+        request.Headers.Add("X-Xpense-Antiforgery", token);
+
+        if (sessionCookie is not null)
+        {
+            var sessionCookieName = sessionCookie[..sessionCookie.IndexOf('=', StringComparison.Ordinal)];
+            var setCookie = tokenResponse.Headers.GetValues("Set-Cookie")
+                .Single(cookie => !cookie.StartsWith($"{sessionCookieName}=", StringComparison.Ordinal));
+            var separator = setCookie.IndexOf(';', StringComparison.Ordinal);
+            var antiforgeryCookie = separator < 0 ? setCookie : setCookie[..separator];
+            request.Headers.Add("Cookie", $"{sessionCookie}; {antiforgeryCookie}");
+        }
+
+        return await httpClient.SendAsync(request);
+    }
 
     private static string NormalizeChallenge(string optionsJson)
     {

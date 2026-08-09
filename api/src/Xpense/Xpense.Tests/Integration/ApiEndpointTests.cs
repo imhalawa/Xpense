@@ -32,7 +32,7 @@ public class ApiEndpointTests
     public async Task SetUp()
     {
         factory = new WebApiTestFactory(await PostgresFixture.CreateDatabase());
-        client = factory.CreateClient();
+        client = await factory.CreateAuthenticatedClient();
     }
 
     [TearDown]
@@ -731,7 +731,7 @@ public class ApiEndpointTests
         using var failing = new WebApiTestFactory(
             await PostgresFixture.CreateDatabase(),
             new FailOnSaveInterceptor<Transaction>());
-        using var failingClient = failing.CreateClient();
+        using var failingClient = await failing.CreateAuthenticatedClient();
 
         using (var scope = failing.Services.CreateScope())
         {
