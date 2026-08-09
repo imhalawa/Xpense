@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Domain.Exceptions;
 using Xpense.Persistence;
 
@@ -27,7 +28,7 @@ public sealed class UpdateMerchant : IEndpoint
     }
 
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPut("/api/v1/merchants/{id:int}", Handle).WithName(nameof(UpdateMerchant)).Validated();
+        app.MapPut("/api/v1/merchants/{id:int}", Handle).WithName(nameof(UpdateMerchant)).Validated().BlocksDuringLegacyClaim();
 
     private static async Task<Ok<MerchantResponse>> Handle(
         int id,

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Persistence;
 using Xpense.Domain.Exceptions;
 
@@ -14,7 +15,7 @@ namespace Xpense.API.Features.Tags;
 public sealed class DeleteTag : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapDelete("/api/v1/tags/{id:int}", Handle).WithName(nameof(DeleteTag));
+        app.MapDelete("/api/v1/tags/{id:int}", Handle).WithName(nameof(DeleteTag)).BlocksDuringLegacyClaim();
 
     private static async Task<NoContent> Handle(int id, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Domain.Exceptions;
 using Xpense.Persistence;
 
@@ -15,7 +16,7 @@ namespace Xpense.API.Features.Transactions;
 public sealed class DeleteTransaction : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapDelete("/api/v1/transactions/{id:int}", Handle).WithName(nameof(DeleteTransaction));
+        app.MapDelete("/api/v1/transactions/{id:int}", Handle).WithName(nameof(DeleteTransaction)).BlocksDuringLegacyClaim();
 
     private static async Task<NoContent> Handle(
         int id,

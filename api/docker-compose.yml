@@ -65,6 +65,8 @@ services:
       Authentication__AllowedOrigins__0: ${XPENSE_AUTH_ORIGIN:-http://localhost:5173}
       Authentication__Registration: ${XPENSE_AUTH_REGISTRATION:-Open}
       Authentication__PublicUrl: ${XPENSE_PUBLIC_URL:-http://localhost:5173}
+      LegacyClaim__Enabled: ${XPENSE_LEGACY_CLAIM_ENABLED:-false}
+      LegacyClaim__DesignatedUserId: ${XPENSE_LEGACY_CLAIM_DESIGNATED_USER_ID:-}
       ForwardedHeaders__KnownIPNetworks__0: ${XPENSE_TRUSTED_PROXY_NETWORK:-127.0.0.1/32}
     ports:
       - "127.0.0.1:4000:8080"
@@ -93,6 +95,7 @@ services:
       DOTNET_ENVIRONMENT: ${XPENSE_ENVIRONMENT:-Development}
       ConnectionStrings__DefaultConnection: *connection
       DataProtection__KeyDirectory: /keys
+      LegacyClaim__Enabled: ${XPENSE_LEGACY_CLAIM_ENABLED:-false}
       Email__Enabled: ${XPENSE_EMAIL_ENABLED:-false}
       Email__Host: ${XPENSE_EMAIL_HOST:-}
       Email__Port: ${XPENSE_EMAIL_PORT:-587}

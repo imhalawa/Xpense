@@ -59,6 +59,8 @@ For a hosted or internet-facing install, use HTTPS, set the relying-party domain
 
 Invitation email is optional. With `XPENSE_EMAIL_ENABLED=false`, invitations still work: the create response returns the one-time link and the owner copies it to the recipient. When enabled, configure SMTP host, port, from address, TLS, timeout and paired credentials. API and worker must share the same Data Protection key directory or the worker cannot decrypt the protected invitation link.
 
+Legacy claim mode is an operator-only migration bridge. Set `XPENSE_LEGACY_CLAIM_ENABLED=true` and `XPENSE_LEGACY_CLAIM_DESIGNATED_USER_ID` to an existing user UUID only during a rehearsed claim. The API blocks plaintext source writes and the notifications worker pauses. Keep claim mode enabled after completion until the reviewed Task 32 contract migration removes the plaintext schema; disabling it earlier can create new unclaimed rows. Claim mode never creates a user or changes plaintext ownership.
+
 Direct-host configuration uses the standard .NET double-underscore environment form:
 
 | Setting | Contract |
@@ -71,6 +73,8 @@ Direct-host configuration uses the standard .NET double-underscore environment f
 | `DataProtection__KeyDirectory` | Writable, durable, private directory shared by the API and notification worker. |
 | `ForwardedHeaders__KnownIPNetworks__0` | Trusted proxy address as CIDR, as seen from the API process. Use a narrow range such as a single-address `/32`. |
 | `ForwardedHeaders__ForwardLimit` | Positive number of trusted proxy hops. The default is `1`. |
+| `LegacyClaim__Enabled` | `true` enables the controlled claim window and pauses plaintext writers. Keep it enabled through the contract migration. |
+| `LegacyClaim__DesignatedUserId` | Existing designated claimant UUID, required when claim mode is enabled. |
 | `Email__Enabled` | `true` enables SMTP delivery in the notification worker. |
 | `Email__Host` | Required when email is enabled. |
 | `Email__Port` | Integer from 1 to 65535. The default is 587. |

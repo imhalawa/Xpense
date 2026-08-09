@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
 using Xpense.Domain.Exceptions;
@@ -92,7 +93,7 @@ public sealed class UpdateTransaction : IEndpoint
     }
 
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPut("/api/v1/transactions/{id:int}", Handle).WithName(nameof(UpdateTransaction)).Validated();
+        app.MapPut("/api/v1/transactions/{id:int}", Handle).WithName(nameof(UpdateTransaction)).Validated().BlocksDuringLegacyClaim();
 
     private static async Task<Ok<TransactionResponse>> Handle(
         int id,

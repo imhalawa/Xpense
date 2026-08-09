@@ -46,6 +46,8 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     private IPasswordHasher<XpenseUser>? passwordHasher;
     private IDataProtectionProvider? dataProtectionProvider;
     private RegistrationPolicy? registrationPolicy;
+    private bool? legacyClaimEnabled;
+    private Guid? designatedClaimUserId;
 
     public WebApiTestFactory(string connectionString, params IInterceptor[] interceptors)
     {
@@ -77,14 +79,21 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
         return this;
     }
 
-    public async Task<HttpClient> CreateAuthenticatedClient()
+    public WebApiTestFactory WithLegacyClaim(bool enabled, Guid? designatedUserId = null)
+    {
+        legacyClaimEnabled = enabled;
+        designatedClaimUserId = designatedUserId;
+        return this;
+    }
+
+    public async Task<HttpClient> CreateAuthenticatedClient(Guid? requestedUserId = null)
     {
         using var bootstrapClient = CreateClient(new()
         {
             BaseAddress = new Uri("http://localhost"),
             HandleCookies = false
         });
-        var userId = Guid.CreateVersion7();
+        var userId = requestedUserId ?? Guid.CreateVersion7();
         var email = $"api-suite-{userId:N}@example.test";
         string sessionCookieName;
         string antiforgeryCookieName;
@@ -149,6 +158,10 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
 
         if (registrationPolicy.HasValue)
             builder.UseSetting("Authentication:Registration", registrationPolicy.Value.ToString());
+        if (legacyClaimEnabled.HasValue)
+            builder.UseSetting("LegacyClaim:Enabled", legacyClaimEnabled.Value.ToString());
+        if (designatedClaimUserId.HasValue)
+            builder.UseSetting("LegacyClaim:DesignatedUserId", designatedClaimUserId.Value.ToString());
 
         builder.ConfigureServices(services =>
         {

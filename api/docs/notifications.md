@@ -130,6 +130,8 @@ The API protects the one-time link with Data Protection purpose `Xpense.Invitati
 
 Email is opt-in through `XPENSE_EMAIL_ENABLED`. When disabled or when an invitation is revoked, expired, consumed or belongs to a deleted group, the delivery becomes Disabled and its payload is cleared. Successful delivery records Sent and clears the payload. Failures keep a fixed safe error for retry; the fifth failure marks the delivery Failed, clears the payload and leaves the event as its own dead letter.
 
+The event pump pauses while `XPENSE_LEGACY_CLAIM_ENABLED=true`. This prevents notification rows from changing underneath the pinned legacy dataset. Keep claim mode enabled through the Task 32 contract migration; disable it earlier only for a deliberate operator rollback.
+
 SMTP configuration includes host, port, from address, TLS, paired optional username/password and a timeout from 1 to 30 seconds. The sender uses a stable Message-Id derived from the delivery id and a linked asynchronous deadline. Credentials belong in the operator's `.env` or secret manager, never in source control.
 
 ## Things that will bite

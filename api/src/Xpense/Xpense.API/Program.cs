@@ -24,6 +24,7 @@ builder.Services.ConfigureSwagger();
 builder.Services.ConfigurePersistence(builder.Configuration);
 builder.Services.AddXpenseForwardedHeaders(builder.Configuration);
 builder.Services.AddXpenseAuthentication(builder.Configuration);
+builder.Services.AddLegacyClaim(builder.Configuration);
 builder.Services.AddDomainServices();
 builder.Services.AddRequestValidation();
 builder.Services.AddExceptionHandlers();

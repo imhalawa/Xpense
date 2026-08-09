@@ -57,6 +57,8 @@ The deployment variables map to these runtime settings:
 | `XPENSE_EMAIL_USE_TLS` | `Email__UseTls` | Boolean. |
 | `XPENSE_EMAIL_USERNAME` and `XPENSE_EMAIL_PASSWORD` | `Email__Username` and `Email__Password` | Supply both or neither. |
 | `XPENSE_EMAIL_TIMEOUT_SECONDS` | `Email__TimeoutSeconds` | Integer from 1 to 30. |
+| `XPENSE_LEGACY_CLAIM_ENABLED` | `LegacyClaim__Enabled` | Keep `false` normally, then keep `true` from the operator-controlled claim through the Task 32 contract migration; also pauses notifications. |
+| `XPENSE_LEGACY_CLAIM_DESIGNATED_USER_ID` | `LegacyClaim__DesignatedUserId` | Existing user UUID required by the API when claim mode is enabled. |
 
 `XPENSE_TRUSTED_PROXY_NETWORK=127.0.0.1/32` is only the local default. A host proxy or sibling-container proxy normally reaches the API from a bridge address. Replace the value with the narrow CIDR the API container actually sees, preferably one `/32`. If it does not match, ASP.NET Core ignores `X-Forwarded-Proto` and `X-Forwarded-For`: generated links can use HTTP and the authentication rate limiter sees every client as the proxy.
 
