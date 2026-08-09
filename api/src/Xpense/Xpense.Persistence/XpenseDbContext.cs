@@ -37,6 +37,7 @@ namespace Xpense.Persistence
         public virtual DbSet<UserEncryptionIdentity> UserEncryptionIdentities { get; set; }
         public virtual DbSet<VaultWrapper> VaultWrappers { get; set; }
         public virtual DbSet<PendingRegistration> PendingRegistrations { get; set; }
+        public virtual DbSet<PendingPasskeyAssertion> PendingPasskeyAssertions { get; set; }
         public virtual DbSet<Group> Groups { get; set; }
         public virtual DbSet<GroupMembership> GroupMemberships { get; set; }
         public virtual DbSet<GroupInvitation> GroupInvitations { get; set; }

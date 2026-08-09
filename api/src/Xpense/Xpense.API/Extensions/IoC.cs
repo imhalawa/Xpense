@@ -189,6 +189,7 @@ public static class IoC
         services.AddExceptionHandler<ValidationExceptionHandler>();
         services.AddExceptionHandler<InsufficientFundsExceptionHandler>();
         services.AddExceptionHandler<NotFoundExceptionHandler>();
+        services.AddExceptionHandler<AuthenticationExceptionHandler>();
         services.AddExceptionHandler<DomainRuleViolationExceptionHandler>();
         services.AddExceptionHandler<PersistenceFailedExceptionHandler>();
         services.AddExceptionHandler<FallbackExceptionHandler>();

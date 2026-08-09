@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Text.Json;
 using Xpense.Domain.Entities;
 
@@ -22,8 +25,31 @@ public sealed class SoftwareAuthenticator : IPasskeyHandler<XpenseUser>
         });
     }
 
-    public Task<PasskeyRequestOptionsResult> MakeRequestOptionsAsync(XpenseUser? user, HttpContext httpContext) =>
-        throw new NotSupportedException();
+    private readonly UserManager<XpenseUser> userManager;
+
+    public SoftwareAuthenticator(UserManager<XpenseUser> userManager) => this.userManager = userManager;
+
+    public async Task<PasskeyRequestOptionsResult> MakeRequestOptionsAsync(XpenseUser? user, HttpContext httpContext)
+    {
+        var challenge = Guid.CreateVersion7().ToString();
+        var allowCredentials = user is null
+            ? []
+            : (await userManager.GetPasskeysAsync(user))
+                .Select(passkey => Convert.ToBase64String(passkey.CredentialId))
+                .Order()
+                .ToArray();
+        return new PasskeyRequestOptionsResult
+        {
+            RequestOptionsJson = JsonSerializer.Serialize(new
+            {
+                challenge,
+                rpId = "identity.example.test",
+                userVerification = "required",
+                allowCredentials
+            }),
+            AssertionState = challenge
+        };
+    }
 
     public Task<PasskeyAttestationResult> PerformAttestationAsync(PasskeyAttestationContext context)
     {
@@ -53,8 +79,22 @@ public sealed class SoftwareAuthenticator : IPasskeyHandler<XpenseUser>
         return Task.FromResult(PasskeyAttestationResult.Success(passkey, user));
     }
 
-    public Task<PasskeyAssertionResult<XpenseUser>> PerformAssertionAsync(PasskeyAssertionContext context) =>
-        throw new NotSupportedException();
+    public async Task<PasskeyAssertionResult<XpenseUser>> PerformAssertionAsync(PasskeyAssertionContext context)
+    {
+        if (context.AssertionState is null ||
+            !TryGetCredentialId(context.CredentialJson, context.AssertionState, out var credentialId))
+            return PasskeyAssertionResult.Fail<XpenseUser>(new PasskeyException("The passkey assertion is invalid."));
+
+        var user = await userManager.FindByPasskeyIdAsync(credentialId);
+        if (user is null)
+            return PasskeyAssertionResult.Fail<XpenseUser>(new PasskeyException("The passkey assertion is invalid."));
+
+        var passkey = await userManager.GetPasskeyAsync(user, credentialId);
+
+        return passkey is null
+            ? PasskeyAssertionResult.Fail<XpenseUser>(new PasskeyException("The passkey assertion is invalid."))
+            : PasskeyAssertionResult.Success(passkey, user);
+    }
 
     public static string CreateCredential(string optionsJson)
     {
@@ -63,4 +103,44 @@ public sealed class SoftwareAuthenticator : IPasskeyHandler<XpenseUser>
     }
 
     private static string Credential(string challenge) => "software-authenticator-credential:" + challenge;
+
+    public static string CreateAssertion(string optionsJson, byte[]? credentialId = null)
+    {
+        using var options = JsonDocument.Parse(optionsJson);
+        return Assertion(options.RootElement.GetProperty("challenge").GetString()!, credentialId ?? CredentialId);
+    }
+
+    public static UserPasskeyInfo Passkey(byte[] credentialId) => new(
+        credentialId,
+        PublicKey,
+        DateTimeOffset.UtcNow,
+        0,
+        null,
+        true,
+        false,
+        false,
+        [],
+        []);
+
+    private static string Assertion(string challenge, byte[] credentialId) =>
+        "software-authenticator-assertion:" + challenge + ":" + Convert.ToBase64String(credentialId);
+
+    private static bool TryGetCredentialId(string? credentialJson, string challenge, out byte[] credentialId)
+    {
+        credentialId = [];
+        const string prefix = "software-authenticator-assertion:";
+
+        if (credentialJson is null || !credentialJson.StartsWith(prefix + challenge + ":", StringComparison.Ordinal))
+            return false;
+
+        try
+        {
+            credentialId = Convert.FromBase64String(credentialJson[(prefix.Length + challenge.Length + 1)..]);
+            return credentialId.Length > 0;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 }

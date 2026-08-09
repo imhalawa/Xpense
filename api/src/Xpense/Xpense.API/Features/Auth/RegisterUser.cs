@@ -181,7 +181,7 @@ public sealed class RegisterUser : IEndpoint
 
         return TypedResults.Created(
             httpContext.ResourceUri("/api/v1/auth/me"),
-            CurrentIdentityResponse.Of(user, [wrapper]));
+            CurrentIdentityResponse.Of(user, [wrapper], wrapper.CredentialId));
     }
 
     private static IRuleBuilderOptions<Request, string?> Base64(
