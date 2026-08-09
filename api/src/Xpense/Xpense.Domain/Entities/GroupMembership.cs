@@ -23,4 +23,19 @@ public class GroupMembership
     public DateTime UpdatedAt { get; set; }
 
     public DateTime? RevokedAt { get; set; }
+
+    public bool Revoke(DateTime now)
+    {
+        State = MembershipState.Revoked;
+        GroupKeyEnvelope = null;
+        RevokedAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
+    public void ChangeRole(MembershipRole role, DateTime now)
+    {
+        Role = role;
+        UpdatedAt = now;
+    }
 }

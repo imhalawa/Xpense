@@ -32,5 +32,11 @@ public class Group
         Touch();
     }
 
+    public void TransferOwnership(Guid ownerUserId, DateTime now)
+    {
+        OwnerUserId = ownerUserId;
+        UpdatedAt = now;
+    }
+
     public void Touch() => UpdatedAt = DateTime.UtcNow;
 }
