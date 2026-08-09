@@ -17,12 +17,17 @@ public sealed record CurrentIdentityResponse(
     VaultWrapperResponse[] VaultWrappers,
     VaultState VaultState)
 {
-    public static CurrentIdentityResponse Of(XpenseUser user, IEnumerable<VaultWrapper> wrappers, byte[]? assertedCredentialId = null)
+    public static CurrentIdentityResponse Of(
+        XpenseUser user,
+        IEnumerable<VaultWrapper> wrappers,
+        byte[]? assertedCredentialId = null,
+        Guid? unlockableWrapperId = null)
     {
         var wrapperValues = wrappers.ToArray();
         var wrapperResponses = wrapperValues.Select(VaultWrapperResponse.Of).ToArray();
-        var vaultState = assertedCredentialId is not null && wrapperValues.Any(wrapper =>
-            wrapper.CredentialId is not null && wrapper.CredentialId.SequenceEqual(assertedCredentialId))
+        var vaultState = (assertedCredentialId is not null && wrapperValues.Any(wrapper =>
+            wrapper.CredentialId is not null && wrapper.CredentialId.SequenceEqual(assertedCredentialId))) ||
+            (unlockableWrapperId is not null && wrapperValues.Any(wrapper => wrapper.Id == unlockableWrapperId))
             ? VaultState.Unlockable
             : VaultState.Locked;
 

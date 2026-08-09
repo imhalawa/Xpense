@@ -30,6 +30,7 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     private readonly string connectionString;
     private readonly IInterceptor[] interceptors;
     private Guid? currentUserId;
+    private IPasswordHasher<XpenseUser>? passwordHasher;
     private RegistrationPolicy? registrationPolicy;
 
     public WebApiTestFactory(string connectionString, params IInterceptor[] interceptors)
@@ -50,6 +51,12 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
         return this;
     }
 
+    public WebApiTestFactory WithPasswordHasher(IPasswordHasher<XpenseUser> value)
+    {
+        passwordHasher = value;
+        return this;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -67,6 +74,12 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
                 options.UseNpgsql(connectionString).AddInterceptors(interceptors));
             services.RemoveAll<IPasskeyHandler<XpenseUser>>();
             services.AddScoped<IPasskeyHandler<XpenseUser>, SoftwareAuthenticator>();
+
+            if (passwordHasher is not null)
+            {
+                services.RemoveAll<IPasswordHasher<XpenseUser>>();
+                services.AddSingleton(passwordHasher);
+            }
 
             if (currentUserId.HasValue)
             {

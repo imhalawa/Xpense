@@ -110,6 +110,37 @@ public class AuthenticationConfigurationTests
     }
 
     [Test]
+    public void Recovery_password_services_resolve_with_development_scope_validation()
+    {
+        var settings = new Dictionary<string, string?>(Settings)
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=unused;Database=unused;Username=unused;Password=unused"
+        };
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = Environments.Development
+        });
+        builder.Host.UseDefaultServiceProvider(options =>
+        {
+            options.ValidateScopes = true;
+            options.ValidateOnBuild = true;
+        });
+        builder.Configuration.AddInMemoryCollection(settings);
+        builder.Services.ConfigurePersistence(builder.Configuration);
+        builder.Services.AddXpenseAuthentication(builder.Configuration);
+        builder.Services.AddDomainServices();
+
+        Action act = () =>
+        {
+            using var application = builder.Build();
+            using var scope = application.Services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<IRecoveryPasswordVerifier>();
+        };
+
+        act.Should().NotThrow();
+    }
+
+    [Test]
     public void The_session_cookie_is_http_only_secure_and_same_site_lax()
     {
         using var serviceProvider = CreateServiceProvider(Environments.Staging);

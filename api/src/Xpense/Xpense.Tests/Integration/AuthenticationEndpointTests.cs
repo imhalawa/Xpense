@@ -533,6 +533,236 @@ public class AuthenticationEndpointTests
     }
 
     [Test]
+    public async Task Recovery_password_sign_in_works_when_the_user_configured_one()
+    {
+        await AddRecoveryPassword("recovery-password@example.test", "A memorable recovery password 1!");
+        using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var response = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "recovery-password@example.test",
+            "A memorable recovery password 1!");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.TryGetValues("Set-Cookie", out var cookies).Should().BeTrue();
+        cookies.Should().Contain(cookie => cookie.StartsWith("xpense.session=", StringComparison.Ordinal));
+
+        var wrapper = await RecoveryWrapperFor("RECOVERY-PASSWORD@EXAMPLE.TEST", VaultWrapperKind.RecoveryPassword);
+        wrapper.LastUsedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Test]
+    public async Task Recovery_password_sign_in_returns_the_password_wrapper_with_its_argon2_parameters()
+    {
+        await AddRecoveryPassword("recovery-password-wrapper@example.test", "A memorable recovery password 1!");
+        using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var response = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "recovery-password-wrapper@example.test",
+            "A memorable recovery password 1!");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        body.RootElement.GetProperty("vaultState").GetInt32().Should().Be(1);
+        var wrapper = body.RootElement.GetProperty("vaultWrappers").EnumerateArray().Single();
+        wrapper.GetProperty("kind").GetInt32().Should().Be((int)VaultWrapperKind.RecoveryPassword);
+        wrapper.GetProperty("salt").GetString().Should().Be(Convert.ToBase64String([31, 32, 33]));
+        wrapper.GetProperty("ciphertext").GetString().Should().Be(Convert.ToBase64String([34, 35, 36]));
+        wrapper.GetProperty("nonce").GetString().Should().Be(Convert.ToBase64String([37, 38, 39]));
+        using var parameters = JsonDocument.Parse(wrapper.GetProperty("parameters").GetString()!);
+        parameters.RootElement.GetProperty("memoryKibibytes").GetInt32().Should().Be(65_536);
+        parameters.RootElement.GetProperty("iterations").GetInt32().Should().Be(3);
+        parameters.RootElement.GetProperty("lanes").GetInt32().Should().Be(4);
+        parameters.RootElement.GetProperty("hashLength").GetInt32().Should().Be(32);
+    }
+
+    [Test]
+    public async Task Recovery_password_sign_in_for_an_unknown_email_looks_identical_to_a_wrong_password()
+    {
+        await AddRecoveryPassword("recovery-password-neutral@example.test", "A memorable recovery password 1!");
+        using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var unknown = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "unknown-recovery-password@example.test",
+            "A memorable recovery password 1!");
+        var wrong = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "recovery-password-neutral@example.test",
+            "a wrong recovery password");
+
+        unknown.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        wrong.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await unknown.Content.ReadAsByteArrayAsync()).Should().Equal(await wrong.Content.ReadAsByteArrayAsync());
+    }
+
+    [Test]
+    public async Task Recovery_password_sign_in_is_refused_when_no_recovery_password_is_configured()
+    {
+        await AddPasswordUser("no-recovery-password@example.test", "A memorable recovery password 1!");
+        using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var response = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "no-recovery-password@example.test",
+            "A memorable recovery password 1!");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task Recovery_password_sign_in_counts_failed_attempts_for_lockout()
+    {
+        await AddRecoveryPassword("recovery-password-lockout@example.test", "A memorable recovery password 1!");
+        using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var response = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "recovery-password-lockout@example.test",
+            "A wrong recovery password 1!");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var user = await UserFor("RECOVERY-PASSWORD-LOCKOUT@EXAMPLE.TEST");
+        user.AccessFailedCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task Recovery_password_failure_paths_each_verify_one_hash_and_only_the_real_user_counts_for_lockout()
+    {
+        var passwordHasher = new CountingFailedPasswordHasher();
+        await RestartWithPasswordHasher(passwordHasher);
+        await AddRecoveryPassword("recovery-password-counted@example.test", "A memorable recovery password 1!");
+        await AddPasswordUser("no-recovery-password-counted@example.test", "A memorable recovery password 1!");
+        using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var wrong = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "recovery-password-counted@example.test",
+            "A wrong recovery password 1!");
+        passwordHasher.VerificationCount.Should().Be(1);
+        var unknown = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "unknown-recovery-password-counted@example.test",
+            "A wrong recovery password 1!");
+        passwordHasher.VerificationCount.Should().Be(2);
+        var noWrapper = await SignInWithRecoveryPassword(
+            anonymousClient,
+            "no-recovery-password-counted@example.test",
+            "A wrong recovery password 1!");
+        passwordHasher.VerificationCount.Should().Be(3);
+
+        wrong.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        unknown.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        noWrapper.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await UserFor("RECOVERY-PASSWORD-COUNTED@EXAMPLE.TEST")).AccessFailedCount.Should().Be(1);
+        (await UserFor("NO-RECOVERY-PASSWORD-COUNTED@EXAMPLE.TEST")).AccessFailedCount.Should().Be(0);
+        (await wrong.Content.ReadAsByteArrayAsync()).Should().Equal(await unknown.Content.ReadAsByteArrayAsync());
+        (await wrong.Content.ReadAsByteArrayAsync()).Should().Equal(await noWrapper.Content.ReadAsByteArrayAsync());
+    }
+
+    [Test]
+    public async Task Recovery_password_dummy_verifications_use_separate_synthetic_users_under_concurrency()
+    {
+        var passwordHasher = new CountingFailedPasswordHasher();
+        await RestartWithPasswordHasher(passwordHasher);
+        await AddPasswordUser("no-recovery-password-concurrent@example.test", "A memorable recovery password 1!");
+        using var firstClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+        using var secondClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var responses = await Task.WhenAll(
+            SignInWithRecoveryPassword(
+                firstClient,
+                "unknown-recovery-password-concurrent@example.test",
+                "A wrong recovery password 1!"),
+            SignInWithRecoveryPassword(
+                secondClient,
+                "no-recovery-password-concurrent@example.test",
+                "A wrong recovery password 1!"));
+
+        responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.Unauthorized);
+        var verifiedUsers = passwordHasher.VerifiedUsers.ToArray();
+        verifiedUsers.Should().HaveCount(2);
+        ReferenceEquals(verifiedUsers[0], verifiedUsers[1]).Should().BeFalse();
+        verifiedUsers.Should().OnlyContain(user => user.Id == Guid.Empty);
+        (await UserFor("NO-RECOVERY-PASSWORD-CONCURRENT@EXAMPLE.TEST")).AccessFailedCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task Recovery_file_sign_in_consumes_the_token_and_a_second_attempt_is_refused()
+    {
+        const string authenticationToken = "recovery-file-authentication-token";
+        await AddRecoveryFile("recovery-file@example.test", authenticationToken);
+        using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var first = await SignInWithRecoveryFile(anonymousClient, authenticationToken);
+        var second = await SignInWithRecoveryFile(anonymousClient, authenticationToken);
+
+        first.StatusCode.Should().Be(HttpStatusCode.OK);
+        first.Headers.TryGetValues("Set-Cookie", out var cookies).Should().BeTrue();
+        cookies.Should().Contain(cookie => cookie.StartsWith("xpense.session=", StringComparison.Ordinal));
+        second.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var wrapper = await RecoveryWrapperFor("RECOVERY-FILE@EXAMPLE.TEST", VaultWrapperKind.RecoveryFile);
+        wrapper.ConsumedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        wrapper.LastUsedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Test]
+    public async Task Recovery_file_sign_in_with_an_unknown_token_is_refused_neutrally()
+    {
+        const string authenticationToken = "known-recovery-file-authentication-token";
+        await AddRecoveryFile("recovery-file-neutral@example.test", authenticationToken);
+        using var anonymousClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var unknown = await SignInWithRecoveryFile(anonymousClient, "unknown-recovery-file-authentication-token");
+        var invalid = await SignInWithRecoveryFile(anonymousClient, authenticationToken);
+        var replay = await SignInWithRecoveryFile(anonymousClient, authenticationToken);
+
+        unknown.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        invalid.StatusCode.Should().Be(HttpStatusCode.OK);
+        replay.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await unknown.Content.ReadAsByteArrayAsync()).Should().Equal(await replay.Content.ReadAsByteArrayAsync());
+    }
+
+    [Test]
+    public async Task Concurrent_recovery_file_sign_in_attempts_consume_a_token_once()
+    {
+        const string authenticationToken = "concurrent-recovery-file-authentication-token";
+        await AddRecoveryFile("concurrent-recovery-file@example.test", authenticationToken);
+        using var firstClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+        using var secondClient = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+
+        var responses = await Task.WhenAll(
+            SignInWithRecoveryFile(firstClient, authenticationToken),
+            SignInWithRecoveryFile(secondClient, authenticationToken));
+
+        responses.Count(response => response.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Count(response => response.StatusCode == HttpStatusCode.Unauthorized).Should().Be(1);
+    }
+
+    [TestCase(null, "A memorable recovery password 1!")]
+    [TestCase("recovery-password-input@example.test", null)]
+    public async Task Recovery_password_sign_in_requires_an_email_and_password(string? email, string? password)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/auth/password/sign-in",
+            new RecoveryPasswordSignInRequest(email, password));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    public async Task Recovery_file_sign_in_requires_an_authentication_token(string? authenticationToken)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/auth/recovery/sign-in",
+            new RecoveryFileSignInRequest(authenticationToken));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
     public async Task Eleven_sign_in_attempts_in_a_minute_returns_429()
     {
         var responses = new List<HttpResponseMessage>();
@@ -565,6 +795,12 @@ public class AuthenticationEndpointTests
         httpClient.PostAsJsonAsync("/api/v1/auth/passkey/sign-in", new PasskeySignInRequest(
             options.PendingPasskeyAssertionId,
             credentialJson ?? SoftwareAuthenticator.CreateAssertion(options.OptionsJson)));
+
+    private static Task<HttpResponseMessage> SignInWithRecoveryPassword(HttpClient httpClient, string? email, string? password) =>
+        httpClient.PostAsJsonAsync("/api/v1/auth/password/sign-in", new RecoveryPasswordSignInRequest(email, password));
+
+    private static Task<HttpResponseMessage> SignInWithRecoveryFile(HttpClient httpClient, string? authenticationToken) =>
+        httpClient.PostAsJsonAsync("/api/v1/auth/recovery/sign-in", new RecoveryFileSignInRequest(authenticationToken));
 
     private static string NormalizeChallenge(string optionsJson)
     {
@@ -645,6 +881,21 @@ public class AuthenticationEndpointTests
         return await dbContext.VaultWrappers.SingleAsync(item => item.UserId == userId);
     }
 
+    private async Task<VaultWrapper> RecoveryWrapperFor(string normalizedEmail, VaultWrapperKind kind)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+        var userId = await dbContext.Users.Where(item => item.NormalizedEmail == normalizedEmail).Select(item => item.Id).SingleAsync();
+        return await dbContext.VaultWrappers.SingleAsync(item => item.UserId == userId && item.Kind == kind);
+    }
+
+    private async Task<XpenseUser> UserFor(string normalizedEmail)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<XpenseDbContext>()
+            .Users.SingleAsync(item => item.NormalizedEmail == normalizedEmail);
+    }
+
     private async Task AddPasskey(string normalizedEmail, byte[] credentialId)
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -684,6 +935,15 @@ public class AuthenticationEndpointTests
         client.Dispose();
         await factory.DisposeAsync();
         factory = new WebApiTestFactory(connectionString).WithRegistrationPolicy(policy);
+        client = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
+    }
+
+    private async Task RestartWithPasswordHasher(Microsoft.AspNetCore.Identity.IPasswordHasher<XpenseUser> passwordHasher)
+    {
+        var connectionString = await PostgresFixture.CreateDatabase();
+        client.Dispose();
+        await factory.DisposeAsync();
+        factory = new WebApiTestFactory(connectionString).WithPasswordHasher(passwordHasher);
         client = factory.CreateClient(new() { BaseAddress = new Uri("https://app.example.test") });
     }
 
@@ -734,6 +994,59 @@ public class AuthenticationEndpointTests
         (await userManager.CreateAsync(User(email))).Succeeded.Should().BeTrue();
     }
 
+    private async Task AddPasswordUser(string email, string password)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<XpenseUser>>();
+        var user = User(email);
+        user.LockoutEnabled = true;
+        (await userManager.CreateAsync(user, password)).Succeeded.Should().BeTrue();
+    }
+
+    private async Task AddRecoveryPassword(string email, string password)
+    {
+        await AddPasswordUser(email, password);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+        var user = await dbContext.Users.SingleAsync(item => item.NormalizedEmail == email.ToUpperInvariant());
+        dbContext.VaultWrappers.Add(new VaultWrapper
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = user.Id,
+            Kind = VaultWrapperKind.RecoveryPassword,
+            Salt = [31, 32, 33],
+            Ciphertext = [34, 35, 36],
+            Nonce = [37, 38, 39],
+            Parameters = "{\"memoryKibibytes\":65536,\"iterations\":3,\"lanes\":4,\"hashLength\":32}",
+            ProtocolVersion = 1,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private async Task AddRecoveryFile(string email, string authenticationToken)
+    {
+        await AddIdentityUser(email);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+        var user = await dbContext.Users.SingleAsync(item => item.NormalizedEmail == email.ToUpperInvariant());
+        dbContext.VaultWrappers.Add(new VaultWrapper
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = user.Id,
+            Kind = VaultWrapperKind.RecoveryFile,
+            Salt = [41, 42, 43],
+            Ciphertext = [44, 45, 46],
+            Nonce = [47, 48, 49],
+            AuthenticationTokenHash = SHA256.HashData(Encoding.UTF8.GetBytes(authenticationToken)),
+            ProtocolVersion = 1,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
     private static XpenseUser User(string email) => new()
     {
         Id = Guid.CreateVersion7(),
@@ -762,6 +1075,10 @@ public class AuthenticationEndpointTests
 
     private sealed record PasskeySignInRequest(Guid PendingPasskeyAssertionId, string CredentialJson);
 
+    private sealed record RecoveryPasswordSignInRequest(string? Email, string? Password);
+
+    private sealed record RecoveryFileSignInRequest(string? AuthenticationToken);
+
     private sealed record RegisterRequest(
         Guid PendingRegistrationId,
         string CredentialJson,
@@ -783,5 +1100,28 @@ public class AuthenticationEndpointTests
             Convert.ToBase64String([13, 14, 15]),
             Convert.ToBase64String([16, 17, 18]),
             "Test passkey");
+    }
+
+    private sealed class CountingFailedPasswordHasher : Microsoft.AspNetCore.Identity.IPasswordHasher<XpenseUser>
+    {
+        private readonly Microsoft.AspNetCore.Identity.PasswordHasher<XpenseUser> passwordHasher = new();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<XpenseUser> verifiedUsers = new();
+        private int verificationCount;
+
+        public int VerificationCount => verificationCount;
+
+        public IReadOnlyCollection<XpenseUser> VerifiedUsers => verifiedUsers;
+
+        public string HashPassword(XpenseUser user, string password) => passwordHasher.HashPassword(user, password);
+
+        public Microsoft.AspNetCore.Identity.PasswordVerificationResult VerifyHashedPassword(
+            XpenseUser user,
+            string hashedPassword,
+            string providedPassword)
+        {
+            verifiedUsers.Enqueue(user);
+            Interlocked.Increment(ref verificationCount);
+            return Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed;
+        }
     }
 }

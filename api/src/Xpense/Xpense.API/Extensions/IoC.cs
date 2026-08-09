@@ -77,6 +77,8 @@ public static class IoC
             .AddEntityFrameworkStores<XpenseDbContext>()
             .AddSignInManager()
             .AddDefaultTokenProviders();
+        services.AddSingleton(RecoveryPasswordTimingHash.Create());
+        services.AddScoped<IRecoveryPasswordVerifier, RecoveryPasswordVerifier>();
 
         services.Configure<IdentityPasskeyOptions>(options =>
         {
