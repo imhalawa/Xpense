@@ -25,4 +25,26 @@ public class ResourceGrant
     public DateTime UpdatedAt { get; set; }
 
     public DateTime? RevokedAt { get; set; }
+
+    public void Activate(
+        GrantPermission permission,
+        Guid grantedByUserId,
+        Guid? keyEnvelopeReference,
+        DateTime now)
+    {
+        Permission = permission;
+        State = GrantState.Active;
+        GrantedByUserId = grantedByUserId;
+        KeyEnvelopeReference = keyEnvelopeReference;
+        UpdatedAt = now;
+        RevokedAt = null;
+    }
+
+    public void Revoke(DateTime now)
+    {
+        State = GrantState.Revoked;
+        KeyEnvelopeReference = null;
+        UpdatedAt = now;
+        RevokedAt = now;
+    }
 }

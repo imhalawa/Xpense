@@ -84,6 +84,20 @@ public class SyncAuthorizationTests
         (await authorization.CanWrite(seeded.RecordId)).Should().BeFalse();
     }
 
+    [Test]
+    public async Task A_grant_with_the_wrong_resource_type_cannot_authorize_a_record()
+    {
+        var grant = await dbContext.ResourceGrants.SingleAsync(item =>
+            item.ResourceId == seeded.ResourceId &&
+            item.GroupId == seeded.ViewerGroupId);
+        grant.ResourceType = SharedResourceType.Budget;
+        await dbContext.SaveChangesAsync();
+        var authorization = For(seeded.ViewerId);
+
+        (await authorization.CanRead(seeded.RecordId)).Should().BeFalse();
+        (await authorization.CanWrite(seeded.RecordId)).Should().BeFalse();
+    }
+
     private SyncAuthorization For(Guid userId) => new(dbContext, new TestCurrentUser(userId));
 
     private static async Task<SeededAuthorization> Seed(XpenseDbContext dbContext)
@@ -153,6 +167,8 @@ public class SyncAuthorizationTests
 
         return new SeededAuthorization(
             recordId,
+            resourceId,
+            viewerGroupId,
             resourceOwnerId,
             viewerId,
             editorId,
@@ -217,6 +233,8 @@ public class SyncAuthorizationTests
 
     private sealed record SeededAuthorization(
         Guid RecordId,
+        Guid ResourceId,
+        Guid ViewerGroupId,
         Guid ResourceOwnerId,
         Guid ViewerId,
         Guid EditorId,

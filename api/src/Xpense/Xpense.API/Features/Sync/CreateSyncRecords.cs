@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.Authorization;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
 using Xpense.Domain.Exceptions;
@@ -119,78 +120,101 @@ public sealed class CreateSyncRecords : IEndpoint
 
     private static async Task<Created<Response>> Handle(
         Request request,
+        ResourceTransactionLock resourceTransactionLock,
         XpenseDbContext dbContext,
         SyncAuthorization authorization,
         ICurrentUser currentUser,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken);
-        var responses = new List<EncryptedRecordResponse>(request.Records.Length);
-
-        foreach (var item in request.Records)
+        var rootResourceIds = request.Records
+            .Where(item =>
+                item.ParentResourceId == item.Id &&
+                item.RecordType is EncryptedRecordType.Account or EncryptedRecordType.Budget)
+            .Select(item => item.Id)
+            .Distinct()
+            .OrderBy(resourceId => resourceId)
+            .ToArray();
+        var resourceLocks = new List<ResourceTransactionLock.Lease>(rootResourceIds.Length);
+        try
         {
-            var existingOperation = await dbContext.SyncOperations
-                .AsNoTracking()
-                .SingleOrDefaultAsync(
-                    operation => operation.UserId == currentUser.Id && operation.IdempotencyKey == item.IdempotencyKey,
-                    cancellationToken);
+            foreach (var resourceId in rootResourceIds)
+                resourceLocks.Add(await resourceTransactionLock.Acquire(resourceId, cancellationToken));
 
-            if (existingOperation is not null)
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                cancellationToken);
+            var responses = new List<EncryptedRecordResponse>(request.Records.Length);
+
+            foreach (var item in request.Records)
             {
-                responses.Add(await ReadExisting(
-                    existingOperation.EncryptedRecordId,
-                    dbContext,
-                    cancellationToken));
-                continue;
+                var existingOperation = await dbContext.SyncOperations
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(
+                        operation =>
+                            operation.UserId == currentUser.Id &&
+                            operation.IdempotencyKey == item.IdempotencyKey,
+                        cancellationToken);
+
+                if (existingOperation is not null)
+                {
+                    responses.Add(await ReadExisting(
+                        existingOperation.EncryptedRecordId,
+                        dbContext,
+                        cancellationToken));
+                    continue;
+                }
+
+                await EnsureParentIsWritable(item, dbContext, authorization, currentUser.Id, cancellationToken);
+                var now = DateTime.UtcNow;
+                var record = new EncryptedRecord
+                {
+                    Id = item.Id,
+                    RecordType = item.RecordType,
+                    OwnerUserId = currentUser.Id,
+                    ParentResourceId = item.ParentResourceId,
+                    Revision = 1,
+                    ProtocolVersion = item.ProtocolVersion,
+                    Nonce = item.Nonce,
+                    Ciphertext = item.Ciphertext,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                var envelope = new RecordEnvelope
+                {
+                    Id = Guid.CreateVersion7(),
+                    EncryptedRecordId = record.Id,
+                    WrappedKey = item.PersonalEnvelope.WrappedKey,
+                    Nonce = item.PersonalEnvelope.Nonce,
+                    ProtocolVersion = item.PersonalEnvelope.ProtocolVersion
+                };
+                var operation = new SyncOperation
+                {
+                    Id = Guid.CreateVersion7(),
+                    UserId = currentUser.Id,
+                    IdempotencyKey = item.IdempotencyKey,
+                    EncryptedRecordId = record.Id,
+                    CreatedAt = now
+                };
+
+                dbContext.EncryptedRecords.Add(record);
+                dbContext.RecordEnvelopes.Add(envelope);
+                dbContext.SyncOperations.Add(operation);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                responses.Add(EncryptedRecordResponse.Of(record, [RecordEnvelopeResponse.Of(envelope)]));
             }
 
-            await EnsureParentIsWritable(item, dbContext, authorization, currentUser.Id, cancellationToken);
-            var now = DateTime.UtcNow;
-            var record = new EncryptedRecord
-            {
-                Id = item.Id,
-                RecordType = item.RecordType,
-                OwnerUserId = currentUser.Id,
-                ParentResourceId = item.ParentResourceId,
-                Revision = 1,
-                ProtocolVersion = item.ProtocolVersion,
-                Nonce = item.Nonce,
-                Ciphertext = item.Ciphertext,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            var envelope = new RecordEnvelope
-            {
-                Id = Guid.CreateVersion7(),
-                EncryptedRecordId = record.Id,
-                WrappedKey = item.PersonalEnvelope.WrappedKey,
-                Nonce = item.PersonalEnvelope.Nonce,
-                ProtocolVersion = item.PersonalEnvelope.ProtocolVersion
-            };
-            var operation = new SyncOperation
-            {
-                Id = Guid.CreateVersion7(),
-                UserId = currentUser.Id,
-                IdempotencyKey = item.IdempotencyKey,
-                EncryptedRecordId = record.Id,
-                CreatedAt = now
-            };
-
-            dbContext.EncryptedRecords.Add(record);
-            dbContext.RecordEnvelopes.Add(envelope);
-            dbContext.SyncOperations.Add(operation);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            responses.Add(EncryptedRecordResponse.Of(record, [RecordEnvelopeResponse.Of(envelope)]));
+            await transaction.CommitAsync(cancellationToken);
+            var firstId = responses[0].Id;
+            return TypedResults.Created(
+                httpContext.ResourceUri($"/api/v1/sync/records/{firstId}"),
+                new Response(responses.ToArray()));
         }
-
-        await transaction.CommitAsync(cancellationToken);
-        var firstId = responses[0].Id;
-        return TypedResults.Created(
-            httpContext.ResourceUri($"/api/v1/sync/records/{firstId}"),
-            new Response(responses.ToArray()));
+        finally
+        {
+            for (var index = resourceLocks.Count - 1; index >= 0; index--)
+                await resourceLocks[index].DisposeAsync();
+        }
     }
 
     private static async Task EnsureParentIsWritable(

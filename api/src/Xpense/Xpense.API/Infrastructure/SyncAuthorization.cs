@@ -55,6 +55,9 @@ public sealed class SyncAuthorization(XpenseDbContext dbContext, ICurrentUser cu
                     grant.ResourceId == record.ParentResourceId.Value &&
                     grant.State == GrantState.Active &&
                     (!requireEditor || grant.Permission == GrantPermission.Editor) &&
+                    dbContext.SharedResources.Any(resource =>
+                        resource.Id == record.ParentResourceId.Value &&
+                        resource.Type == grant.ResourceType) &&
                     dbContext.Groups.Any(group => group.Id == grant.GroupId && !group.IsDeleted) &&
                     dbContext.GroupMemberships.Any(membership =>
                         membership.GroupId == grant.GroupId &&

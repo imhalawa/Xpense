@@ -48,6 +48,7 @@ public static class IoC
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddScoped<AccessRules>();
         services.AddScoped<GroupTransactionLock>();
+        services.AddScoped<ResourceTransactionLock>();
         services.AddScoped<SyncAuthorization>();
         services.AddScoped(typeof(OptionResolver<>));
 
@@ -204,6 +205,7 @@ public static class IoC
         services.AddExceptionHandler<AuthenticationExceptionHandler>();
         services.AddExceptionHandler<InvitationInvalidExceptionHandler>();
         services.AddExceptionHandler<InvitationStateConflictExceptionHandler>();
+        services.AddExceptionHandler<ResourceGrantAlreadyActiveExceptionHandler>();
         services.AddExceptionHandler<DomainRuleViolationExceptionHandler>();
         services.AddExceptionHandler<PersistenceFailedExceptionHandler>();
         services.AddExceptionHandler<FallbackExceptionHandler>();

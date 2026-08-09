@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.Authorization;
 using Xpense.Domain.Enums;
 using Xpense.Persistence;
 
@@ -28,10 +29,21 @@ public sealed class RevokeRecordEnvelope : IEndpoint
     private static async Task<Results<Ok<Response>, NotFound>> Handle(
         Guid id,
         Guid groupId,
+        ResourceTransactionLock resourceTransactionLock,
+        GroupTransactionLock groupTransactionLock,
         XpenseDbContext dbContext,
         ICurrentUser currentUser,
         CancellationToken cancellationToken)
     {
+        var resourceId = await dbContext.EncryptedRecords.AsNoTracking()
+            .Where(item => item.Id == id && item.ParentResourceId.HasValue)
+            .Select(item => item.ParentResourceId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (!resourceId.HasValue)
+            return TypedResults.NotFound();
+
+        await using var resourceLock = await resourceTransactionLock.Acquire(resourceId.Value, cancellationToken);
+        await using var groupLock = await groupTransactionLock.Acquire(groupId, cancellationToken);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
@@ -39,12 +51,12 @@ public sealed class RevokeRecordEnvelope : IEndpoint
         var record = await dbContext.EncryptedRecords.SingleOrDefaultAsync(
             item => item.Id == id && item.OwnerUserId == currentUser.Id,
             cancellationToken);
-        if (record?.ParentResourceId is not Guid resourceId ||
+        if (record?.ParentResourceId != resourceId.Value ||
             !await IsActiveGroupMember(groupId, currentUser.Id, dbContext, cancellationToken))
             return TypedResults.NotFound();
 
         var resource = await dbContext.SharedResources.SingleOrDefaultAsync(
-            item => item.Id == resourceId && item.OwnerUserId == currentUser.Id,
+            item => item.Id == resourceId.Value && item.OwnerUserId == currentUser.Id,
             cancellationToken);
         if (resource is null)
             return TypedResults.NotFound();
@@ -57,22 +69,18 @@ public sealed class RevokeRecordEnvelope : IEndpoint
 
         dbContext.RecordEnvelopes.Remove(envelope);
 
-        if (id == resourceId)
+        if (id == resourceId.Value)
         {
             var grant = await dbContext.ResourceGrants.SingleOrDefaultAsync(
                 item =>
                     item.GroupId == groupId &&
-                    item.ResourceId == resourceId &&
+                    item.ResourceId == resourceId.Value &&
                     item.ResourceType == resource.Type &&
                     item.State == GrantState.Active,
                 cancellationToken);
             if (grant is not null)
             {
-                var now = DateTime.UtcNow;
-                grant.State = GrantState.Revoked;
-                grant.KeyEnvelopeReference = null;
-                grant.RevokedAt = now;
-                grant.UpdatedAt = now;
+                grant.Revoke(DateTime.UtcNow);
             }
         }
 
