@@ -1,5 +1,8 @@
 using System.Linq;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -74,6 +77,7 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
                 options.UseNpgsql(connectionString).AddInterceptors(interceptors));
             services.RemoveAll<IPasskeyHandler<XpenseUser>>();
             services.AddScoped<IPasskeyHandler<XpenseUser>, SoftwareAuthenticator>();
+            services.AddSingleton<IStartupFilter, AntiforgeryValidationStartupFilter>();
 
             if (passwordHasher is not null)
             {
@@ -107,5 +111,33 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     private sealed class TestCurrentUser(Guid id) : ICurrentUser
     {
         public Guid Id { get; } = id;
+    }
+
+    private sealed class AntiforgeryValidationStartupFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => application =>
+        {
+            next(application);
+            application.UseEndpoints(endpoints =>
+            {
+                endpoints.MapPost("/test/authentication/antiforgery-anonymous", Validate)
+                    .AllowAnonymous();
+                endpoints.MapPost("/test/authentication/antiforgery-protected", Validate)
+                    .RequireAuthorization();
+            });
+        };
+
+        private static async Task<IResult> Validate(HttpContext httpContext, IAntiforgery antiforgery)
+        {
+            try
+            {
+                await antiforgery.ValidateRequestAsync(httpContext);
+                return Results.NoContent();
+            }
+            catch (AntiforgeryValidationException)
+            {
+                return Results.BadRequest();
+            }
+        }
     }
 }

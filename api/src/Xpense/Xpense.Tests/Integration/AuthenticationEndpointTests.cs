@@ -740,6 +740,197 @@ public class AuthenticationEndpointTests
         responses.Count(response => response.StatusCode == HttpStatusCode.Unauthorized).Should().Be(1);
     }
 
+    [Test]
+    public async Task Logging_out_clears_the_cookie_and_a_later_request_returns_401()
+    {
+        await AddRecoveryPassword("logout@example.test", "A memorable recovery password 1!");
+        (await SignInWithRecoveryPassword(
+            client,
+            "logout@example.test",
+            "A memorable recovery password 1!")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var response = await client.PostAsync("/api/v1/auth/logout", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.Headers.GetValues("Set-Cookie").Should().Contain(cookie =>
+            cookie.StartsWith("xpense.session=", StringComparison.Ordinal) &&
+            cookie.Contains("expires=Thu, 01 Jan 1970", StringComparison.OrdinalIgnoreCase));
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task Logging_out_rotates_the_security_stamp_so_an_old_cookie_is_dead()
+    {
+        await AddRecoveryPassword("logout-everywhere@example.test", "A memorable recovery password 1!");
+        using var signInClient = factory.CreateClient(new()
+        {
+            BaseAddress = new Uri("https://app.example.test"),
+            HandleCookies = false
+        });
+        var signInResponse = await SignInWithRecoveryPassword(
+            signInClient,
+            "logout-everywhere@example.test",
+            "A memorable recovery password 1!");
+        var sessionCookie = SessionCookie(signInResponse);
+        var securityStamp = (await UserFor("LOGOUT-EVERYWHERE@EXAMPLE.TEST")).SecurityStamp;
+        using var currentSession = ClientWithCookie(sessionCookie);
+        using var oldSession = ClientWithCookie(sessionCookie);
+
+        (await currentSession.PostAsync("/api/v1/auth/logout", null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        (await UserFor("LOGOUT-EVERYWHERE@EXAMPLE.TEST")).SecurityStamp.Should().NotBe(securityStamp);
+        (await oldSession.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task Me_returns_the_email_the_group_summaries_and_the_vault_wrapper_availability()
+    {
+        await AddRecoveryPassword("me@example.test", "A memorable recovery password 1!");
+        await AddPasskey("ME@EXAMPLE.TEST", [9, 8, 7, 6]);
+        var activeGroup = await AddMembership("ME@EXAMPLE.TEST", MembershipState.Active, false, [71, 72, 73]);
+        var groupWithoutEnvelope = await AddMembership(
+            "ME@EXAMPLE.TEST",
+            MembershipState.Active,
+            false,
+            [74, 75, 76],
+            hasKeyEnvelope: false);
+        await AddMembership("ME@EXAMPLE.TEST", MembershipState.Revoked, false, [81, 82, 83]);
+        await AddMembership("ME@EXAMPLE.TEST", MembershipState.Active, true, [91, 92, 93]);
+        (await SignInWithRecoveryPassword(
+            client,
+            "me@example.test",
+            "A memorable recovery password 1!")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var response = await client.GetAsync("/api/v1/auth/me");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        body.RootElement.GetProperty("id").GetGuid().Should().Be((await UserFor("ME@EXAMPLE.TEST")).Id);
+        body.RootElement.GetProperty("email").GetString().Should().Be("me@example.test");
+        body.RootElement.GetProperty("state").GetInt32().Should().Be((int)AccountState.Active);
+        body.RootElement.GetProperty("availableVaultWrappers").EnumerateArray()
+            .Select(kind => kind.GetInt32()).Should().BeEquivalentTo([
+                (int)VaultWrapperKind.RecoveryPassword,
+                (int)VaultWrapperKind.Passkey
+            ]);
+        body.RootElement.GetProperty("vaultWrappers").GetArrayLength().Should().Be(2);
+        var groups = body.RootElement.GetProperty("groups").EnumerateArray().ToArray();
+        groups.Should().HaveCount(2);
+        var group = groups.Single(item => item.GetProperty("id").GetGuid() == activeGroup.Id);
+        group.GetProperty("id").GetGuid().Should().Be(activeGroup.Id);
+        group.GetProperty("role").GetInt32().Should().Be((int)MembershipRole.Member);
+        group.GetProperty("nameCiphertext").GetString().Should().Be(Convert.ToBase64String(activeGroup.NameCiphertext));
+        group.GetProperty("nameNonce").GetString().Should().Be(Convert.ToBase64String(activeGroup.NameNonce));
+        group.GetProperty("protocolVersion").GetInt32().Should().Be(1);
+        group.GetProperty("hasKeyEnvelope").GetBoolean().Should().BeTrue();
+        groups.Single(item => item.GetProperty("id").GetGuid() == groupWithoutEnvelope.Id)
+            .GetProperty("hasKeyEnvelope").GetBoolean().Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Me_without_a_session_returns_401()
+    {
+        var response = await client.GetAsync("/api/v1/auth/me");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task Me_never_returns_decrypted_names_or_recovery_secrets()
+    {
+        const string displayName = "Private family display name";
+        const string authenticationToken = "private-recovery-file-token";
+        await AddRecoveryPassword("private-me@example.test", "A memorable recovery password 1!");
+        await AddRecoveryFileWrapper("PRIVATE-ME@EXAMPLE.TEST", authenticationToken);
+        await AddEncryptedProfile("PRIVATE-ME@EXAMPLE.TEST", Encoding.UTF8.GetBytes(displayName));
+        await AddMembership(
+            "PRIVATE-ME@EXAMPLE.TEST",
+            MembershipState.Active,
+            false,
+            Encoding.UTF8.GetBytes("encrypted-group-name"));
+        (await SignInWithRecoveryPassword(
+            client,
+            "private-me@example.test",
+            "A memorable recovery password 1!")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var response = await client.GetAsync("/api/v1/auth/me");
+        var json = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        json.Should().NotContain(displayName);
+        json.Should().NotContain(authenticationToken);
+        json.Should().NotContain("authenticationTokenHash");
+        json.Should().NotContain("groupKeyEnvelope");
+        json.Should().Contain(Convert.ToBase64String(Encoding.UTF8.GetBytes("encrypted-group-name")));
+    }
+
+    [Test]
+    public async Task Antiforgery_returns_a_paired_cookie_and_renews_the_request_token()
+    {
+        var firstResponse = await client.GetAsync("/api/v1/auth/antiforgery");
+        var first = (await firstResponse.Content.ReadFromJsonAsync<AntiforgeryResponse>())!;
+        var secondResponse = await client.GetAsync("/api/v1/auth/antiforgery");
+        var second = (await secondResponse.Content.ReadFromJsonAsync<AntiforgeryResponse>())!;
+
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        first.RequestToken.Should().NotBeNullOrWhiteSpace();
+        firstResponse.Headers.GetValues("Set-Cookie").Should().Contain(cookie =>
+            cookie.StartsWith(".AspNetCore.Antiforgery.", StringComparison.Ordinal));
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        second.RequestToken.Should().NotBe(first.RequestToken);
+    }
+
+    [Test]
+    public async Task Antiforgery_pair_is_refreshed_after_sign_in_and_invalid_pairs_are_refused()
+    {
+        var tokenResponse = await client.GetAsync("/api/v1/auth/antiforgery");
+        var anonymousToken = (await tokenResponse.Content.ReadFromJsonAsync<AntiforgeryResponse>())!.RequestToken;
+        using var anonymousMutation = AntiforgeryMutation(
+            "/test/authentication/antiforgery-anonymous",
+            anonymousToken);
+
+        (await client.SendAsync(anonymousMutation)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        await AddRecoveryPassword("antiforgery@example.test", "A memorable recovery password 1!");
+        var signInResponse = await SignInWithRecoveryPassword(
+            client,
+            "antiforgery@example.test",
+            "A memorable recovery password 1!");
+        signInResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var staleAnonymousRequest = AntiforgeryMutation(
+            "/test/authentication/antiforgery-protected",
+            anonymousToken);
+
+        (await client.SendAsync(staleAnonymousRequest)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var authenticatedTokenResponse = await client.GetAsync("/api/v1/auth/antiforgery");
+        var authenticatedToken = (await authenticatedTokenResponse.Content.ReadFromJsonAsync<AntiforgeryResponse>())!.RequestToken;
+        using var validRequest = AntiforgeryMutation(
+            "/test/authentication/antiforgery-protected",
+            authenticatedToken);
+        using var missingHeaderRequest = AntiforgeryMutation(
+            "/test/authentication/antiforgery-protected",
+            null);
+        using var wrongTokenRequest = AntiforgeryMutation(
+            "/test/authentication/antiforgery-protected",
+            "not-the-issued-request-token");
+        using var missingCookieClient = ClientWithCookie(SessionCookie(signInResponse));
+        using var missingCookieRequest = AntiforgeryMutation(
+            "/test/authentication/antiforgery-protected",
+            authenticatedToken);
+
+        var valid = await client.SendAsync(validRequest);
+        var missingHeader = await client.SendAsync(missingHeaderRequest);
+        var wrongToken = await client.SendAsync(wrongTokenRequest);
+        var missingCookie = await missingCookieClient.SendAsync(missingCookieRequest);
+
+        valid.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        missingHeader.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        wrongToken.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        missingCookie.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     [TestCase(null, "A memorable recovery password 1!")]
     [TestCase("recovery-password-input@example.test", null)]
     public async Task Recovery_password_sign_in_requires_an_email_and_password(string? email, string? password)
@@ -1047,6 +1238,114 @@ public class AuthenticationEndpointTests
         await dbContext.SaveChangesAsync();
     }
 
+    private HttpClient ClientWithCookie(string sessionCookie)
+    {
+        var httpClient = factory.CreateClient(new()
+        {
+            BaseAddress = new Uri("https://app.example.test"),
+            HandleCookies = false
+        });
+        httpClient.DefaultRequestHeaders.Add("Cookie", sessionCookie);
+        return httpClient;
+    }
+
+    private static HttpRequestMessage AntiforgeryMutation(string path, string? token)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, path);
+
+        if (token is not null)
+            request.Headers.Add("X-Xpense-Antiforgery", token);
+
+        return request;
+    }
+
+    private static string SessionCookie(HttpResponseMessage response)
+    {
+        var setCookie = response.Headers.GetValues("Set-Cookie")
+            .Single(cookie => cookie.StartsWith("xpense.session=", StringComparison.Ordinal));
+        var separator = setCookie.IndexOf(';', StringComparison.Ordinal);
+        return separator < 0 ? setCookie : setCookie[..separator];
+    }
+
+    private async Task<Group> AddMembership(
+        string normalizedEmail,
+        MembershipState state,
+        bool deleted,
+        byte[] nameCiphertext,
+        bool hasKeyEnvelope = true)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+        var user = await dbContext.Users.SingleAsync(item => item.NormalizedEmail == normalizedEmail);
+        var group = new Group
+        {
+            Id = Guid.CreateVersion7(),
+            OwnerUserId = user.Id,
+            NameCiphertext = nameCiphertext,
+            NameNonce = [101, 102, 103],
+            ProtocolVersion = 1,
+            IsDeleted = deleted,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Groups.Add(group);
+        dbContext.GroupMemberships.Add(new GroupMembership
+        {
+            Id = Guid.CreateVersion7(),
+            GroupId = group.Id,
+            UserId = user.Id,
+            Role = MembershipRole.Member,
+            State = state,
+            GroupKeyEnvelope = hasKeyEnvelope ? [111, 112, 113] : null,
+            EnvelopeProtocolVersion = 1,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            RevokedAt = state == MembershipState.Revoked ? DateTime.UtcNow : null
+        });
+        await dbContext.SaveChangesAsync();
+        return group;
+    }
+
+    private async Task AddEncryptedProfile(string normalizedEmail, byte[] ciphertext)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+        var user = await dbContext.Users.SingleAsync(item => item.NormalizedEmail == normalizedEmail);
+        dbContext.UserProfiles.Add(new UserProfile
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = user.Id,
+            Ciphertext = ciphertext,
+            Nonce = [121, 122, 123],
+            ProtocolVersion = 1,
+            Revision = 1,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private async Task AddRecoveryFileWrapper(string normalizedEmail, string authenticationToken)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+        var user = await dbContext.Users.SingleAsync(item => item.NormalizedEmail == normalizedEmail);
+        dbContext.VaultWrappers.Add(new VaultWrapper
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = user.Id,
+            Kind = VaultWrapperKind.RecoveryFile,
+            Salt = [131, 132, 133],
+            Ciphertext = [134, 135, 136],
+            Nonce = [137, 138, 139],
+            AuthenticationTokenHash = SHA256.HashData(Encoding.UTF8.GetBytes(authenticationToken)),
+            ProtocolVersion = 1,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
     private static XpenseUser User(string email) => new()
     {
         Id = Guid.CreateVersion7(),
@@ -1078,6 +1377,8 @@ public class AuthenticationEndpointTests
     private sealed record RecoveryPasswordSignInRequest(string? Email, string? Password);
 
     private sealed record RecoveryFileSignInRequest(string? AuthenticationToken);
+
+    private sealed record AntiforgeryResponse(string RequestToken);
 
     private sealed record RegisterRequest(
         Guid PendingRegistrationId,

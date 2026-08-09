@@ -100,6 +100,9 @@ public static class IoC
             .AddIdentityCookies();
         services.AddAuthorization();
 
+        services.Configure<SecurityStampValidatorOptions>(options =>
+            options.ValidationInterval = TimeSpan.Zero);
+
         services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme)
             .Configure<IHostEnvironment>((options, environment) =>
             {

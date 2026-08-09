@@ -7,7 +7,7 @@ using Xpense.Domain.Enums;
 namespace Xpense.API.Features.Auth;
 
 /// <summary>
-/// Describes the signed-in identity and its available vault wrappers.
+/// Describes the signed-in identity, encrypted groups and available vault wrappers.
 /// </summary>
 public sealed record CurrentIdentityResponse(
     Guid Id,
@@ -15,13 +15,15 @@ public sealed record CurrentIdentityResponse(
     AccountState State,
     VaultWrapperKind[] AvailableVaultWrappers,
     VaultWrapperResponse[] VaultWrappers,
-    VaultState VaultState)
+    VaultState VaultState,
+    GroupSummaryResponse[] Groups)
 {
     public static CurrentIdentityResponse Of(
         XpenseUser user,
         IEnumerable<VaultWrapper> wrappers,
         byte[]? assertedCredentialId = null,
-        Guid? unlockableWrapperId = null)
+        Guid? unlockableWrapperId = null,
+        IEnumerable<GroupSummaryResponse>? groups = null)
     {
         var wrapperValues = wrappers.ToArray();
         var wrapperResponses = wrapperValues.Select(VaultWrapperResponse.Of).ToArray();
@@ -37,9 +39,21 @@ public sealed record CurrentIdentityResponse(
             user.State,
             wrapperResponses.Select(wrapper => wrapper.Kind).Distinct().ToArray(),
             wrapperResponses,
-            vaultState);
+            vaultState,
+            groups?.ToArray() ?? []);
     }
 }
+
+/// <summary>
+/// Describes an encrypted group available to the signed-in identity.
+/// </summary>
+public sealed record GroupSummaryResponse(
+    Guid Id,
+    MembershipRole Role,
+    string NameCiphertext,
+    string NameNonce,
+    int ProtocolVersion,
+    bool HasKeyEnvelope);
 
 public sealed record VaultWrapperResponse(
     Guid Id,
