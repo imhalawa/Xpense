@@ -1,5 +1,8 @@
 import type {
   AccountView,
+  AccountBalanceProjection,
+  BudgetDraft,
+  BudgetView,
   CategoryCreationPriority,
   FilterFacet,
   FilterResolution,
@@ -16,6 +19,9 @@ import type {
   VaultProjection,
   VaultState,
 } from "./VaultProjection";
+import { budgetSpending, validateBudgetWindow } from "../domain/budgetSpending";
+import { accountBalances } from "../domain/accountBalance";
+import { validateTransactionCurrencies } from "../domain/currencyMatch";
 
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
 const lockedMessage = "The vault is locked";
@@ -35,6 +41,8 @@ export interface FixtureSeed {
   accounts: Record<SpaceId, AccountView[]>;
   taxonomy: Record<SpaceId, TaxonomyValue[]>;
   transactions: Record<SpaceId, TransactionView[]>;
+  budgets?: Record<SpaceId, BudgetView[]>;
+  transactionHistoryComplete?: Record<SpaceId, boolean>;
 }
 
 const startOfDay = (calendarDate: string): number => Date.parse(`${calendarDate}T00:00:00.000Z`);
@@ -62,6 +70,7 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
   const transactionsBySpace: Record<SpaceId, TransactionView[]> = {};
   const taxonomyBySpace: Record<SpaceId, TaxonomyValue[]> = {};
   const accountsBySpace: Record<SpaceId, AccountView[]> = {};
+  const budgetsBySpace: Record<SpaceId, BudgetView[]> = {};
   for (const [space, transactions] of Object.entries(seed.transactions)) {
     transactionsBySpace[space] = [...transactions];
   }
@@ -71,9 +80,13 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
   for (const [space, accounts] of Object.entries(seed.accounts)) {
     accountsBySpace[space] = [...accounts];
   }
+  for (const [space, budgets] of Object.entries(seed.budgets ?? {})) {
+    budgetsBySpace[space] = [...budgets];
+  }
 
   let currentState: VaultState = "ready";
   let savedTransactionCount = 0;
+  let savedBudgetCount = 0;
   const listeners = new Set<(state: VaultState) => void>();
 
   const moveTo = (state: VaultState): void => {
@@ -130,9 +143,149 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
       return accountsBySpace[space] ?? [];
     },
 
+    async listAccountBalances(space: SpaceId): Promise<AccountBalanceProjection> {
+      requireUnlocked();
+      const accounts = accountsBySpace[space] ?? [];
+      if (accounts.length === 0) return { state: "available", balances: [] };
+
+      let balanceSource: AccountView["balanceSource"];
+      const balancesByCurrency = new Map<AccountView["currency"], number>();
+      for (const account of accounts) {
+        if (account.balanceSource === undefined) {
+          return { state: "unavailable", reason: "Balances are unavailable." };
+        }
+        if (balanceSource !== undefined && balanceSource !== account.balanceSource) {
+          return { state: "unavailable", reason: "Balances are unavailable." };
+        }
+        balanceSource = account.balanceSource;
+        if (balanceSource === "current") {
+          if (account.balanceMinorUnits === undefined) {
+            return { state: "unavailable", reason: "Balances are unavailable." };
+          }
+          balancesByCurrency.set(
+            account.currency,
+            (balancesByCurrency.get(account.currency) ?? 0) + account.balanceMinorUnits,
+          );
+        } else if (account.openingBalanceMinorUnits === undefined) {
+          return { state: "unavailable", reason: "Balances are unavailable." };
+        }
+      }
+
+      if (balanceSource === "current") {
+        return {
+          state: "available",
+          balances: Array.from(balancesByCurrency, ([currency, minorUnits]) => ({ currency, minorUnits })),
+        };
+      }
+
+      if (seed.transactionHistoryComplete?.[space] !== true) {
+        return {
+          state: "unavailable",
+          reason: "Balances are unavailable because transaction history is incomplete.",
+        };
+      }
+
+      return {
+        state: "available",
+        balances: accountBalances(
+          accounts,
+          (transactionsBySpace[space] ?? []).flatMap((transaction) =>
+            transaction.accountId === null
+              ? []
+              : [{
+                  kind: transaction.kind,
+                  accountId: transaction.accountId,
+                  counterpartyAccountId: transaction.counterpartyAccountId,
+                  minorUnits: transaction.amountMinorUnits,
+                  currency: transaction.currency,
+                }],
+          ),
+        ),
+      };
+    },
+
     async listTaxonomy(space: SpaceId, kind: TaxonomyKind): Promise<TaxonomyValue[]> {
       requireUnlocked();
       return taxonomyOf(space).filter((value) => value.kind === kind);
+    },
+
+    async listBudgets(space: SpaceId, on: Date): Promise<BudgetView[]> {
+      requireUnlocked();
+      const accounts = (accountsBySpace[space] ?? []).map((account) => ({ id: account.id, spaceId: space }));
+      const transactions = transactionsBySpace[space] ?? [];
+      return (budgetsBySpace[space] ?? []).map((budget) => {
+        const spending = budgetSpending(
+          {
+            spaceId: space,
+            categoryId: budget.category.id,
+            amount: budget.amount,
+            recurrence: budget.recurrence as "None" | "Weekly" | "Monthly" | "Yearly",
+            startsOn: budget.startsOn,
+            endsOn: budget.endsOn,
+          },
+          transactions.map((transaction) => ({
+            kind: transaction.kind,
+            categoryId: transaction.categoryId,
+            accountId: transaction.accountId,
+            amount: { minorUnits: transaction.amountMinorUnits, currency: transaction.currency },
+            occurredAt: transaction.occurredAt,
+          })),
+          accounts,
+          on,
+        );
+        return {
+          ...budget,
+          period: spending.period === null
+            ? null
+            : { ...spending.period, spent: spending.spent, remaining: spending.remaining, exceeded: spending.exceeded, uncounted: spending.uncounted },
+        };
+      });
+    },
+
+    async saveBudget(space: SpaceId, draft: BudgetDraft): Promise<BudgetView> {
+      requireUnlocked();
+      const category = taxonomyOf(space).find(
+        (value) => value.kind === "category" && value.id === draft.categoryId,
+      );
+      if (category === undefined) throw new Error("The category must be a valid selection.");
+      if (draft.amount.minorUnits <= 0) throw new Error("A budget amount must be positive.");
+      validateBudgetWindow(draft);
+      const budgets = budgetsBySpace[space] ?? [];
+      const current = draft.id === null
+        ? null
+        : budgets.find((budget) => budget.id === draft.id) ?? null;
+      if (draft.id !== null && current === null) throw new Error("The budget was not found.");
+      if (current?.canEdit === false) throw new Error("The budget cannot be edited.");
+      savedBudgetCount += 1;
+      const saved: BudgetView = {
+        id: draft.id ?? `fixture-budget-${savedBudgetCount}`,
+        category: {
+          id: draft.categoryId,
+          label: category.label,
+        },
+        amount: draft.amount,
+        recurrence: draft.recurrence,
+        startsOn: draft.startsOn,
+        endsOn: draft.endsOn,
+        alertThresholdPercent: draft.alertThresholdPercent,
+        period: null,
+        createdAt: current?.createdAt ?? new Date().toISOString(),
+        updatedAt: current === null ? null : new Date().toISOString(),
+        canEdit: current?.canEdit ?? true,
+      };
+      budgetsBySpace[space] = current === null
+        ? [...budgets, saved]
+        : budgets.map((budget) => budget.id === saved.id ? saved : budget);
+      return saved;
+    },
+
+    async deleteBudget(space: SpaceId, id: RecordId): Promise<void> {
+      requireUnlocked();
+      const budgets = budgetsBySpace[space] ?? [];
+      const budget = budgets.find((item) => item.id === id);
+      if (budget === undefined) throw new Error("The budget was not found.");
+      if (!budget.canEdit) throw new Error("The budget cannot be edited.");
+      budgetsBySpace[space] = budgets.filter((budget) => budget.id !== id);
     },
 
     async createCategory(
@@ -162,7 +315,8 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
         label: draft.label,
         currency: draft.currency,
         canEdit: true,
-        balanceMinorUnits: draft.openingBalanceMinorUnits,
+        balanceSource: "opening",
+        openingBalanceMinorUnits: draft.openingBalanceMinorUnits,
         isDefault: draft.isDefault,
       };
       accountsBySpace[space] = [...accounts.map((account) => ({ ...account, isDefault: draft.isDefault ? false : account.isDefault })), created];
@@ -261,6 +415,11 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
       };
     },
 
+    async listTransactions(space: SpaceId): Promise<TransactionView[]> {
+      requireUnlocked();
+      return transactionsBySpace[space] ?? [];
+    },
+
     async queryTransactions(
       filter: TransactionFilter,
       page: PageRequest,
@@ -284,6 +443,11 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
 
     async saveTransaction(draft: TransactionDraft): Promise<TransactionView> {
       requireUnlocked();
+
+      validateTransactionCurrencies(
+        draft,
+        (accountsBySpace[draft.space] ?? []).map((account) => ({ id: account.id, currency: account.currency })),
+      );
 
       savedTransactionCount += 1;
       const saved: TransactionView = {

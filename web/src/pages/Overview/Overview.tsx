@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import dayjs from "dayjs";
 import { Caption1, Title3, makeStyles, tokens } from "@fluentui/react-components";
 import AccountBalances from "../../components/AccountBalances/AccountBalances";
 import BudgetMeter from "../../components/BudgetMeter/BudgetMeter";
-import { listAccounts } from "../../clients/options";
-import { listBudgets } from "../../clients/budgets";
-import { IAccountResponse, IBudgetResponse } from "../../clients/types";
+import { IAccountResponse } from "../../clients/types";
 import { useVault } from "../../vault/VaultProvider";
+import type { AccountBalanceProjection, BudgetView } from "../../vault/VaultProjection";
 import { useTransactionFilter } from "../../transactions/useTransactionFilter";
 import TransactionsView from "../Transactions/TransactionsView";
 
@@ -41,13 +40,49 @@ const Overview = () => {
   const { projection } = useVault();
   const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [accounts, setAccounts] = useState<IAccountResponse[]>([]);
-  const [budgets, setBudgets] = useState<IBudgetResponse[]>([]);
-  const now = dayjs();
+  const [balanceResult, setBalanceResult] = useState<AccountBalanceProjection | null>(null);
+  const [budgets, setBudgets] = useState<BudgetView[]>([]);
+  const now = useMemo(() => dayjs(), []);
 
   useEffect(() => {
-    listAccounts().then(setAccounts);
-    listBudgets(dayjs()).then(setBudgets);
-  }, []);
+    let isCurrent = true;
+    if (projection.state !== "ready") {
+      setAccounts([]);
+      setBalanceResult(null);
+      setBudgets([]);
+      return;
+    }
+
+    Promise.all([
+      projection.listAccountBalances(fallbackSpace),
+      projection.listBudgets(fallbackSpace, now.toDate()),
+    ])
+      .then(([loadedBalances, loadedBudgets]) => {
+        if (!isCurrent) return;
+        setBalanceResult(loadedBalances);
+        setAccounts(loadedBalances.state === "available"
+          ? loadedBalances.balances.map((balance) => ({
+            accountNumber: balance.currency,
+            label: balance.currency,
+            balance: { minorUnits: balance.minorUnits, currency: balance.currency },
+            isDefault: false,
+            createdAt: "",
+            updatedAt: null,
+          }))
+          : []);
+        setBudgets(loadedBudgets);
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setAccounts([]);
+        setBalanceResult({ state: "unavailable", reason: "Balances are unavailable." });
+        setBudgets([]);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [projection, now]);
 
   return (
     <div className={styles.sections}>
@@ -55,7 +90,9 @@ const Overview = () => {
         <Title3 as="h2" id="balances-heading">
           Balances
         </Title3>
-        <AccountBalances accounts={accounts} />
+        {balanceResult?.state === "unavailable"
+          ? <Caption1 className={styles.empty}>{balanceResult.reason}</Caption1>
+          : <AccountBalances accounts={accounts} />}
       </section>
 
       <section className={styles.section} aria-labelledby="budgets-heading">

@@ -67,6 +67,26 @@ const buildFilter = (overrides: Partial<TransactionFilter> = {}): TransactionFil
 const wholePage = { offset: 0, limit: 50 };
 
 describe("fixtureProjection", () => {
+  it("does not claim a balance when opening history is incomplete", async () => {
+    const seed = buildSeed([buildTransaction({ id: "expense" })]);
+    seed.accounts[personalSpace] = [{
+      id: "account-1",
+      label: "Everyday",
+      currency: Currency.EUR,
+      canEdit: true,
+      balanceSource: "opening",
+      openingBalanceMinorUnits: 1000,
+    }];
+    seed.transactionHistoryComplete = { [personalSpace]: false };
+
+    const result = await fixtureProjection(seed).listAccountBalances(personalSpace);
+
+    expect(result).toEqual({
+      state: "unavailable",
+      reason: "Balances are unavailable because transaction history is incomplete.",
+    });
+  });
+
   it("applies a category and a merchant together with AND", async () => {
     const projection = fixtureProjection(
       buildSeed([

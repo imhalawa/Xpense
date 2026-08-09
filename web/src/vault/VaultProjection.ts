@@ -1,5 +1,10 @@
 import { Currency } from "../typings/enums/Currency";
-import { TransactionKind } from "../clients/types";
+import {
+  IBudgetPeriodResponse,
+  IMoneyResponse,
+  Recurrence,
+  TransactionKind,
+} from "../clients/types";
 
 export type SpaceId = string;
 export type RecordId = string;
@@ -26,9 +31,20 @@ export interface AccountView {
   label: string;
   currency: Currency;
   canEdit: boolean;
+  balanceSource?: "opening" | "current";
+  openingBalanceMinorUnits?: number;
   balanceMinorUnits?: number;
   isDefault?: boolean;
 }
+
+export interface CurrencyBalanceView {
+  currency: Currency;
+  minorUnits: number;
+}
+
+export type AccountBalanceProjection =
+  | { state: "available"; balances: CurrencyBalanceView[] }
+  | { state: "unavailable"; reason: string };
 
 export interface TaxonomyValue {
   id: RecordId;
@@ -110,6 +126,33 @@ export interface TransactionDraft {
   reason: string | null;
 }
 
+export interface BudgetView {
+  id: RecordId;
+  category: {
+    id: RecordId;
+    label: string;
+  };
+  amount: IMoneyResponse;
+  recurrence: Recurrence;
+  startsOn: string;
+  endsOn: string | null;
+  alertThresholdPercent: number | null;
+  period: IBudgetPeriodResponse | null;
+  createdAt: string;
+  updatedAt: string | null;
+  canEdit: boolean;
+}
+
+export interface BudgetDraft {
+  id: RecordId | null;
+  categoryId: RecordId;
+  amount: IMoneyResponse;
+  recurrence: Recurrence;
+  startsOn: string;
+  endsOn: string | null;
+  alertThresholdPercent: number | null;
+}
+
 export interface VaultProjection {
   readonly state: VaultState;
   subscribe(listener: (state: VaultState) => void): () => void;
@@ -117,7 +160,11 @@ export interface VaultProjection {
   lock(): void;
   listSpaces(): Promise<SpaceSummary[]>;
   listAccounts(space: SpaceId): Promise<AccountView[]>;
+  listAccountBalances(space: SpaceId): Promise<AccountBalanceProjection>;
   listTaxonomy(space: SpaceId, kind: TaxonomyKind): Promise<TaxonomyValue[]>;
+  listBudgets(space: SpaceId, on: Date): Promise<BudgetView[]>;
+  saveBudget(space: SpaceId, draft: BudgetDraft): Promise<BudgetView>;
+  deleteBudget(space: SpaceId, id: RecordId): Promise<void>;
   createCategory(
     space: SpaceId,
     label: string,
@@ -139,6 +186,7 @@ export interface VaultProjection {
   ): Promise<TaxonomyValue>;
   deleteTaxonomy(space: SpaceId, kind: TaxonomyKind, id: RecordId): Promise<void>;
   resolveFilter(filter: TransactionFilter): Promise<FilterResolution>;
+  listTransactions(space: SpaceId): Promise<TransactionView[]>;
   queryTransactions(filter: TransactionFilter, page: PageRequest): Promise<TransactionPage>;
   getTransaction(space: SpaceId, id: RecordId): Promise<TransactionView | null>;
   saveTransaction(draft: TransactionDraft): Promise<TransactionView>;

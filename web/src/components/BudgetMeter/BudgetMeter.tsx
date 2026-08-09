@@ -9,12 +9,13 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { IBudgetResponse } from "../../clients/types";
+import type { BudgetView } from "../../vault/VaultProjection";
 import { budgetProgress, BudgetState } from "../../budgets/budgetProgress";
 import { formatMoney } from "../../money/formatMoney";
 import DeltaChip from "../DeltaChip/DeltaChip";
 
 interface BudgetMeterProps {
-  budget: IBudgetResponse;
+  budget: IBudgetResponse | BudgetView;
   now: Dayjs;
   actions?: ReactNode;
 }
@@ -59,7 +60,18 @@ const useStyles = makeStyles({
 
 const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
   const styles = useStyles();
-  const progress = budgetProgress(budget, now);
+  const progressInput: IBudgetResponse = {
+    ...budget,
+    id: 0,
+    category: {
+      id: 0,
+      label: budget.category.label,
+      priority: { id: 0, label: "", weight: 0, createdAt: "", updatedAt: null },
+      createdAt: "",
+      updatedAt: null,
+    },
+  };
+  const progress = budgetProgress(progressInput, now);
   const period = budget.period;
   const progressPercent = Math.min(progress.spentRatio, 1);
 

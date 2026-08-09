@@ -1,6 +1,12 @@
 import { createAccount, deleteAccount, listAccounts, updateAccount } from "../clients/accounts";
 import { createCategory, deleteCategory, listCategories, updateCategory } from "../clients/categories";
 import { createMerchant, deleteMerchant, listMerchants, updateMerchant } from "../clients/merchants";
+import {
+  createBudget,
+  deleteBudget,
+  listBudgets,
+  updateBudget,
+} from "../clients/budgets";
 import { listPriorities } from "../clients/options";
 import { createTag, deleteTag, listTags, updateTag } from "../clients/tags";
 import {
@@ -23,6 +29,8 @@ import type {
 } from "../clients/types";
 import type {
   AccountView,
+  BudgetDraft,
+  BudgetView,
   CategoryCreationPriority,
   CategoryPriority,
   SpaceSummary,
@@ -33,6 +41,8 @@ import type {
   VaultProjection,
   VaultState,
 } from "./VaultProjection";
+import { validateTransactionCurrencies } from "../domain/currencyMatch";
+import { budgetSpending } from "../domain/budgetSpending";
 
 const personalSpaceId = "personal";
 const transactionPageSize = 200;
@@ -84,6 +94,7 @@ const toAccountView = (account: IAccountResponse): AccountView => ({
   label: account.label,
   currency: account.balance.currency,
   canEdit: true,
+  balanceSource: "current",
   balanceMinorUnits: account.balance.minorUnits,
   isDefault: account.isDefault,
 });
@@ -171,6 +182,9 @@ export const plaintextProjection = (): PlaintextProjection => {
   let loaded: VaultProjection | null = null;
   let taxonomy: TaxonomyValue[] = [];
   let priorities: IPriorityResponse[] = [];
+  let legacyCategoryIds = new Map<string, number>();
+  let legacyTaxonomyIds = new Map<string, number>();
+  const legacyBudgetIds = new Map<string, number>();
   let ceiling: RowCeilingReport | null = null;
   const listeners = new Set<(state: VaultState) => void>();
 
@@ -199,6 +213,12 @@ export const plaintextProjection = (): PlaintextProjection => {
       ...merchants.map(toMerchantValue),
       ...tags.map(toTagValue),
     ];
+    legacyCategoryIds = new Map(categories.map((category) => [String(category.id), category.id]));
+    legacyTaxonomyIds = new Map([
+      ...categories.map((category) => [String(category.id), category.id] as const),
+      ...merchants.map((merchant) => [String(merchant.id), merchant.id] as const),
+      ...tags.map((tag) => [String(tag.id), tag.id] as const),
+    ]);
     priorities = loadedPriorities;
 
     const seed: FixtureSeed = {
@@ -206,6 +226,7 @@ export const plaintextProjection = (): PlaintextProjection => {
       accounts: { [personalSpaceId]: accounts.map(toAccountView) },
       taxonomy: { [personalSpaceId]: taxonomy },
       transactions: { [personalSpaceId]: ledger.rows.map(toTransactionView) },
+      transactionHistoryComplete: { [personalSpaceId]: ledger.rows.length >= ledger.availableRowCount },
     };
 
     ceiling = {
@@ -220,7 +241,7 @@ export const plaintextProjection = (): PlaintextProjection => {
     const known = taxonomy.find((value) => value.kind === kind && value.label === label);
     return known === undefined
       ? { id: null, label, create: true }
-      : { id: Number(known.id), label, create: false };
+      : { id: legacyTaxonomyIds.get(known.id) ?? null, label, create: false };
   };
 
   const toCreateRequest = (draft: TransactionDraft): ICreateTransactionRequest => ({
@@ -232,7 +253,7 @@ export const plaintextProjection = (): PlaintextProjection => {
         : draft.kind === "transfer"
           ? draft.counterpartyAccountId ?? null
           : null,
-    categoryId: draft.categoryId === null ? null : Number(draft.categoryId),
+    categoryId: draft.categoryId === null ? null : legacyTaxonomyIds.get(draft.categoryId) ?? null,
     merchant: draft.merchantLabel === null ? null : optionRequest("merchant", draft.merchantLabel),
     tags: draft.tagLabels.map((label) => optionRequest("tag", label)),
     reason: draft.reason,
@@ -283,6 +304,9 @@ export const plaintextProjection = (): PlaintextProjection => {
       loaded = null;
       taxonomy = [];
       priorities = [];
+      legacyCategoryIds.clear();
+      legacyTaxonomyIds.clear();
+      legacyBudgetIds.clear();
       ceiling = null;
       moveTo("locked");
     },
@@ -296,8 +320,112 @@ export const plaintextProjection = (): PlaintextProjection => {
       return requireLoaded().listAccounts(space);
     },
 
+    async listAccountBalances(space) {
+      return requireLoaded().listAccountBalances(space);
+    },
+
     async listTaxonomy(space, kind) {
       return requireLoaded().listTaxonomy(space, kind);
+    },
+
+    async listBudgets(space, on) {
+      requireLoaded();
+      requirePersonalSpace(space);
+      const [budgets, accounts, transactions] = await Promise.all([
+        listBudgets(null),
+        requireLoaded().listAccounts(space),
+        requireLoaded().queryTransactions(
+          { space, category: null, merchant: null, tag: null, account: null, from: null, to: null },
+          { offset: 0, limit: transactionRowCeiling },
+        ),
+      ]);
+      return budgets.map((budget) => {
+        const budgetId = String(budget.id);
+        const categoryId = String(budget.category.id);
+        legacyBudgetIds.set(budgetId, budget.id);
+        const spending = budgetSpending(
+          {
+            spaceId: space,
+            categoryId,
+            amount: budget.amount,
+            recurrence: budget.recurrence as "None" | "Weekly" | "Monthly" | "Yearly",
+            startsOn: budget.startsOn,
+            endsOn: budget.endsOn,
+          },
+          transactions.rows.map((transaction) => ({
+            kind: transaction.kind,
+            categoryId: transaction.categoryId,
+            accountId: transaction.accountId,
+            amount: { minorUnits: transaction.amountMinorUnits, currency: transaction.currency },
+            occurredAt: transaction.occurredAt,
+          })),
+          accounts.map((account) => ({ id: account.id, spaceId: space })),
+          on,
+        );
+        return {
+          id: budgetId,
+          category: { id: categoryId, label: budget.category.label },
+          amount: budget.amount,
+          recurrence: budget.recurrence as "None" | "Weekly" | "Monthly" | "Yearly",
+          startsOn: budget.startsOn,
+          endsOn: budget.endsOn,
+          alertThresholdPercent: budget.alertThresholdPercent,
+          period: spending.period === null
+            ? null
+            : { ...spending.period, spent: spending.spent, remaining: spending.remaining, exceeded: spending.exceeded, uncounted: spending.uncounted },
+          createdAt: budget.createdAt,
+          updatedAt: budget.updatedAt,
+          canEdit: true,
+        };
+      });
+    },
+
+    async saveBudget(space: string, draft: BudgetDraft): Promise<BudgetView> {
+      requireLoaded();
+      requirePersonalSpace(space);
+      const categoryId = legacyCategoryIds.get(draft.categoryId);
+      if (categoryId === undefined) throw new Error("The category must be a valid selection.");
+      const request = {
+        amount: draft.amount,
+        recurrence: draft.recurrence,
+        startsOn: draft.startsOn,
+        endsOn: draft.endsOn,
+        alertThresholdPercent: draft.alertThresholdPercent,
+      };
+      const saved = draft.id === null
+        ? await createBudget({ categoryId, ...request })
+        : await updateBudget(
+            (() => {
+              const id = legacyBudgetIds.get(draft.id!);
+              if (id === undefined) throw new Error("The budget was not found.");
+              return id;
+            })(),
+            request,
+          );
+      await load();
+      legacyBudgetIds.set(String(saved.id), saved.id);
+      return {
+        id: String(saved.id),
+        category: { id: String(saved.category.id), label: saved.category.label },
+        amount: saved.amount,
+        recurrence: saved.recurrence as "None" | "Weekly" | "Monthly" | "Yearly",
+        startsOn: saved.startsOn,
+        endsOn: saved.endsOn,
+        alertThresholdPercent: saved.alertThresholdPercent,
+        period: null,
+        createdAt: saved.createdAt,
+        updatedAt: saved.updatedAt,
+        canEdit: true,
+      };
+    },
+
+    async deleteBudget(space: string, id: string): Promise<void> {
+      requireLoaded();
+      requirePersonalSpace(space);
+      const legacyId = legacyBudgetIds.get(id);
+      if (legacyId === undefined) throw new Error("The budget was not found.");
+      await deleteBudget(legacyId);
+      await load();
     },
 
     async createCategory(space, label, priority) {
@@ -390,6 +518,10 @@ export const plaintextProjection = (): PlaintextProjection => {
       return requireLoaded().resolveFilter(filter);
     },
 
+    async listTransactions(space) {
+      return requireLoaded().listTransactions(space);
+    },
+
     async queryTransactions(filter, page) {
       return requireLoaded().queryTransactions(filter, page);
     },
@@ -406,6 +538,13 @@ export const plaintextProjection = (): PlaintextProjection => {
       ) {
         throw new Error(missingTransferAccountMessage);
       }
+      validateTransactionCurrencies(
+        draft,
+        (await requireLoaded().listAccounts(draft.space)).map((account) => ({
+          id: account.id,
+          currency: account.currency,
+        })),
+      );
 
       const saved =
         draft.id === null

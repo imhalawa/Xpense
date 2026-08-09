@@ -54,6 +54,7 @@ const stubProjection = (initialState: VaultState = "ready"): StubProjection => {
     },
     listSpaces: unsupported,
     listAccounts: unsupported,
+    listAccountBalances: unsupported,
     listTaxonomy: unsupported,
     listBudgets: unsupported,
     saveBudget: unsupported,
