@@ -234,15 +234,19 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
             {
                 endpoints.MapPost("/test/authentication/antiforgery-anonymous", Validate)
                     .AllowAnonymous()
+                    .ExcludeFromDescription()
                     .WithMetadata(TestEndpointMetadata.Instance);
                 endpoints.MapPost("/test/authentication/antiforgery-protected", Validate)
                     .RequireAuthorization()
+                    .ExcludeFromDescription()
                     .WithMetadata(TestEndpointMetadata.Instance);
                 endpoints.MapPost("/test/authentication/sign-in/{userId:guid}", SignIn)
                     .AllowAnonymous()
+                    .ExcludeFromDescription()
                     .WithMetadata(TestEndpointMetadata.Instance);
                 endpoints.MapGet("/test/errors/{kind}", ThrowError)
                     .AllowAnonymous()
+                    .ExcludeFromDescription()
                     .WithMetadata(TestEndpointMetadata.Instance);
             });
         };

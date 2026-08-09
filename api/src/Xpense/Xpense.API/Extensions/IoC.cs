@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
@@ -114,10 +115,10 @@ public static class IoC
         services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme)
             .Configure<IHostEnvironment>((options, environment) =>
             {
-                options.Cookie.Name = "xpense.session";
+                options.Cookie.Name = AuthenticationCookieNames.Session;
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = environment.IsDevelopment()
+                options.Cookie.SecurePolicy = environment.IsDevelopment() || environment.IsEnvironment("Testing")
                     ? CookieSecurePolicy.SameAsRequest
                     : CookieSecurePolicy.Always;
                 options.ExpireTimeSpan = TimeSpan.FromDays(7);
@@ -134,7 +135,18 @@ public static class IoC
                 };
             });
 
-        services.AddAntiforgery(options => options.HeaderName = "X-Xpense-Antiforgery");
+        services.AddAntiforgery(options =>
+        {
+            options.HeaderName = AuthenticationCookieNames.AntiforgeryHeader;
+            options.Cookie.Name = AuthenticationCookieNames.Antiforgery;
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+        });
+        services.AddOptions<AntiforgeryOptions>()
+            .Configure<IHostEnvironment>((options, environment) =>
+                options.Cookie.SecurePolicy = environment.IsDevelopment() || environment.IsEnvironment("Testing")
+                    ? CookieSecurePolicy.SameAsRequest
+                    : CookieSecurePolicy.Always);
 
         services.AddRateLimiter(options =>
         {
@@ -221,6 +233,35 @@ public static class IoC
         services.AddSwaggerGen(options =>
         {
             options.CustomSchemaIds(SchemaId);
+            options.OperationFilter<OpenApiSecurityOperationFilter>();
+            options.DocumentFilter<OpenApiSecurityDocumentFilter>();
+            options.AddSecurityDefinition(
+                OpenApiSecurityOperationFilter.SessionScheme,
+                new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.ApiKey,
+                    In = ParameterLocation.Cookie,
+                    Name = AuthenticationCookieNames.Session,
+                    Description = "Authenticated Xpense session cookie."
+                });
+            options.AddSecurityDefinition(
+                OpenApiSecurityOperationFilter.AntiforgeryHeaderScheme,
+                new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.ApiKey,
+                    In = ParameterLocation.Header,
+                    Name = AuthenticationCookieNames.AntiforgeryHeader,
+                    Description = "Request token paired with the antiforgery cookie."
+                });
+            options.AddSecurityDefinition(
+                OpenApiSecurityOperationFilter.AntiforgeryCookieScheme,
+                new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.ApiKey,
+                    In = ParameterLocation.Cookie,
+                    Name = AuthenticationCookieNames.Antiforgery,
+                    Description = "Antiforgery cookie paired with the request-token header."
+                });
             options.TagActionsBy(description => new[] { SwaggerTags.ForRoute(description.RelativePath) });
             options.OrderActionsBy(description => SwaggerTags.ForRoute(description.RelativePath));
             options.SwaggerDoc(

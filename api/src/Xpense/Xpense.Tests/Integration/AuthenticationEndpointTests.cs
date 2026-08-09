@@ -926,7 +926,7 @@ public class AuthenticationEndpointTests
         firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         first.RequestToken.Should().NotBeNullOrWhiteSpace();
         firstResponse.Headers.GetValues("Set-Cookie").Should().Contain(cookie =>
-            cookie.StartsWith(".AspNetCore.Antiforgery.", StringComparison.Ordinal));
+            cookie.StartsWith("xpense.antiforgery=", StringComparison.Ordinal));
         secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         second.RequestToken.Should().NotBe(first.RequestToken);
     }
