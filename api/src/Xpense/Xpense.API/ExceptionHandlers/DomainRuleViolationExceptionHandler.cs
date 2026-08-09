@@ -14,16 +14,6 @@ public sealed class DomainRuleViolationExceptionHandler(IProblemDetailsService p
         if (exception is not DomainRuleViolationException violation)
             return ValueTask.FromResult(false);
 
-        if (violation is LastVaultWrapperException)
-            return ProblemDetailsWriter.Write(
-                problemDetailsService,
-                httpContext,
-                violation,
-                StatusCodes.Status409Conflict,
-                "Vault recovery method required",
-                violation.Message,
-                "LastVaultWrapper");
-
         return ProblemDetailsWriter.Write(
             problemDetailsService,
             httpContext,

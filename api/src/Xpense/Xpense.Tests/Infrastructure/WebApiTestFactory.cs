@@ -2,6 +2,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
@@ -19,6 +21,7 @@ using Xpense.API.Infrastructure;
 using Xpense.API.Infrastructure.Authentication;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
+using Xpense.Domain.Exceptions;
 using Xpense.Persistence;
 
 namespace Xpense.Tests.Infrastructure;
@@ -238,7 +241,23 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
                 endpoints.MapPost("/test/authentication/sign-in/{userId:guid}", SignIn)
                     .AllowAnonymous()
                     .WithMetadata(TestEndpointMetadata.Instance);
+                endpoints.MapGet("/test/errors/{kind}", ThrowError)
+                    .AllowAnonymous()
+                    .WithMetadata(TestEndpointMetadata.Instance);
             });
+        };
+
+        private static IResult ThrowError(string kind) => kind switch
+        {
+            "invitation-conflict" => throw new InvitationStateConflictException(),
+            "last-wrapper" => throw new LastVaultWrapperException(),
+            "grant-duplicate" => throw new ResourceGrantAlreadyActiveException(),
+            "invitation-invalid" => throw new InvitationInvalidException(),
+            "validation" => throw new ValidationException([new ValidationFailure("Value", "The value is invalid.")]),
+            "domain" => throw new GroupOwnerCannotLeaveException(Guid.Empty),
+            "persistence" => throw new AccountCreationFailedException("test"),
+            "fallback" => throw new InvalidOperationException("unsafe"),
+            _ => Results.NoContent()
         };
 
         private static async Task<IResult> SignIn(

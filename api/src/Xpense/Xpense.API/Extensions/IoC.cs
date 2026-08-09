@@ -204,7 +204,7 @@ public static class IoC
         services.AddExceptionHandler<NotFoundExceptionHandler>();
         services.AddExceptionHandler<AuthenticationExceptionHandler>();
         services.AddExceptionHandler<InvitationInvalidExceptionHandler>();
-        services.AddExceptionHandler<InvitationStateConflictExceptionHandler>();
+        services.AddExceptionHandler<StateConflictExceptionHandler>();
         services.AddExceptionHandler<ResourceGrantAlreadyActiveExceptionHandler>();
         services.AddExceptionHandler<DomainRuleViolationExceptionHandler>();
         services.AddExceptionHandler<PersistenceFailedExceptionHandler>();
