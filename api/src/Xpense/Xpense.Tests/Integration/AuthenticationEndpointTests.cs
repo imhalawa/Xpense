@@ -868,6 +868,7 @@ public class AuthenticationEndpointTests
         [
             "GET /health",
             "GET /api/v1/auth/antiforgery",
+            "GET /api/v1/invitations/{token}",
             "POST /api/v1/auth/register/options",
             "POST /api/v1/auth/register",
             "POST /api/v1/auth/passkey/options",

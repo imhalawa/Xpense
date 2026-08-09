@@ -38,4 +38,24 @@ public class GroupMembership
         Role = role;
         UpdatedAt = now;
     }
+
+    public void AwaitOwnerApproval(DateTime now)
+    {
+        Role = MembershipRole.Member;
+        State = MembershipState.AwaitingOwnerApproval;
+        GroupKeyEnvelope = null;
+        EnvelopeProtocolVersion = 0;
+        RevokedAt = null;
+        UpdatedAt = now;
+    }
+
+    public void Activate(byte[] groupKeyEnvelope, int envelopeProtocolVersion, DateTime now)
+    {
+        Role = MembershipRole.Member;
+        State = MembershipState.Active;
+        GroupKeyEnvelope = groupKeyEnvelope;
+        EnvelopeProtocolVersion = envelopeProtocolVersion;
+        RevokedAt = null;
+        UpdatedAt = now;
+    }
 }

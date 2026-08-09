@@ -202,6 +202,8 @@ public static class IoC
         services.AddExceptionHandler<InsufficientFundsExceptionHandler>();
         services.AddExceptionHandler<NotFoundExceptionHandler>();
         services.AddExceptionHandler<AuthenticationExceptionHandler>();
+        services.AddExceptionHandler<InvitationInvalidExceptionHandler>();
+        services.AddExceptionHandler<InvitationStateConflictExceptionHandler>();
         services.AddExceptionHandler<DomainRuleViolationExceptionHandler>();
         services.AddExceptionHandler<PersistenceFailedExceptionHandler>();
         services.AddExceptionHandler<FallbackExceptionHandler>();

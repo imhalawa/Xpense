@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
 using Xpense.API.Infrastructure.Authorization;
+using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
 using Xpense.Persistence;
 
@@ -54,7 +55,26 @@ public sealed class RevokeInvitation : IEndpoint
         if (invitation is null)
             return TypedResults.NotFound();
 
-        invitation.Revoke(DateTime.UtcNow);
+        GroupMembership? awaitingMembership = null;
+        if (invitation.State == InvitationState.AwaitingOwnerApproval)
+        {
+            if (!invitation.AcceptedByUserId.HasValue)
+                return TypedResults.NotFound();
+
+            awaitingMembership = await dbContext.GroupMemberships.SingleOrDefaultAsync(
+                membership =>
+                    membership.GroupId == groupId.Value &&
+                    membership.UserId == invitation.AcceptedByUserId.Value &&
+                    membership.Role == MembershipRole.Member &&
+                    membership.State == MembershipState.AwaitingOwnerApproval,
+                cancellationToken);
+            if (awaitingMembership is null)
+                return TypedResults.NotFound();
+        }
+
+        var now = DateTime.UtcNow;
+        awaitingMembership?.Revoke(now);
+        invitation.Revoke(now);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 

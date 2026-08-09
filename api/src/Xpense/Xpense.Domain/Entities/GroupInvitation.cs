@@ -33,4 +33,24 @@ public class GroupInvitation
         State = InvitationState.Revoked;
         UpdatedAt = now;
     }
+
+    public void AwaitOwnerApproval(Guid acceptedByUserId, DateTime now)
+    {
+        State = InvitationState.AwaitingOwnerApproval;
+        AcceptedByUserId = acceptedByUserId;
+        UpdatedAt = now;
+    }
+
+    public void Accept(Guid acceptedByUserId, DateTime now)
+    {
+        State = InvitationState.Accepted;
+        AcceptedByUserId = acceptedByUserId;
+        UpdatedAt = now;
+    }
+
+    public void CompleteApproval(DateTime now)
+    {
+        State = InvitationState.Accepted;
+        UpdatedAt = now;
+    }
 }
