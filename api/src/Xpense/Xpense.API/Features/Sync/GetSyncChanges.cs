@@ -73,17 +73,28 @@ public sealed class GetSyncChanges : IEndpoint
             .Where(record => record.OwnerUserId == userId)
             .Select(record => record.Id)
             .ToArray();
-        var groupIds = await dbContext.GroupMemberships
-            .AsNoTracking()
-            .Where(membership => membership.UserId == userId && membership.State == MembershipState.Active)
-            .Select(membership => membership.GroupId)
-            .ToArrayAsync(cancellationToken);
-        var envelopes = await dbContext.RecordEnvelopes
-            .AsNoTracking()
-            .Where(envelope =>
-                recordIds.Contains(envelope.EncryptedRecordId) &&
-                (envelope.GroupId.HasValue && groupIds.Contains(envelope.GroupId.Value) ||
-                 !envelope.GroupId.HasValue && ownedRecordIds.Contains(envelope.EncryptedRecordId)))
+        var envelopes = await (
+            from envelope in dbContext.RecordEnvelopes.AsNoTracking()
+            join record in dbContext.EncryptedRecords.AsNoTracking()
+                on envelope.EncryptedRecordId equals record.Id
+            where recordIds.Contains(record.Id) &&
+                (!envelope.GroupId.HasValue && ownedRecordIds.Contains(record.Id) ||
+                 envelope.GroupId.HasValue &&
+                 record.ParentResourceId.HasValue &&
+                 dbContext.Groups.Any(candidateGroup =>
+                     candidateGroup.Id == envelope.GroupId.Value && !candidateGroup.IsDeleted) &&
+                 dbContext.GroupMemberships.Any(membership =>
+                     membership.GroupId == envelope.GroupId.Value &&
+                     membership.UserId == userId &&
+                     membership.State == MembershipState.Active) &&
+                 dbContext.ResourceGrants.Any(grant =>
+                     grant.GroupId == envelope.GroupId.Value &&
+                     grant.ResourceId == record.ParentResourceId.Value &&
+                     grant.State == GrantState.Active &&
+                     dbContext.SharedResources.Any(resource =>
+                         resource.Id == record.ParentResourceId.Value &&
+                         resource.Type == grant.ResourceType)))
+            select envelope)
             .ToArrayAsync(cancellationToken);
 
         return envelopes
