@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -40,6 +41,7 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     private readonly IInterceptor[] interceptors;
     private Guid? currentUserId;
     private IPasswordHasher<XpenseUser>? passwordHasher;
+    private IDataProtectionProvider? dataProtectionProvider;
     private RegistrationPolicy? registrationPolicy;
 
     public WebApiTestFactory(string connectionString, params IInterceptor[] interceptors)
@@ -63,6 +65,12 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     public WebApiTestFactory WithPasswordHasher(IPasswordHasher<XpenseUser> value)
     {
         passwordHasher = value;
+        return this;
+    }
+
+    public WebApiTestFactory WithDataProtectionProvider(IDataProtectionProvider value)
+    {
+        dataProtectionProvider = value;
         return this;
     }
 
@@ -152,6 +160,12 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
             {
                 services.RemoveAll<IPasswordHasher<XpenseUser>>();
                 services.AddSingleton(passwordHasher);
+            }
+
+            if (dataProtectionProvider is not null)
+            {
+                services.RemoveAll<IDataProtectionProvider>();
+                services.AddSingleton(dataProtectionProvider);
             }
 
             if (currentUserId.HasValue)

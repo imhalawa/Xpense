@@ -1,8 +1,6 @@
 using System.Data;
 using System;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
@@ -16,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Xpense.API.Infrastructure;
 using Xpense.API.Infrastructure.Authentication;
+using Xpense.API.Infrastructure.Invitations;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
 using Xpense.Domain.Exceptions;
@@ -207,10 +206,9 @@ public sealed class RegisterUser : IEndpoint
         XpenseDbContext dbContext,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(token))
+        if (!InvitationTokenCodec.TryHash(token, out var tokenHash))
             return false;
 
-        var tokenHash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
         return await dbContext.GroupInvitations.AnyAsync(
             invitation => invitation.TokenHash.SequenceEqual(tokenHash) &&
                 invitation.State == InvitationState.Pending &&

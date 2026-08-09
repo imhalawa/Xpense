@@ -22,7 +22,15 @@ public class GroupInvitation
 
     public byte[]? GroupKeyEnvelope { get; set; }
 
+    public int? EnvelopeProtocolVersion { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public void Revoke(DateTime now)
+    {
+        State = InvitationState.Revoked;
+        UpdatedAt = now;
+    }
 }

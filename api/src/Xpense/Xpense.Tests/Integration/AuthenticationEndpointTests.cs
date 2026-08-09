@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xpense.API.Infrastructure.Authentication;
+using Xpense.API.Infrastructure.Invitations;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Enums;
 using Xpense.Persistence;
@@ -300,7 +301,7 @@ public class AuthenticationEndpointTests
     public async Task Registration_accepts_a_valid_invitation_when_the_policy_is_invite_only()
     {
         await RestartWithPolicy(RegistrationPolicy.InviteOnly);
-        const string token = "valid-invitation-token";
+        var token = InvitationTokenCodec.Generate().Token;
         await AddInvitation(token, "INVITED@EXAMPLE.TEST");
         var registration = await CreateOptions("invited@example.test");
 
@@ -313,11 +314,11 @@ public class AuthenticationEndpointTests
     public async Task Registration_is_refused_with_an_invalid_invitation_when_the_policy_is_invite_only()
     {
         await RestartWithPolicy(RegistrationPolicy.InviteOnly);
-        const string token = "valid-invitation-token";
+        var token = InvitationTokenCodec.Generate().Token;
         await AddInvitation(token, "INVITED@EXAMPLE.TEST");
         var registration = await CreateOptions("invited@example.test");
 
-        var response = await Register(registration, invitationToken: "invalid-invitation-token");
+        var response = await Register(registration, invitationToken: "malformed%%%token");
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         await AssertNoUser("INVITED@EXAMPLE.TEST");
@@ -1281,7 +1282,9 @@ public class AuthenticationEndpointTests
             GroupId = group.Id,
             InvitedByUserId = owner.Id,
             TargetNormalizedEmail = targetNormalizedEmail,
-            TokenHash = SHA256.HashData(Encoding.UTF8.GetBytes(token)),
+            TokenHash = InvitationTokenCodec.TryHash(token, out var tokenHash)
+                ? tokenHash
+                : throw new InvalidOperationException("The invitation token is malformed"),
             State = InvitationState.Pending,
             ExpiresAt = DateTime.UtcNow.AddDays(1),
             CreatedAt = DateTime.UtcNow,
