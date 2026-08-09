@@ -23,6 +23,7 @@ using System.Reflection;
 using Xpense.API.ExceptionHandlers;
 using Xpense.API.Infrastructure;
 using Xpense.API.Infrastructure.Authentication;
+using Xpense.API.Infrastructure.Authorization;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Events;
 using Xpense.Persistence;
@@ -45,6 +46,7 @@ public static class IoC
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+        services.AddScoped<AccessRules>();
         services.AddScoped<SyncAuthorization>();
         services.AddScoped(typeof(OptionResolver<>));
 

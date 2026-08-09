@@ -227,5 +227,7 @@ public class SyncAuthorizationTests
     private sealed class TestCurrentUser(Guid id) : ICurrentUser
     {
         public Guid Id { get; } = id;
+
+        public bool IsAuthenticated => true;
     }
 }

@@ -189,6 +189,8 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     private sealed class TestCurrentUser(Guid id) : ICurrentUser
     {
         public Guid Id { get; } = id;
+
+        public bool IsAuthenticated => true;
     }
 
     private sealed class CurrentUserStartupFilter(Guid userId) : IStartupFilter
