@@ -22,7 +22,7 @@ export default defineConfig({
           environment: "jsdom",
           setupFiles: ["./vitest.setup.ts"],
           include: ["src/**/*.test.{ts,tsx}", "vite.config.test.ts"],
-          exclude: ["src/crypto/**/*.test.ts"],
+          exclude: ["src/crypto/**/*.test.ts", "src/**/*.browser.test.ts"],
         },
       },
     ],

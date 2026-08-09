@@ -1,4 +1,5 @@
 import type { VaultWorkerCommand, VaultWorkerResponse } from "./commands";
+import cryptoWorkerUrl from "./cryptoWorker.ts?worker&url";
 
 export interface VaultWorkerMessage {
   requestId: string;
@@ -24,8 +25,47 @@ interface PendingRequest {
   reject: (reason: Error) => void;
 }
 
-const createWorker = (): WorkerPort =>
-  new Worker(new URL("./cryptoWorker.ts", import.meta.url), { type: "module" });
+interface TrustedTypesFactory {
+  createPolicy(
+    name: string,
+    rules: { createScriptURL: (value: string) => string },
+  ): TrustedScriptUrlPolicy;
+}
+
+interface TrustedScriptUrlPolicy {
+  createScriptURL(value: string): unknown;
+}
+
+const workerPolicyName = "xpense-vault-worker";
+const productionWorkerPath = /^\/assets\/cryptoWorker-[A-Za-z0-9_-]+\.js$/;
+const trustedTypes = (globalThis as typeof globalThis & { trustedTypes?: TrustedTypesFactory })
+  .trustedTypes;
+let trustedWorkerPolicy: TrustedScriptUrlPolicy | undefined;
+
+const trustedWorkerUrl = (workerUrl: URL): string | URL => {
+  if (workerUrl.origin !== window.location.origin) {
+    throw new TypeError("The vault worker URL must be a same-origin asset");
+  }
+  if (!productionWorkerPath.test(workerUrl.pathname) || trustedTypes === undefined) return workerUrl;
+  trustedWorkerPolicy ??= trustedTypes.createPolicy(workerPolicyName, {
+    createScriptURL: (value) => {
+      const candidate = new URL(value, window.location.href);
+      if (
+        candidate.origin !== window.location.origin ||
+        !productionWorkerPath.test(candidate.pathname)
+      ) {
+        throw new TypeError("The vault worker URL must be a bundled same-origin asset");
+      }
+      return candidate.href;
+    },
+  });
+  return trustedWorkerPolicy.createScriptURL(workerUrl.href) as string;
+};
+
+const createWorker = (): WorkerPort => {
+  const workerUrl = new URL(cryptoWorkerUrl, window.location.href);
+  return new Worker(trustedWorkerUrl(workerUrl), { type: "module" });
+};
 
 export class VaultWorkerClient {
   private readonly worker: WorkerPort;
