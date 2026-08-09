@@ -12,12 +12,15 @@ namespace Xpense.Notifications;
 public sealed class EventProcessor(
     XpenseDbContext dbContext,
     IEnumerable<IEventDispatcher> dispatchers,
-    ILogger<EventProcessor> logger)
+    ILogger<EventProcessor> logger,
+    IEnumerable<IEventFailureDispatcher>? failureDispatchers = null)
 {
     public const int BatchSize = 20;
 
     private readonly Dictionary<string, IEventDispatcher> dispatchers =
         dispatchers.ToDictionary(dispatcher => dispatcher.EventType);
+    private readonly Dictionary<string, IEventFailureDispatcher> failureDispatchers =
+        (failureDispatchers ?? []).ToDictionary(dispatcher => dispatcher.EventType);
 
     public async Task<int> ProcessBatch(CancellationToken cancellationToken = default)
     {
@@ -76,9 +79,12 @@ public sealed class EventProcessor(
                 "Event {EventId} ({Type}) failed on attempt {Attempt}",
                 record.EventId, record.Type, record.Attempts + 1);
 
-            record.Failed(Describe(exception));
-
             Discard();
+
+            if (failureDispatchers.TryGetValue(record.Type, out var failureDispatcher))
+                await failureDispatcher.Dispatch(record, exception, cancellationToken);
+
+            record.Failed(Describe(exception));
         }
     }
 

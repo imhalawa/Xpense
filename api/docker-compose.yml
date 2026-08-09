@@ -88,6 +88,13 @@ services:
       DOTNET_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: *connection
       DataProtection__KeyDirectory: /keys
+      Email__Enabled: ${XPENSE_EMAIL_ENABLED:-false}
+      Email__Host: ${XPENSE_EMAIL_HOST:-}
+      Email__Port: ${XPENSE_EMAIL_PORT:-587}
+      Email__FromAddress: ${XPENSE_EMAIL_FROM_ADDRESS:-}
+      Email__UseTls: ${XPENSE_EMAIL_USE_TLS:-true}
+      Email__Username: ${XPENSE_EMAIL_USERNAME:-}
+      Email__Password: ${XPENSE_EMAIL_PASSWORD:-}
     volumes:
       - xpense-dataprotection:/keys
 

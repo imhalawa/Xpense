@@ -14,7 +14,7 @@ RUN dotnet restore Xpense.sln
 COPY src/Xpense/ ./
 RUN dotnet publish Xpense.Notifications/Xpense.Notifications.csproj -c Release -o /app --no-restore
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-alpine AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
 
 RUN adduser -D -u 1001 xpense
