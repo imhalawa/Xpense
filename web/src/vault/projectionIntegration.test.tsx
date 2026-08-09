@@ -173,7 +173,6 @@ describe("projection filtering integration", () => {
     renderProjection();
     await screen.findByLabelText("Transaction total");
 
-    fireEvent.click(screen.getByRole("button", { name: "Categories" }));
     fireEvent.click(await screen.findByRole("link", { name: "Food" }));
     await waitFor(() => expect(currentSearch().get("category")).toBe("food"));
     await waitFor(() => expect(dataRowText()).toHaveLength(4));

@@ -204,6 +204,7 @@ describe("AppShell", () => {
     setWindowWidth(true);
     renderShell("/transactions?space=personal&account=account-1");
 
+    fireEvent.click(await screen.findByRole("button", { name: "Accounts" }));
     const account = await screen.findByRole("link", { name: /Current/ });
     fireEvent.mouseEnter(account.parentElement!);
     fireEvent.click(screen.getByRole("button", { name: "Actions for Current" }));

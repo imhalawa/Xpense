@@ -153,6 +153,7 @@ describe("app shell accessibility", () => {
 
   it("returns focus from a sidebar edit dialog and transaction dialog", async () => {
     renderShell();
+    fireEvent.click(await screen.findByRole("button", { name: "Accounts" }));
     const account = await screen.findByRole("link", { name: "Everyday" });
     fireEvent.mouseEnter(account.parentElement!);
     const overflow = screen.getByRole("button", { name: "Actions for Everyday" });

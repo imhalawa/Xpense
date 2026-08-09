@@ -37,17 +37,33 @@ describe("SidebarFilters", () => {
     setCoarsePointer(false);
   });
 
-  it("places expandable Accounts before the stable server taxonomy order", () => {
+  it("starts with Categories expanded and toggles every section independently", () => {
     renderFilters();
-    expect(screen.getByRole("button", { name: "Accounts" }).getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "Categories" }));
+    const accounts = screen.getByRole("button", { name: "Accounts" });
+    const categories = screen.getByRole("button", { name: "Categories" });
+    const tags = screen.getByRole("button", { name: "Tags" });
+    const merchants = screen.getByRole("button", { name: "Merchants" });
+
+    expect(accounts).toHaveAttribute("aria-expanded", "false");
+    expect(categories).toHaveAttribute("aria-expanded", "true");
+    expect(tags).toHaveAttribute("aria-expanded", "false");
+    expect(merchants).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(tags);
+    expect(categories).toHaveAttribute("aria-expanded", "true");
+    expect(tags).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(categories);
+    expect(categories).toHaveAttribute("aria-expanded", "false");
+    expect(tags).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(categories);
     const labels = within(screen.getByRole("region", { name: "Categories" })).getAllByRole("link").map((link) => link.textContent);
     expect(labels).toEqual(["Second", "First"]);
   });
 
   it("keeps the configured order after selecting a filter", () => {
     const { onToggleTaxonomy } = renderFilters();
-    fireEvent.click(screen.getByRole("button", { name: "Categories" }));
     fireEvent.click(screen.getByRole("link", { name: "Second" }));
     expect(onToggleTaxonomy).toHaveBeenCalledWith("category", "category-2");
     expect(within(screen.getByRole("region", { name: "Categories" })).getAllByRole("link").map((link) => link.textContent)).toEqual(["Second", "First"]);
@@ -55,7 +71,6 @@ describe("SidebarFilters", () => {
 
   it("uses the mounted overflow trigger after mouse and right-click actions", () => {
     const { onResourceAction } = renderFilters();
-    fireEvent.click(screen.getByRole("button", { name: "Categories" }));
     const row = screen.getByRole("link", { name: "Second" }).parentElement!;
     fireEvent.mouseEnter(row);
     const overflow = screen.getByRole("button", { name: "Actions for Second" });
@@ -80,6 +95,7 @@ describe("SidebarFilters", () => {
   it("uses a mounted section trigger after Shift+F10 delete", () => {
     const { onResourceAction } = renderFilters();
     const section = screen.getByRole("button", { name: "Accounts" });
+    fireEvent.click(section);
     const row = screen.getByRole("link", { name: "Everyday" }).parentElement!;
 
     fireEvent.keyDown(row, { key: "F10", shiftKey: true });
@@ -93,6 +109,7 @@ describe("SidebarFilters", () => {
 
   it("hides overflow until row hover or focus and keeps it visible for coarse pointers", () => {
     const desktop = renderFilters();
+    fireEvent.click(screen.getByRole("button", { name: "Accounts" }));
     const row = screen.getByRole("link", { name: "Everyday" }).parentElement!;
     const overflow = screen.getByLabelText("Actions for Everyday");
     expect(getComputedStyle(overflow).visibility).toBe("hidden");
@@ -106,6 +123,7 @@ describe("SidebarFilters", () => {
     desktop.unmount();
     setCoarsePointer(true);
     renderFilters();
+    fireEvent.click(screen.getByRole("button", { name: "Accounts" }));
     expect(getComputedStyle(screen.getByRole("button", { name: "Actions for Everyday" })).visibility).toBe("visible");
   });
 

@@ -93,14 +93,22 @@ interface SidebarFiltersProps {
 
 const SidebarFilters = ({ accounts, values, filter, canEdit, onToggleTaxonomy, onToggleAccount, onResourceAction }: SidebarFiltersProps) => {
   const styles = useStyles();
-  const [expandedSection, setExpandedSection] = useState<SidebarResource["kind"] | null>("account");
+  const [expandedSections, setExpandedSections] = useState<Record<SidebarResource["kind"], boolean>>({
+    account: false,
+    category: true,
+    tag: false,
+    merchant: false,
+  });
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [activeRow, setActiveRow] = useState<string | null>(null);
   const actionTriggers = useRef<Record<string, HTMLElement | null>>({});
   const sectionTriggers = useRef<Partial<Record<SidebarResource["kind"], HTMLElement | null>>>({});
   const isCoarsePointer = window.matchMedia?.("(hover: none), (pointer: coarse)").matches === true;
 
-  const toggle = (kind: SidebarResource["kind"]) => setExpandedSection((expanded) => expanded === kind ? null : kind);
+  const toggle = (kind: SidebarResource["kind"]) => setExpandedSections((expanded) => ({
+    ...expanded,
+    [kind]: !expanded[kind],
+  }));
   const resourcesFor = (kind: SidebarResource["kind"]): SidebarResource[] =>
     kind === "account" ? accounts.map((value) => ({ kind, value })) : values.filter((value) => value.kind === kind).map((value) => ({ kind, value }));
 
@@ -184,7 +192,7 @@ const SidebarFilters = ({ accounts, values, filter, canEdit, onToggleTaxonomy, o
   const sections: SidebarResource["kind"][] = ["account", ...taxonomyKinds];
   return <div className={styles.root} aria-label="Transaction filters">
     {sections.map((kind) => {
-      const isExpanded = expandedSection === kind;
+      const isExpanded = expandedSections[kind];
       const label = sectionLabels[kind];
       return <div key={kind} className={styles.section}>
         <div className={styles.sectionHeader}>
