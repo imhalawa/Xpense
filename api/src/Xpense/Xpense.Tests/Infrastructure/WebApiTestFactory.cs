@@ -48,6 +48,7 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     private RegistrationPolicy? registrationPolicy;
     private bool? legacyClaimEnabled;
     private Guid? designatedClaimUserId;
+    private string? legacyDataMode;
 
     public WebApiTestFactory(string connectionString, params IInterceptor[] interceptors)
     {
@@ -83,6 +84,12 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     {
         legacyClaimEnabled = enabled;
         designatedClaimUserId = designatedUserId;
+        return this;
+    }
+
+    public WebApiTestFactory WithLegacyDataMode(string dataMode)
+    {
+        legacyDataMode = dataMode;
         return this;
     }
 
@@ -162,6 +169,8 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
             builder.UseSetting("LegacyClaim:Enabled", legacyClaimEnabled.Value.ToString());
         if (designatedClaimUserId.HasValue)
             builder.UseSetting("LegacyClaim:DesignatedUserId", designatedClaimUserId.Value.ToString());
+        if (legacyDataMode is not null)
+            builder.UseSetting("LegacyClaim:DataMode", legacyDataMode);
 
         builder.ConfigureServices(services =>
         {

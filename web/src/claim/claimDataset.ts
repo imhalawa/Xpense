@@ -1,6 +1,7 @@
 import { validateBudgetWindow } from "../domain/budgetSpending";
 import { Currency } from "../typings/enums/Currency";
 import type { RecordType } from "../crypto/protocol";
+import { parseVaultPayloadV1 } from "../vault/payloadV1";
 import { hashClaimManifest, type ClaimRecordIdentity } from "./manifest";
 
 const protocolVersion = 1;
@@ -716,6 +717,9 @@ export const prepareClaimRecords = (dataset: LegacyClaimDataset): PreparedClaimR
       payloadHash: notification.payloadHash,
       readAt: notification.readAt,
     });
+  }
+  for (const record of prepared) {
+    parseVaultPayloadV1(record.recordType, record.id, record.payload);
   }
   assertPreparedClaimPayloadSizes(prepared);
   return prepared;

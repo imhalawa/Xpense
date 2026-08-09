@@ -98,6 +98,17 @@ afterEach(async () => {
 });
 
 describe("SyncClient.pull", () => {
+  it("zeroes authenticated plaintext immediately after pull validation", async () => {
+    const decrypted = accountPayload();
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { records: [wireRecord(1)], nextCursor: "complete", hasMore: false },
+    });
+
+    await new SyncClient(database!, { decrypt: vi.fn().mockResolvedValue(decrypted) }).pull();
+
+    expect([...decrypted].every((value) => value === 0)).toBe(true);
+  });
+
   it("stages a pulled server revision without overwriting queued optimistic ciphertext", async () => {
     const optimistic: VaultRecord = record(1, {
       nonce: bytes(80),

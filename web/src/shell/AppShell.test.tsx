@@ -7,6 +7,7 @@ import { fixtureProjection } from "../vault/fixtureProjection";
 import type { FixtureSeed } from "../vault/fixtureProjection";
 import { VaultProvider } from "../vault/VaultProvider";
 import type { VaultProjection } from "../vault/VaultProjection";
+import { getUnreadCount, listNotifications } from "../clients/notifications";
 import AppShell from "./AppShell";
 
 vi.mock("../clients/notifications", () => ({
@@ -109,6 +110,21 @@ describe("AppShell", () => {
     expect(appearsBefore(addTransaction, overview)).toBe(true);
     expect(appearsBefore(accounts, categories)).toBe(true);
     expect(screen.queryByRole("link", { name: "Manage" })).toBeNull();
+  });
+
+  it("does not call or render legacy notifications in encrypted mode", async () => {
+    setWindowWidth(true);
+    vi.mocked(listNotifications).mockClear();
+    vi.mocked(getUnreadCount).mockClear();
+    const encrypted = fixtureProjection(seed);
+    Object.defineProperty(encrypted, "dataMode", { value: "encrypted" });
+
+    renderShell("/transactions?space=personal", encrypted);
+    await screen.findByRole("button", { name: "Local user, Personal" });
+
+    expect(listNotifications).not.toHaveBeenCalled();
+    expect(getUnreadCount).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /notifications/i })).toBeNull();
   });
 
   it("locks and unlocks the vault from the identity menu on any route", async () => {

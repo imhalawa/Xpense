@@ -193,8 +193,15 @@ const AppShell = ({ children }: AppShellProps) => {
   const [resourceVersion, setResourceVersion] = useState(0);
   const activeDestination = destinationForPath(location.pathname);
   const addTransactionRef = useRef<HTMLButtonElement>(null);
+  const usesLegacyNotifications = projection.dataMode === undefined || projection.dataMode === "legacy";
 
   const refreshNotifications = useCallback(() => {
+    if (!usesLegacyNotifications) {
+      setNotifications([]);
+      setNotificationPages(1);
+      setUnreadCount(0);
+      return;
+    }
     Promise.all([
       listNotifications(notificationsPage, notificationsPageSize),
       getUnreadCount(),
@@ -205,7 +212,7 @@ const AppShell = ({ children }: AppShellProps) => {
         setUnreadCount(count);
       })
       .catch((loadError) => console.error(loadError));
-  }, [notificationsPage]);
+  }, [notificationsPage, usesLegacyNotifications]);
 
   useEffect(() => {
     refreshNotifications();
@@ -372,7 +379,7 @@ const AppShell = ({ children }: AppShellProps) => {
               onThemeModeChange={setThemeMode}
             />
           </div>
-          <NotificationBell
+          {usesLegacyNotifications && <NotificationBell
             notifications={notifications}
             unreadCount={unreadCount}
             page={notificationsPage}
@@ -383,7 +390,7 @@ const AppShell = ({ children }: AppShellProps) => {
               Promise.all(ids.map(markNotificationRead)).then(refreshNotifications)
             }
             onMarkAllRead={() => markAllNotificationsRead().then(refreshNotifications)}
-          />
+          />}
         </NavDrawerHeader>
         <NavDrawerBody className={styles.body}>
           <Button

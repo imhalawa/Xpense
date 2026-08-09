@@ -64,6 +64,12 @@ public static class IoC
         services.AddOptions<LegacyClaimOptions>()
             .Bind(configuration.GetSection(LegacyClaimOptions.SectionName))
             .Validate(
+                options => options.HasKnownDataMode,
+                "The data mode must be legacy or encrypted.")
+            .Validate(
+                options => !options.IsEncrypted || !options.Enabled,
+                "Legacy claim mode cannot be enabled after encrypted data mode is selected.")
+            .Validate(
                 options => !options.Enabled || options.TryGetDesignatedUserId(out _),
                 "The designated legacy-claim user must be a nonempty UUID when legacy claim mode is enabled.")
             .ValidateOnStart();

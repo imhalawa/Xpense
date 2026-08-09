@@ -155,6 +155,7 @@ export interface BudgetDraft {
 
 export interface VaultProjection {
   readonly state: VaultState;
+  readonly dataMode?: "unknown" | "legacy" | "claiming" | "encrypted";
   subscribe(listener: (state: VaultState) => void): () => void;
   unlock(): Promise<void>;
   lock(): void;

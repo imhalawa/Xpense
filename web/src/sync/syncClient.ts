@@ -280,12 +280,13 @@ export const replaceSyncRecord = async (
   id: string,
   request: ReplaceSyncRecord,
   signal?: AbortSignal,
+  antiforgeryToken?: string,
 ): Promise<SyncRecord> =>
   {
     try {
       return toSyncRecord(
         (
-          signal === undefined
+          signal === undefined && antiforgeryToken === undefined
             ? await axios.put<WireSyncRecord>(
                 `/api/v1/sync/records/${encodeURIComponent(id)}`,
                 toWireReplaceRecord(request),
@@ -293,7 +294,7 @@ export const replaceSyncRecord = async (
             : await axios.put<WireSyncRecord>(
                 `/api/v1/sync/records/${encodeURIComponent(id)}`,
                 toWireReplaceRecord(request),
-                { signal },
+                mutationConfig(signal, antiforgeryToken),
               )
         ).data,
       );
@@ -397,7 +398,8 @@ export class SyncClient {
     }
 
     try {
-      await this.decryptor.decrypt(stored);
+      const plaintext = await this.decryptor.decrypt(stored);
+      plaintext.fill(0);
     } catch {
       assertNotAborted(signal);
       return [{

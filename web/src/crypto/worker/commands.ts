@@ -39,6 +39,12 @@ export interface EncryptRecordCommand {
   groupEnvelopeDescriptor?: EnvelopeDescriptor;
 }
 
+export interface EncryptReplacementCommand {
+  type: "encryptReplacement";
+  payload: Uint8Array;
+  payloadDescriptor: PayloadDescriptor;
+}
+
 export interface DecryptRecordCommand {
   type: "decryptRecord";
   sealedPayload: SealedBytes;
@@ -80,6 +86,7 @@ export type VaultWorkerCommand =
   | UnlockWithMasterKeyCommand
   | LockCommand
   | EncryptRecordCommand
+  | EncryptReplacementCommand
   | DecryptRecordCommand
   | AddGroupEnvelopeCommand
   | RemoveGroupEnvelopeCommand

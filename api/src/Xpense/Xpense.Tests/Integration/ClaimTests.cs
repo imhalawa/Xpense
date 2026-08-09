@@ -45,6 +45,82 @@ public class ClaimTests
     }
 
     [Test]
+    public async Task Claim_status_reports_legacy_only_when_claim_mode_is_disabled_and_never_completed()
+    {
+        await using var factory = new WebApiTestFactory(connectionString);
+        using var client = await factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync("/api/v1/claim/status");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadFromJsonAsync<ClaimStatusContract>())!.Mode.Should().Be("legacy");
+    }
+
+    [Test]
+    public async Task Claim_status_reports_claiming_while_claim_mode_is_enabled()
+    {
+        var designatedUserId = Guid.CreateVersion7();
+        await using var factory = new WebApiTestFactory(connectionString)
+            .WithLegacyClaim(true, designatedUserId);
+        using var client = await factory.CreateAuthenticatedClient(designatedUserId);
+
+        var response = await client.GetAsync("/api/v1/claim/status");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadFromJsonAsync<ClaimStatusContract>())!.Mode.Should().Be("claiming");
+    }
+
+    [Test]
+    public async Task Claim_status_reports_encrypted_for_a_fresh_post_contract_database()
+    {
+        await using var factory = new WebApiTestFactory(connectionString)
+            .WithLegacyDataMode("encrypted");
+        using var client = await factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync("/api/v1/claim/status");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadFromJsonAsync<ClaimStatusContract>())!.Mode.Should().Be("encrypted");
+        await using var scope = factory.Services.CreateAsyncScope();
+        (await scope.ServiceProvider.GetRequiredService<XpenseDbContext>()
+            .ClaimTokens.CountAsync()).Should().Be(0);
+    }
+
+    [Test]
+    public async Task Claim_status_remains_encrypted_after_completion_when_claim_mode_is_disabled()
+    {
+        var userId = Guid.CreateVersion7();
+        await using var factory = new WebApiTestFactory(connectionString);
+        using var client = await factory.CreateAuthenticatedClient(userId);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+            var now = DateTime.UtcNow;
+            dbContext.ClaimTokens.Add(new ClaimToken
+            {
+                Id = Guid.CreateVersion7(),
+                UserId = userId,
+                TokenHash = RandomNumberGenerator.GetBytes(32),
+                ExpiresAt = now.AddMinutes(30),
+                DatasetDownloadedAt = now,
+                ExpectedRecordCount = 0,
+                ExpectedTypeCounts = "{}",
+                ExpectedManifestHash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("0")),
+                ExpectedSourceContentHash = SHA256.HashData([]),
+                ConsumedAt = now,
+                CreatedAt = now.AddSeconds(-1),
+                UpdatedAt = now
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var response = await client.GetAsync("/api/v1/claim/status");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadFromJsonAsync<ClaimStatusContract>())!.Mode.Should().Be("encrypted");
+    }
+
+    [Test]
     public async Task Claim_start_issues_one_opaque_30_minute_token_for_the_designated_user()
     {
         var designatedUserId = Guid.CreateVersion7();
@@ -493,6 +569,31 @@ public class ClaimTests
 
         start.Should().Throw<OptionsValidationException>()
             .WithMessage("*designated legacy-claim user*");
+    }
+
+    [Test]
+    public void Encrypted_data_mode_rejects_enabled_claim_mode_at_startup()
+    {
+        using var factory = new WebApiTestFactory(connectionString)
+            .WithLegacyDataMode("encrypted")
+            .WithLegacyClaim(true, Guid.CreateVersion7());
+
+        var start = () => factory.CreateClient();
+
+        start.Should().Throw<OptionsValidationException>()
+            .WithMessage("*cannot be enabled after encrypted data mode*");
+    }
+
+    [Test]
+    public void Unknown_data_mode_is_rejected_at_startup()
+    {
+        using var factory = new WebApiTestFactory(connectionString)
+            .WithLegacyDataMode("future");
+
+        var start = () => factory.CreateClient();
+
+        start.Should().Throw<OptionsValidationException>()
+            .WithMessage("*data mode must be legacy or encrypted*");
     }
 
     [Test]
@@ -977,6 +1078,8 @@ public class ClaimTests
     }
 
     private sealed record StartContract(string ClaimToken, DateTime ExpiresAt);
+
+    private sealed record ClaimStatusContract(string Mode);
 
     private sealed record ProblemContract(string Title);
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { VaultWorkerCommand, VaultWorkerResponse } from "./commands";
 import {
   VaultWorkerClient,
+  VaultWorkerUnavailableError,
   type VaultWorkerMessage,
   type VaultWorkerReply,
   type WorkerPort,
@@ -56,8 +57,9 @@ describe("vault worker client", () => {
     client.terminate();
 
     expect(worker.terminate).toHaveBeenCalledOnce();
-    await expect(first).rejects.toThrow("The vault worker was terminated");
-    await expect(second).rejects.toThrow("The vault worker was terminated");
+    await expect(first).rejects.toBeInstanceOf(VaultWorkerUnavailableError);
+    await expect(second).rejects.toBeInstanceOf(VaultWorkerUnavailableError);
+    await expect(client.request(lockCommand)).rejects.toBeInstanceOf(VaultWorkerUnavailableError);
   });
 
   it("rejects pending work when the worker reports an error", async () => {
@@ -67,7 +69,7 @@ describe("vault worker client", () => {
 
     worker.onerror?.({ message: "worker crashed" } as ErrorEvent);
 
-    await expect(request).rejects.toThrow("worker crashed");
+    await expect(request).rejects.toBeInstanceOf(VaultWorkerUnavailableError);
     expect(worker.terminate).toHaveBeenCalledOnce();
   });
 });

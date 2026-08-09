@@ -75,6 +75,7 @@ Direct-host configuration uses the standard .NET double-underscore environment f
 | `ForwardedHeaders__ForwardLimit` | Positive number of trusted proxy hops. The default is `1`. |
 | `LegacyClaim__Enabled` | `true` enables the controlled claim window and pauses plaintext writers. Keep it enabled through the contract migration. |
 | `LegacyClaim__DesignatedUserId` | Existing designated claimant UUID, required when claim mode is enabled. |
+| `LegacyClaim__DataMode` | Durable data authority: keep `legacy` through Task 32, then set `encrypted` only after the reviewed plaintext-removal cutover. Never switch back. |
 | `Email__Enabled` | `true` enables SMTP delivery in the notification worker. |
 | `Email__Host` | Required when email is enabled. |
 | `Email__Port` | Integer from 1 to 65535. The default is 587. |

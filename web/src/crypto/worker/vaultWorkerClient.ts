@@ -25,6 +25,13 @@ interface PendingRequest {
   reject: (reason: Error) => void;
 }
 
+export class VaultWorkerUnavailableError extends Error {
+  constructor() {
+    super("The vault worker was terminated");
+    this.name = "VaultWorkerUnavailableError";
+  }
+}
+
 interface TrustedTypesFactory {
   createPolicy(
     name: string,
@@ -76,16 +83,16 @@ export class VaultWorkerClient {
   constructor(workerFactory: VaultWorkerFactory = createWorker) {
     this.worker = workerFactory();
     this.worker.onmessage = (event) => this.receive(event.data);
-    this.worker.onerror = (event) => {
+    this.worker.onerror = () => {
       this.terminated = true;
       this.worker.terminate();
-      this.rejectPending(new Error(event.message || "The vault worker failed"));
+      this.rejectPending(new VaultWorkerUnavailableError());
     };
   }
 
   request<T = unknown>(command: VaultWorkerCommand): Promise<VaultWorkerResponse<T>> {
     if (this.terminated) {
-      return Promise.reject(new Error("The vault worker was terminated"));
+      return Promise.reject(new VaultWorkerUnavailableError());
     }
     const requestId = String(this.nextRequestId++);
     return new Promise<VaultWorkerResponse<T>>((resolve, reject) => {
@@ -101,7 +108,7 @@ export class VaultWorkerClient {
     if (this.terminated) return;
     this.terminated = true;
     this.worker.terminate();
-    this.rejectPending(new Error("The vault worker was terminated"));
+    this.rejectPending(new VaultWorkerUnavailableError());
   }
 
   private receive(reply: VaultWorkerReply): void {

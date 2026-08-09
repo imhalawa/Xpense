@@ -78,21 +78,34 @@ export class OutboxManager {
     request: OutboxEncryptionRequest,
     signal?: AbortSignal,
   ): Promise<VaultOutboxEntry> {
+    return (await this.queueBatch([request], signal))[0]!;
+  }
+
+  async queueBatch(
+    requests: readonly OutboxEncryptionRequest[],
+    signal?: AbortSignal,
+  ): Promise<VaultOutboxEntry[]> {
     assertNotAborted(signal);
-    const mutation = await this.cipher.encrypt(request);
+    const mutations = await Promise.all(requests.map((request) => this.cipher.encrypt(request)));
     assertNotAborted(signal);
-    if (mutation.kind !== request.kind || mutation.record.id !== request.recordId) {
-      throw new Error("The encrypted mutation does not match its request");
+    for (const [index, mutation] of mutations.entries()) {
+      const request = requests[index]!;
+      if (mutation.kind !== request.kind || mutation.record.id !== request.recordId) {
+        throw new Error("The encrypted mutation does not match its request");
+      }
     }
-    const entry = await this.database.enqueueOutbox({
+    const entries = await this.database.enqueueOutboxBatch(mutations.map((mutation) => ({
       operationId: crypto.randomUUID(),
       idempotencyKey: crypto.randomUUID(),
       mutation,
-    });
+    })));
     assertNotAborted(signal);
-    if (request.plaintext !== undefined) await this.projection.apply(mutation.record, request.plaintext);
-    else if (mutation.kind === "delete") await this.projection.remove?.(mutation.record.id);
-    return entry;
+    for (const [index, mutation] of mutations.entries()) {
+      const request = requests[index]!;
+      if (request.plaintext !== undefined) await this.projection.apply(mutation.record, request.plaintext);
+      else if (mutation.kind === "delete") await this.projection.remove?.(mutation.record.id);
+    }
+    return entries;
   }
 
   replay(signal?: AbortSignal): Promise<void> {
@@ -182,15 +195,32 @@ export class OutboxManager {
     const latestRecord = asVaultRecord(latest, local);
     const stagedEntry = { ...entry, latestServerRecord: latestRecord };
     await this.database.replaceOutbox(stagedEntry);
-    const [mine, theirs] = await Promise.all([this.cipher.decrypt(local), this.cipher.decrypt(latestRecord)]);
-    assertNotAborted(signal);
-    this.conflicts.add({
-      recordId: local.id,
-      outboxEntry: stagedEntry,
-      local,
-      latest: latestRecord,
-      mine,
-      theirs,
-    });
+    const decrypted = await Promise.allSettled([
+      this.cipher.decrypt(local),
+      this.cipher.decrypt(latestRecord),
+    ]);
+    const buffers = decrypted.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : []);
+    let transferred = false;
+    try {
+      const failure = decrypted.find((result) => result.status === "rejected");
+      if (failure?.status === "rejected") throw failure.reason;
+      assertNotAborted(signal);
+      const [mine, theirs] = buffers;
+      if (mine === undefined || theirs === undefined) {
+        throw new Error("The conflict could not be decrypted");
+      }
+      this.conflicts.add({
+        recordId: local.id,
+        outboxEntry: stagedEntry,
+        local,
+        latest: latestRecord,
+        mine,
+        theirs,
+      });
+      transferred = true;
+    } finally {
+      if (!transferred) buffers.forEach((buffer) => buffer.fill(0));
+    }
   }
 }

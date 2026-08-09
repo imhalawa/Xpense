@@ -12,6 +12,7 @@ import * as vaultDatabase from "./vaultDatabase";
 import { VaultProvider, useVault } from "./VaultProvider";
 import type { RowCeilingReport } from "./plaintextProjection";
 import type { VaultProjection, VaultState } from "./VaultProjection";
+import type { EncryptedProjection } from "./transitionVaultProjection";
 
 const unsupported = () => Promise.reject(new Error("Not part of this test"));
 
@@ -194,6 +195,42 @@ describe("VaultProvider", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
     expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("false");
+  });
+
+  it("attaches the unlocked Worker bridge before the encrypted projection rebuilds", async () => {
+    const worker = new ImmediateWorker({ ok: true, value: { unlocked: true } });
+    const projection = stubProjection("locked") as StubProjection & EncryptedProjection;
+    projection.attachCrypto = vi.fn();
+    const unlock = vi.spyOn(projection, "unlock");
+    render(
+      <VaultProvider projection={projection} workerFactory={() => worker} autoUnlock={false}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
+
+    await waitFor(() => expect(projection.attachCrypto).toHaveBeenCalledOnce());
+    expect(projection.unlockCount).toBe(1);
+    expect(vi.mocked(projection.attachCrypto).mock.invocationCallOrder[0]).toBeLessThan(
+      unlock.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER,
+    );
+  });
+
+  it("keeps Worker encryption ready for claim maintenance without opening a projection", async () => {
+    const worker = new ImmediateWorker({ ok: true, value: { unlocked: true } });
+    const projection = stubProjection("locked");
+    Object.defineProperty(projection, "dataMode", { value: "claiming" });
+    render(
+      <VaultProvider projection={projection} workerFactory={() => worker} autoUnlock={false}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
+
+    await waitFor(() => expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("true"));
+    expect(projection.unlockCount).toBe(0);
   });
 
   it("unlocks a locked projection once on mount", async () => {

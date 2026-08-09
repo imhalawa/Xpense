@@ -67,6 +67,7 @@ services:
       Authentication__PublicUrl: ${XPENSE_PUBLIC_URL:-http://localhost:5173}
       LegacyClaim__Enabled: ${XPENSE_LEGACY_CLAIM_ENABLED:-false}
       LegacyClaim__DesignatedUserId: ${XPENSE_LEGACY_CLAIM_DESIGNATED_USER_ID:-}
+      LegacyClaim__DataMode: ${XPENSE_DATA_MODE:-legacy}
       ForwardedHeaders__KnownIPNetworks__0: ${XPENSE_TRUSTED_PROXY_NETWORK:-127.0.0.1/32}
     ports:
       - "127.0.0.1:4000:8080"

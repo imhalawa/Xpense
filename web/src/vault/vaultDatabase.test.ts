@@ -3,6 +3,7 @@ import {
   deleteVaultDatabase,
   openVaultDatabase,
   type VaultDatabase,
+  type VaultRecord,
   type VaultStoreName,
 } from "./vaultDatabase";
 
@@ -121,6 +122,44 @@ afterEach(async () => {
 });
 
 describe("vault ciphertext database", () => {
+  it("atomically rejects a batch when one outbox record cannot be stored", async () => {
+    const categoryId = "88888888-8888-4888-8888-888888888888";
+    const budgetId = "99999999-9999-4999-8999-999999999999";
+    const makeRecord = (id: string, recordType: VaultRecord["recordType"]): VaultRecord => ({
+      id,
+      recordType,
+      ownerId: wrapperId,
+      parentResourceId: recordType === "budget" ? id : null,
+      revision: 1,
+      protocolVersion: 1,
+      nonce: bytes(1),
+      ciphertext: bytes(5),
+      envelopes: [],
+      tombstone: false,
+      sequenceNumber: 1,
+      serverCreatedAt: "2026-08-09T10:00:00Z",
+      serverUpdatedAt: "2026-08-09T10:00:00Z",
+    });
+    const category = makeRecord(categoryId, "category");
+    const budget = makeRecord(budgetId, "budget");
+    await database!.putRecord(category);
+    await database!.putRecord(budget);
+    const invalidBudget = {
+      ...budget,
+      tombstone: true,
+      ciphertext: (() => undefined) as unknown as Uint8Array,
+    };
+
+    await expect(database!.enqueueOutboxBatch([
+      { operationId: crypto.randomUUID(), idempotencyKey: crypto.randomUUID(), mutation: { kind: "delete", record: { ...category, tombstone: true } } },
+      { operationId: crypto.randomUUID(), idempotencyKey: crypto.randomUUID(), mutation: { kind: "delete", record: invalidBudget } },
+    ])).rejects.toBeDefined();
+
+    await expect(database!.outboxEntries()).resolves.toEqual([]);
+    await expect(database!.getRecord(categoryId)).resolves.toMatchObject({ tombstone: false });
+    await expect(database!.getRecord(budgetId)).resolves.toMatchObject({ tombstone: false });
+  });
+
   it.each(fixtures)("puts, gets, and deletes from $store", async ({ store, key, value }) => {
     await database!.put(store, value);
     expect(normalise(await database!.get(store, key))).toEqual(normalise(value));

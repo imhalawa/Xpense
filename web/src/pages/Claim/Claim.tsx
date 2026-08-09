@@ -276,9 +276,13 @@ export const ClaimView = ({
 };
 
 const Claim = () => {
-  const { claimEncryptionReady, encryptClaimRecord, unlockWithMasterKey } = useVault();
+  const { claimEncryptionReady, encryptClaimRecord, projection, unlockWithMasterKey } = useVault();
   const [passkeys, setPasskeys] = useState<ClaimPasskeySelection[]>([]);
   const [passkeyLoadError, setPasskeyLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (projection.dataMode === "unknown") void projection.unlock().catch(() => undefined);
+  }, [projection]);
 
   useEffect(() => {
     if (claimEncryptionReady) return;

@@ -253,21 +253,37 @@ export class VaultDatabase {
   async enqueueOutbox(
     entry: Omit<VaultOutboxEntry, "sequence">,
   ): Promise<VaultOutboxEntry> {
+    return (await this.enqueueOutboxBatch([entry]))[0]!;
+  }
+
+  async enqueueOutboxBatch(
+    entries: readonly Omit<VaultOutboxEntry, "sequence">[],
+  ): Promise<VaultOutboxEntry[]> {
     return new Promise((resolve, reject) => {
       const transaction = this.database.transaction(["outbox", "records"], "readwrite");
       const outbox = transaction.objectStore("outbox");
       const records = transaction.objectStore("records");
       const request = outbox.getAll();
+      let queued: VaultOutboxEntry[] = [];
       request.onsuccess = () => {
-        const sequence = (request.result as VaultOutboxEntry[]).reduce(
+        let sequence = (request.result as VaultOutboxEntry[]).reduce(
           (highest, queued) => Math.max(highest, queued.sequence ?? 0),
           0,
         ) + 1;
-        const queued = { ...entry, sequence };
-        outbox.put(queued);
-        records.put(entry.mutation.record);
-        transaction.oncomplete = () => resolve(queued);
+        try {
+          queued = entries.map((entry) => {
+            const value = { ...entry, sequence };
+            sequence += 1;
+            outbox.put(value);
+            records.put(entry.mutation.record);
+            return value;
+          });
+        } catch (error) {
+          transaction.abort();
+          reject(error);
+        }
       };
+      transaction.oncomplete = () => resolve(queued);
       transaction.onerror = () => reject(transaction.error ?? request.error);
       transaction.onabort = () => reject(transaction.error ?? request.error);
     });

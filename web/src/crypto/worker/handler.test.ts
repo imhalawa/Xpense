@@ -72,6 +72,98 @@ describe("vault worker command handler", () => {
     expect(Array.from(decrypted)).toEqual(Array.from(payload));
   });
 
+  it("replaces ciphertext with the cached record key and original envelope", async () => {
+    const masterKey = await createUserMasterKey();
+    successfulValue(
+      await handleVaultCommand({ type: "unlockWithMasterKey", masterKey, userId }),
+    );
+    const encrypted = successfulValue<EncryptedRecordResult>(
+      await handleVaultCommand({
+        type: "encryptRecord",
+        payload: new TextEncoder().encode('{"amount":4200}'),
+        payloadDescriptor,
+        personalEnvelopeDescriptor,
+      }),
+    );
+    const replacementDescriptor = { ...payloadDescriptor, revision: 2 };
+    const replacement = successfulValue<EncryptedRecordResult["sealedPayload"]>(
+      await handleVaultCommand({
+        type: "encryptReplacement",
+        payload: new TextEncoder().encode('{"amount":6300}'),
+        payloadDescriptor: replacementDescriptor,
+      }),
+    );
+
+    const decrypted = successfulValue<Uint8Array>(
+      await handleVaultCommand({
+        type: "decryptRecord",
+        sealedPayload: replacement,
+        payloadDescriptor: replacementDescriptor,
+        personalEnvelope: encrypted.personalEnvelope,
+        personalEnvelopeDescriptor,
+      }),
+    );
+
+    expect(new TextDecoder().decode(decrypted)).toBe('{"amount":6300}');
+  });
+
+  it("rehydrates a record key before replacing after worker lock", async () => {
+    const masterKey = await createUserMasterKey();
+    successfulValue(
+      await handleVaultCommand({ type: "unlockWithMasterKey", masterKey, userId }),
+    );
+    const encrypted = successfulValue<EncryptedRecordResult>(
+      await handleVaultCommand({
+        type: "encryptRecord",
+        payload: new TextEncoder().encode('{"amount":4200}'),
+        payloadDescriptor,
+        personalEnvelopeDescriptor,
+      }),
+    );
+    await handleVaultCommand({ type: "lock" });
+    successfulValue(
+      await handleVaultCommand({ type: "unlockWithMasterKey", masterKey, userId }),
+    );
+    successfulValue(
+      await handleVaultCommand({
+        type: "decryptRecord",
+        sealedPayload: encrypted.sealedPayload,
+        payloadDescriptor,
+        personalEnvelope: encrypted.personalEnvelope,
+        personalEnvelopeDescriptor,
+      }),
+    );
+
+    const response = await handleVaultCommand({
+      type: "encryptReplacement",
+      payload: new TextEncoder().encode('{"amount":8400}'),
+      payloadDescriptor: { ...payloadDescriptor, revision: 2 },
+    });
+
+    expect(response.ok).toBe(true);
+  });
+
+  it("refuses replacement before the record key is loaded", async () => {
+    const masterKey = await createUserMasterKey();
+    successfulValue(
+      await handleVaultCommand({ type: "unlockWithMasterKey", masterKey, userId }),
+    );
+
+    const response = await handleVaultCommand({
+      type: "encryptReplacement",
+      payload: new TextEncoder().encode('{"amount":8400}'),
+      payloadDescriptor: { ...payloadDescriptor, revision: 2 },
+    });
+
+    expect(response).toEqual({
+      ok: false,
+      error: {
+        code: "operation-failed",
+        message: "The record key is not available",
+      },
+    });
+  });
+
   it("returns vault-locked after lock clears every key", async () => {
     const masterKey = await createUserMasterKey();
     await handleVaultCommand({ type: "unlockWithMasterKey", masterKey, userId });

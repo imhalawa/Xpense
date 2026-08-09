@@ -77,6 +77,74 @@ afterEach(async () => {
 });
 
 describe("ConflictManager", () => {
+  it("zeroes decrypted revisions when a same-record conflict is replaced", () => {
+    const conflicts = new ConflictManager();
+    const firstMine = bytes(1);
+    const firstTheirs = bytes(5);
+    const entry = {
+      operationId,
+      idempotencyKey,
+      sequence: 1,
+      mutation: replaceMutation(1),
+    };
+    conflicts.add({ recordId, outboxEntry: entry, local: record(1, 20), latest: record(2, 90), mine: firstMine, theirs: firstTheirs });
+
+    conflicts.add({ recordId, outboxEntry: entry, local: record(1, 20), latest: record(3, 100), mine: bytes(9), theirs: bytes(12) });
+
+    expect(Array.from(firstMine)).toEqual([0, 0, 0]);
+    expect(Array.from(firstTheirs)).toEqual([0, 0, 0]);
+  });
+
+  it("wipes a successful conflict decryption when the other revision rejects", async () => {
+    vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
+      .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });
+    const successfulBuffer = new TextEncoder().encode(localText);
+    const localCipher: OutboxCipher = {
+      encrypt: vi.fn().mockResolvedValue(replaceMutation(1)),
+      decrypt: vi.fn()
+        .mockResolvedValueOnce(successfulBuffer)
+        .mockRejectedValueOnce(new Error("invalid ciphertext")),
+    };
+    const manager = new OutboxManager(database!, localCipher, { apply: vi.fn() }, new ConflictManager(), {
+      create: vi.fn(),
+      replace: vi.fn().mockRejectedValue(new SyncConflictError(syncRecord(2, 90))),
+      remove: vi.fn(),
+    });
+    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, plaintext: new Uint8Array([1]) });
+
+    await expect(manager.replay()).rejects.toThrow("invalid ciphertext");
+
+    expect([...successfulBuffer].every((value) => value === 0)).toBe(true);
+  });
+
+  it("wipes both conflict decryptions when cancellation wins before storage", async () => {
+    vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
+      .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });
+    const controller = new AbortController();
+    const mine = new TextEncoder().encode(localText);
+    const theirs = new TextEncoder().encode(serverText);
+    const localCipher: OutboxCipher = {
+      encrypt: vi.fn().mockResolvedValue(replaceMutation(1)),
+      decrypt: vi.fn()
+        .mockResolvedValueOnce(mine)
+        .mockImplementationOnce(async () => {
+          controller.abort();
+          return theirs;
+        }),
+    };
+    const manager = new OutboxManager(database!, localCipher, { apply: vi.fn() }, new ConflictManager(), {
+      create: vi.fn(),
+      replace: vi.fn().mockRejectedValue(new SyncConflictError(syncRecord(2, 90))),
+      remove: vi.fn(),
+    });
+    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, plaintext: new Uint8Array([1]) });
+
+    await expect(manager.replay(controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+
+    expect([...mine].every((value) => value === 0)).toBe(true);
+    expect([...theirs].every((value) => value === 0)).toBe(true);
+  });
+
   it("keeps both decrypted revisions only in unlocked memory after a 409 and preserves the local record", async () => {
     vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
       .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });

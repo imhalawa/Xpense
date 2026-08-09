@@ -54,6 +54,7 @@ export const handleVaultCommand = async (
       "unlockWithMasterKey",
       "lock",
       "encryptRecord",
+      "encryptReplacement",
       "decryptRecord",
       "addGroupEnvelope",
       "removeGroupEnvelope",
@@ -116,6 +117,16 @@ export const handleVaultCommand = async (
           groupEnvelope,
         };
         return successful(result);
+      }
+      case "encryptReplacement": {
+        if (userMasterKey === null) return locked();
+        const recordKey = recordKeys.get(command.payloadDescriptor.recordId);
+        if (recordKey === undefined) {
+          return failed("operation-failed", "The record key is not available");
+        }
+        return successful(
+          await sealRecordPayload(recordKey, command.payload, command.payloadDescriptor),
+        );
       }
       case "decryptRecord": {
         if (userMasterKey === null) return locked();
