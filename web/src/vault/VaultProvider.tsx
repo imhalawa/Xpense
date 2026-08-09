@@ -8,7 +8,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { WrapperKind } from "../crypto/protocol";
+import type {
+  EnvelopeDescriptor,
+  PayloadDescriptor,
+  WrapperKind,
+} from "../crypto/protocol";
+import type { EncryptedRecordResult } from "../crypto/worker/commands";
 import { SyncLifecycleCoordinator } from "../sync/lifecycle";
 import type { VaultWorkerFactory } from "../crypto/worker/vaultWorkerClient";
 import { VaultWorkerClient } from "../crypto/worker/vaultWorkerClient";
@@ -24,6 +29,7 @@ export interface VaultContextValue {
   rowCeiling: RowCeilingReport | null;
   availableWrappers: readonly WrapperKind[];
   sensitiveError: string | null;
+  claimEncryptionReady: boolean;
   syncLifecycle: SyncLifecycleCoordinator;
   lock(): void;
   unlockWithMasterKey(
@@ -31,6 +37,11 @@ export interface VaultContextValue {
     userId: string,
     encryptedPrivateKey?: Uint8Array,
   ): Promise<boolean>;
+  encryptClaimRecord(
+    payload: Uint8Array,
+    payloadDescriptor: PayloadDescriptor,
+    personalEnvelopeDescriptor: EnvelopeDescriptor,
+  ): Promise<EncryptedRecordResult>;
 }
 
 const VaultContext = createContext<VaultContextValue | null>(null);
@@ -60,9 +71,11 @@ export const VaultProvider = ({
   const activeSyncLifecycle = syncLifecycle ?? defaultSyncLifecycleRef.current;
   const workerFactoryRef = useRef(workerFactory);
   const workerRef = useRef<VaultWorkerClient | null>(null);
+  const workerUnlockedRef = useRef(false);
   const ignoreProjectionLockRef = useRef(false);
   const syncLifecycleRef = useRef(activeSyncLifecycle);
   const [sensitiveError, setSensitiveError] = useState<string | null>(null);
+  const [claimEncryptionReady, setClaimEncryptionReady] = useState(false);
   projectionRef.current = projection;
   workerFactoryRef.current = workerFactory;
   syncLifecycleRef.current = activeSyncLifecycle;
@@ -72,6 +85,8 @@ export const VaultProvider = ({
     machineRef.current = new VaultStateMachine((cleanupState) => {
       workerRef.current?.terminate();
       workerRef.current = null;
+      workerUnlockedRef.current = false;
+      setClaimEncryptionReady(false);
       syncLifecycleRef.current?.lock();
       ignoreProjectionLockRef.current = cleanupState === "unavailable";
       projectionRef.current.lock();
@@ -135,6 +150,7 @@ export const VaultProvider = ({
       syncLifecycleRef.current?.lock();
       workerRef.current?.terminate();
       workerRef.current = null;
+      workerUnlockedRef.current = false;
     };
   }, [autoUnlock, ensureWorker, machine, projection]);
 
@@ -161,14 +177,20 @@ export const VaultProvider = ({
           encryptedPrivateKey,
         });
         if (!response.ok) {
+          workerUnlockedRef.current = false;
+          setClaimEncryptionReady(false);
           setSensitiveError(response.error.message);
           machine.failUnlock();
           return false;
         }
+        workerUnlockedRef.current = true;
+        setClaimEncryptionReady(true);
         if (projection.state !== "ready") await projection.unlock();
         machine.completeUnlock();
         return true;
       } catch (unlockFailure) {
+        workerUnlockedRef.current = false;
+        setClaimEncryptionReady(false);
         setSensitiveError(
           unlockFailure instanceof Error ? unlockFailure.message : "The vault could not unlock",
         );
@@ -179,6 +201,35 @@ export const VaultProvider = ({
     [ensureWorker, machine, projection],
   );
 
+  const encryptClaimRecord = useCallback(
+    async (
+      payload: Uint8Array,
+      payloadDescriptor: PayloadDescriptor,
+      personalEnvelopeDescriptor: EnvelopeDescriptor,
+    ): Promise<EncryptedRecordResult> => {
+      if (!workerUnlockedRef.current) {
+        throw new Error("Unlock the vault before starting the legacy claim.");
+      }
+      const worker = ensureWorker();
+      if (worker === null) throw new Error("The vault encryption Worker is unavailable.");
+      try {
+        const response = await worker.request<EncryptedRecordResult>({
+          type: "encryptRecord",
+          payload,
+          payloadDescriptor,
+          personalEnvelopeDescriptor,
+        });
+        if (!response.ok) throw new Error(response.error.message);
+        return response.value;
+      } catch (error) {
+        workerUnlockedRef.current = false;
+        setClaimEncryptionReady(false);
+        throw error;
+      }
+    },
+    [ensureWorker],
+  );
+
   const value = useMemo<VaultContextValue>(
     () => ({
       projection,
@@ -186,11 +237,13 @@ export const VaultProvider = ({
       rowCeiling: projection.rowCeiling ?? null,
       availableWrappers,
       sensitiveError,
+      claimEncryptionReady,
       syncLifecycle: activeSyncLifecycle,
       lock,
       unlockWithMasterKey,
+      encryptClaimRecord,
     }),
-    [activeSyncLifecycle, availableWrappers, lock, projection, sensitiveError, state, unlockWithMasterKey],
+    [activeSyncLifecycle, availableWrappers, claimEncryptionReady, encryptClaimRecord, lock, projection, sensitiveError, state, unlockWithMasterKey],
   );
 
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;

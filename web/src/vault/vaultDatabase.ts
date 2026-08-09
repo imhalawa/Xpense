@@ -273,6 +273,38 @@ export class VaultDatabase {
     });
   }
 
+  async enqueueOutboxOnce(
+    entry: Omit<VaultOutboxEntry, "sequence">,
+  ): Promise<VaultOutboxEntry> {
+    return new Promise((resolve, reject) => {
+      const transaction = this.database.transaction(["outbox", "records"], "readwrite");
+      const outbox = transaction.objectStore("outbox");
+      const records = transaction.objectStore("records");
+      const existingRequest = outbox.get(entry.operationId);
+      let queued: VaultOutboxEntry;
+      existingRequest.onsuccess = () => {
+        const existing = existingRequest.result as VaultOutboxEntry | undefined;
+        if (existing !== undefined) {
+          queued = existing;
+          return;
+        }
+        const entriesRequest = outbox.getAll();
+        entriesRequest.onsuccess = () => {
+          const sequence = (entriesRequest.result as VaultOutboxEntry[]).reduce(
+            (highest, current) => Math.max(highest, current.sequence ?? 0),
+            0,
+          ) + 1;
+          queued = { ...entry, sequence };
+          outbox.put(queued);
+          records.put(entry.mutation.record);
+        };
+      };
+      transaction.oncomplete = () => resolve(queued!);
+      transaction.onerror = () => reject(transaction.error ?? existingRequest.error);
+      transaction.onabort = () => reject(transaction.error ?? existingRequest.error);
+    });
+  }
+
   outboxEntries(): Promise<VaultOutboxEntry[]> {
     return runTransaction<VaultOutboxEntry[]>(this.database, "outbox", "readonly", (store) =>
       store.getAll(),

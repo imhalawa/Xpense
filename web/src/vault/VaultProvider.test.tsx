@@ -76,7 +76,7 @@ const stubProjection = (initialState: VaultState = "ready"): StubProjection => {
 };
 
 const VaultProbe = () => {
-  const { availableWrappers, lock, sensitiveError, state, rowCeiling, unlockWithMasterKey } =
+  const { availableWrappers, claimEncryptionReady, encryptClaimRecord, lock, sensitiveError, state, rowCeiling, unlockWithMasterKey } =
     useVault();
   return (
     <div>
@@ -86,6 +86,7 @@ const VaultProbe = () => {
       </span>
       <span data-testid="wrappers">{availableWrappers.join(",")}</span>
       <span data-testid="sensitive-error">{sensitiveError ?? "none"}</span>
+      <span data-testid="claim-encryption-ready">{String(claimEncryptionReady)}</span>
       <button type="button" onClick={lock}>
         Lock vault
       </button>
@@ -101,6 +102,26 @@ const VaultProbe = () => {
         }}>
         Unlock vault
       </button>
+      <button
+        type="button"
+        onClick={() => {
+          void encryptClaimRecord(
+            new Uint8Array([1]),
+            {
+              recordId: "22222222-2222-4222-8222-222222222222",
+              recordType: "account",
+              ownerId: "11111111-1111-4111-8111-111111111111",
+              revision: 1,
+            },
+            {
+              recordId: "22222222-2222-4222-8222-222222222222",
+              ownerId: "11111111-1111-4111-8111-111111111111",
+              groupId: null,
+            },
+          );
+        }}>
+        Encrypt claim record
+      </button>
     </div>
   );
 };
@@ -109,10 +130,12 @@ class ImmediateWorker implements WorkerPort {
   onmessage: ((event: MessageEvent<VaultWorkerReply>) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   readonly terminate = vi.fn();
+  readonly messages: VaultWorkerMessage[] = [];
 
   constructor(private readonly response: VaultWorkerResponse) {}
 
   postMessage(message: VaultWorkerMessage): void {
+    this.messages.push(message);
     queueMicrotask(() => {
       this.onmessage?.(
         new MessageEvent("message", {
@@ -144,6 +167,33 @@ describe("VaultProvider", () => {
     );
 
     expect(screen.getByTestId("state").textContent).toBe("unlocked");
+    expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("false");
+  });
+
+  it("marks claim encryption ready only after the Worker receives the master key", async () => {
+    const worker = new ImmediateWorker({ ok: true, value: { unlocked: true } });
+    render(
+      <VaultProvider projection={stubProjection()} workerFactory={() => worker}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("true"));
+    fireEvent.click(screen.getByRole("button", { name: "Encrypt claim record" }));
+    await waitFor(() => expect(worker.messages).toHaveLength(2));
+    expect(worker.messages[1]!.command).toMatchObject({
+      type: "encryptRecord",
+      payloadDescriptor: {
+        recordId: "22222222-2222-4222-8222-222222222222",
+        recordType: "account",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
+    expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("false");
   });
 
   it("unlocks a locked projection once on mount", async () => {

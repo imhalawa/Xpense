@@ -234,6 +234,16 @@ const assertNotAborted = (signal: AbortSignal | undefined): void => {
   if (signal?.aborted) throw new Error("The sync was cancelled");
 };
 
+const mutationConfig = (
+  signal: AbortSignal | undefined,
+  antiforgeryToken: string | undefined,
+): { signal?: AbortSignal; headers?: Record<string, string> } => ({
+  ...(signal === undefined ? {} : { signal }),
+  ...(antiforgeryToken === undefined
+    ? {}
+    : { headers: { "X-Xpense-Antiforgery": antiforgeryToken } }),
+});
+
 export const getSyncChanges = async (
   cursor?: string | null,
   signal?: AbortSignal,
@@ -252,16 +262,17 @@ export const getSyncChanges = async (
 export const createSyncRecords = async (
   request: { records: CreateSyncRecord[] },
   signal?: AbortSignal,
+  antiforgeryToken?: string,
 ): Promise<SyncRecord[]> =>
   (
-    signal === undefined
+    signal === undefined && antiforgeryToken === undefined
       ? await axios.post<{ records: WireSyncRecord[] }>("/api/v1/sync/records", {
           records: request.records.map(toWireCreateRecord),
         })
       : await axios.post<{ records: WireSyncRecord[] }>(
           "/api/v1/sync/records",
           { records: request.records.map(toWireCreateRecord) },
-          { signal },
+          mutationConfig(signal, antiforgeryToken),
         )
   ).data.records.map(toSyncRecord);
 
@@ -294,9 +305,19 @@ export const replaceSyncRecord = async (
     }
   };
 
-export const deleteSyncRecord = async (id: string, signal?: AbortSignal): Promise<void> => {
-  if (signal === undefined) await axios.delete(`/api/v1/sync/records/${encodeURIComponent(id)}`);
-  else await axios.delete(`/api/v1/sync/records/${encodeURIComponent(id)}`, { signal });
+export const deleteSyncRecord = async (
+  id: string,
+  signal?: AbortSignal,
+  antiforgeryToken?: string,
+): Promise<void> => {
+  if (signal === undefined && antiforgeryToken === undefined) {
+    await axios.delete(`/api/v1/sync/records/${encodeURIComponent(id)}`);
+  } else {
+    await axios.delete(
+      `/api/v1/sync/records/${encodeURIComponent(id)}`,
+      mutationConfig(signal, antiforgeryToken),
+    );
+  }
 };
 
 export const addSyncRecordEnvelope = async (

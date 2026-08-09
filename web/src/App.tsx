@@ -6,6 +6,7 @@ import { FluentProvider, makeStyles } from "@fluentui/react-components";
 import Overview from "./pages/Overview/Overview.tsx";
 import Transactions from "./pages/Transactions/Transactions.tsx";
 import Budgets from "./pages/Budgets/Budgets.tsx";
+import Claim from "./pages/Claim/Claim.tsx";
 import Layout from "./pages/Layout.tsx";
 import { darkTheme, lightTheme } from "./fluent/theme.ts";
 import { useColorScheme } from "./fluent/useColorScheme.ts";
@@ -42,6 +43,7 @@ function App() {
       <VaultProvider projection={projection} syncLifecycle={syncLifecycle}>
         <LoadingContextProvider>
           <Routes>
+            <Route path="/claim" element={<Claim />} />
             <Route path="/" element={<Layout />}>
               <Route index element={<Overview />} />
               <Route path="/transactions" element={<Transactions />} />
