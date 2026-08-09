@@ -3,9 +3,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.Authentication;
+using Xpense.Domain.Entities;
 using Xpense.Persistence;
 
 namespace Xpense.Tests.Infrastructure;
@@ -27,6 +30,7 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     private readonly string connectionString;
     private readonly IInterceptor[] interceptors;
     private Guid? currentUserId;
+    private RegistrationPolicy? registrationPolicy;
 
     public WebApiTestFactory(string connectionString, params IInterceptor[] interceptors)
     {
@@ -40,6 +44,12 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
         return this;
     }
 
+    public WebApiTestFactory WithRegistrationPolicy(RegistrationPolicy policy)
+    {
+        registrationPolicy = policy;
+        return this;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -47,11 +57,16 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
         foreach (var setting in TestConfiguration)
             builder.UseSetting(setting.Key, setting.Value!);
 
+        if (registrationPolicy.HasValue)
+            builder.UseSetting("Authentication:Registration", registrationPolicy.Value.ToString());
+
         builder.ConfigureServices(services =>
         {
             RemoveProductionDbContext(services);
             services.AddDbContext<XpenseDbContext>(options =>
                 options.UseNpgsql(connectionString).AddInterceptors(interceptors));
+            services.RemoveAll<IPasskeyHandler<XpenseUser>>();
+            services.AddScoped<IPasskeyHandler<XpenseUser>, SoftwareAuthenticator>();
 
             if (currentUserId.HasValue)
             {
