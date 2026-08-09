@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { createUserMasterKey } from "../crypto/keyHierarchy";
 import type { VaultWorkerResponse } from "../crypto/worker/commands";
 import type {
@@ -55,6 +55,12 @@ const stubProjection = (initialState: VaultState = "ready"): StubProjection => {
     listAccounts: unsupported,
     listTaxonomy: unsupported,
     createCategory: unsupported,
+    createAccount: unsupported,
+    updateAccount: unsupported,
+    deleteAccount: unsupported,
+    createTaxonomy: unsupported,
+    updateTaxonomy: unsupported,
+    deleteTaxonomy: unsupported,
     resolveFilter: unsupported,
     queryTransactions: unsupported,
     getTransaction: unsupported,
@@ -250,9 +256,8 @@ describe("VaultProvider", () => {
       </VaultProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
-    await act(async () => undefined);
 
-    expect(screen.getByTestId("state").textContent).toBe("locked");
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("locked"));
     expect(screen.getByTestId("wrappers").textContent).toBe(
       "recoveryPassword,recoveryFile",
     );

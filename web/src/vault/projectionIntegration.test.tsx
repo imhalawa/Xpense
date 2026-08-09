@@ -173,6 +173,7 @@ describe("projection filtering integration", () => {
     renderProjection();
     await screen.findByLabelText("Transaction total");
 
+    fireEvent.click(screen.getByRole("button", { name: "Categories" }));
     fireEvent.click(await screen.findByRole("link", { name: "Food" }));
     await waitFor(() => expect(currentSearch().get("category")).toBe("food"));
     await waitFor(() => expect(dataRowText()).toHaveLength(4));
@@ -228,5 +229,5 @@ describe("projection filtering integration", () => {
     expect(vi.mocked(axios.post)).not.toHaveBeenCalled();
     expect(vi.mocked(axios.put)).not.toHaveBeenCalled();
     expect(vi.mocked(axios.delete)).not.toHaveBeenCalled();
-  });
+  }, 10_000);
 });

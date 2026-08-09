@@ -136,10 +136,10 @@ describe("app shell accessibility", () => {
     renderShell();
     const identity = await screen.findByRole("button", { name: "Local user, Personal" });
     const addTransaction = screen.getByRole("button", { name: "Add transaction" });
-    const destinations = ["Overview", "Transactions", "Budgets", "Manage"].map((name) =>
+    const destinations = ["Overview", "Transactions", "Budgets"].map((name) =>
       screen.getByRole("link", { name }),
     );
-    const sections = ["Categories", "Tags", "Merchants"].map((name) =>
+    const sections = ["Accounts", "Categories", "Tags", "Merchants"].map((name) =>
       screen.getByRole("button", { name }),
     );
     const ordered = [identity, addTransaction, ...destinations, ...sections];
@@ -151,14 +151,16 @@ describe("app shell accessibility", () => {
     for (const section of sections) expect(section).toHaveAttribute("aria-expanded");
   });
 
-  it("returns focus from the View all popover and transaction dialog", async () => {
+  it("returns focus from a sidebar edit dialog and transaction dialog", async () => {
     renderShell();
-    const viewAll = await screen.findByRole("button", { name: "View all categories" });
-    fireEvent.click(viewAll);
-    const search = await screen.findByRole("textbox", { name: "Search categories" });
-    search.focus();
-    fireEvent.keyDown(search, { key: "Escape" });
-    await waitFor(() => expect(viewAll).toHaveFocus());
+    const account = await screen.findByRole("link", { name: "Everyday" });
+    fireEvent.mouseEnter(account.parentElement!);
+    const overflow = screen.getByRole("button", { name: "Actions for Everyday" });
+    fireEvent.click(overflow);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const resourceDialog = await screen.findByRole("dialog");
+    fireEvent.keyDown(resourceDialog, { key: "Escape" });
+    await waitFor(() => expect(overflow).toHaveFocus());
 
     const addTransaction = screen.getByRole("button", { name: "Add transaction" });
     fireEvent.click(addTransaction);

@@ -6,6 +6,7 @@ import {
   Caption1,
   Hamburger,
   MessageBar,
+  MessageBarActions,
   MessageBarBody,
   NavDrawer,
   NavDrawerBody,
@@ -18,9 +19,9 @@ import {
 } from "@fluentui/react-components";
 import {
   AddRegular,
+  DismissRegular,
   HomeRegular,
   ReceiptRegular,
-  SettingsRegular,
   WalletRegular,
 } from "@fluentui/react-icons";
 import NotificationBell from "../components/NotificationBell/NotificationBell";
@@ -36,7 +37,9 @@ import { useColorScheme } from "../fluent/useColorScheme";
 import { useVault } from "../vault/VaultProvider";
 import type {
   AccountView,
+  AccountDraft,
   SpaceSummary,
+  TaxonomyDraft,
   TaxonomyKind,
   TaxonomyValue,
 } from "../vault/VaultProjection";
@@ -49,6 +52,9 @@ import { useTransactionFilter } from "../transactions/useTransactionFilter";
 import IdentityMenu from "./IdentityMenu";
 import PageTitle from "./PageTitle";
 import SidebarFilters from "./SidebarFilters";
+import type { SidebarResource, SidebarResourceAction } from "./SidebarFilters";
+import ResourceDialog from "./ResourceDialog";
+import type { ResourceDialogRequest } from "./ResourceDialog";
 import TransactionDialog from "./TransactionDialog";
 import { useIsWideScreen } from "./useIsWideScreen";
 
@@ -62,7 +68,6 @@ const destinations: Destination[] = [
   { path: "/", label: "Overview", icon: <HomeRegular /> },
   { path: "/transactions", label: "Transactions", icon: <ReceiptRegular /> },
   { path: "/budgets", label: "Budgets", icon: <WalletRegular /> },
-  { path: "/settings", label: "Manage", icon: <SettingsRegular /> },
 ];
 
 const fallbackSpace = "personal";
@@ -175,7 +180,7 @@ const AppShell = ({ children }: AppShellProps) => {
   const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
   const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
-  const [editableAccounts, setEditableAccounts] = useState<AccountView[]>([]);
+  const [accounts, setAccounts] = useState<AccountView[]>([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [taxonomy, setTaxonomy] = useState<TaxonomyValue[]>([]);
   const [notifications, setNotifications] = useState<INotificationResponse[]>([]);
@@ -183,6 +188,9 @@ const AppShell = ({ children }: AppShellProps) => {
   const [notificationsPage, setNotificationsPage] = useState(1);
   const [notificationPages, setNotificationPages] = useState(1);
   const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [resourceDialog, setResourceDialog] = useState<ResourceDialogRequest | null>(null);
+  const [resourceNotice, setResourceNotice] = useState<string | null>(null);
+  const [resourceVersion, setResourceVersion] = useState(0);
   const activeDestination = destinationForPath(location.pathname);
   const addTransactionRef = useRef<HTMLButtonElement>(null);
 
@@ -233,11 +241,11 @@ const AppShell = ({ children }: AppShellProps) => {
     return () => {
       isCurrent = false;
     };
-  }, [projection, state, transactionFilter.filter.space]);
+  }, [projection, resourceVersion, state, transactionFilter.filter.space]);
 
   useEffect(() => {
     if (state !== "unlocked") {
-      setEditableAccounts([]);
+      setAccounts([]);
       setAccountsLoaded(false);
       return;
     }
@@ -248,19 +256,21 @@ const AppShell = ({ children }: AppShellProps) => {
       .listAccounts(transactionFilter.filter.space)
       .then((accounts) => {
         if (!isCurrent) return;
-        setEditableAccounts(accounts.filter((account) => account.canEdit));
+        setAccounts(accounts);
         setAccountsLoaded(true);
       })
       .catch(() => {
         if (!isCurrent) return;
-        setEditableAccounts([]);
+        setAccounts([]);
         setAccountsLoaded(true);
       });
 
     return () => {
       isCurrent = false;
     };
-  }, [projection, state, transactionFilter.filter.space]);
+  }, [projection, resourceVersion, state, transactionFilter.filter.space]);
+
+  const editableAccounts = accounts.filter((account) => account.canEdit);
 
   const closeNavigation = () => setIsNavigationOpen(false);
 
@@ -281,6 +291,47 @@ const AppShell = ({ children }: AppShellProps) => {
     const next = toggleTaxonomyFilter(transactionFilter.filter, kind, id);
     navigate({ pathname: "/transactions", search: serialiseTransactionFilter(next).toString() });
     closeNavigation();
+  };
+
+  const toggleAccount = (id: string) => {
+    const next = {
+      ...transactionFilter.filter,
+      account: transactionFilter.filter.account === id ? null : id,
+    };
+    navigate({ pathname: "/transactions", search: serialiseTransactionFilter(next).toString() });
+    closeNavigation();
+  };
+
+  const openResourceDialog = (
+    action: SidebarResourceAction,
+    resource: SidebarResource,
+    trigger: HTMLElement,
+  ) => setResourceDialog({ action, resource, trigger });
+
+  const saveResource = async (
+    request: ResourceDialogRequest,
+    draft?: AccountDraft | TaxonomyDraft,
+  ) => {
+    const { action, resource } = request;
+    const isAccount = resource.kind === "account";
+    if (action === "delete") {
+      if (isAccount) await projection.deleteAccount(transactionFilter.filter.space, resource.value.id);
+      else await projection.deleteTaxonomy(transactionFilter.filter.space, resource.kind, resource.value.id);
+      const facet = resource.kind === "account" ? "account" : resource.kind;
+      if (transactionFilter.filter[facet] === resource.value.id) {
+        transactionFilter.setFilter({ ...transactionFilter.filter, [facet]: null });
+        setResourceNotice(`The ${facet} filter was cleared because “${resource.value.label}” was deleted.`);
+      }
+    } else if (isAccount) {
+      const accountDraft = draft as AccountDraft;
+      if (action === "create") await projection.createAccount(transactionFilter.filter.space, accountDraft);
+      else await projection.updateAccount(transactionFilter.filter.space, resource.value.id, accountDraft);
+    } else {
+      const taxonomyDraft = draft as TaxonomyDraft;
+      if (action === "create") await projection.createTaxonomy(transactionFilter.filter.space, resource.kind, taxonomyDraft);
+      else await projection.updateTaxonomy(transactionFilter.filter.space, resource.kind, resource.value.id, taxonomyDraft);
+    }
+    setResourceVersion((version) => version + 1);
   };
 
   const unlockVault = useCallback(() => {
@@ -384,9 +435,13 @@ const AppShell = ({ children }: AppShellProps) => {
           </nav>
 
           <SidebarFilters
+            accounts={accounts}
             values={taxonomy}
             filter={transactionFilter.filter}
+            canEdit={spaces.find((space) => space.id === transactionFilter.filter.space)?.canEdit === true}
             onToggleTaxonomy={toggleTaxonomy}
+            onToggleAccount={toggleAccount}
+            onResourceAction={openResourceDialog}
           />
         </NavDrawerBody>
       </NavDrawer>
@@ -398,6 +453,21 @@ const AppShell = ({ children }: AppShellProps) => {
               <MessageBarBody>{unlockError}</MessageBarBody>
             </MessageBar>
           )}
+          {resourceNotice !== null && (
+            <MessageBar intent="info">
+              <MessageBarBody>{resourceNotice}</MessageBarBody>
+              <MessageBarActions
+                containerAction={
+                  <Button
+                    appearance="transparent"
+                    icon={<DismissRegular />}
+                    aria-label="Dismiss resource message"
+                    onClick={() => setResourceNotice(null)}
+                  />
+                }
+              />
+            </MessageBar>
+          )}
           <PageTitle title={activeDestination.label} />
           {children}
         </div>
@@ -407,6 +477,11 @@ const AppShell = ({ children }: AppShellProps) => {
         accountsLoaded={accountsLoaded}
         activeSpace={transactionFilter.filter.space}
         returnFocusRef={addTransactionRef}
+      />
+      <ResourceDialog
+        request={resourceDialog}
+        onClose={() => setResourceDialog(null)}
+        onSubmit={saveResource}
       />
     </div>
   );

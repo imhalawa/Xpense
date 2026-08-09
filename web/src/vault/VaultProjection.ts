@@ -4,7 +4,13 @@ import { TransactionKind } from "../clients/types";
 export type SpaceId = string;
 export type RecordId = string;
 export type TaxonomyKind = "category" | "merchant" | "tag";
-export type CategoryPriority = "Low" | "Medium" | "High";
+export type CategoryPriority =
+  | "Essential"
+  | "Important"
+  | "Useful"
+  | "Optional"
+  | "Avoidable";
+export type CategoryCreationPriority = CategoryPriority | "Low" | "Medium" | "High";
 export type VaultState = "locked" | "loading" | "ready" | "error";
 export type FilterFacet = "space" | "category" | "merchant" | "tag" | "account" | "from" | "to";
 
@@ -20,6 +26,8 @@ export interface AccountView {
   label: string;
   currency: Currency;
   canEdit: boolean;
+  balanceMinorUnits?: number;
+  isDefault?: boolean;
 }
 
 export interface TaxonomyValue {
@@ -28,6 +36,22 @@ export interface TaxonomyValue {
   label: string;
   foregroundHex: string | null;
   backgroundHex: string | null;
+  canEdit?: boolean;
+  priority?: CategoryPriority;
+}
+
+export interface AccountDraft {
+  label: string;
+  currency: Currency;
+  openingBalanceMinorUnits: number;
+  isDefault: boolean;
+}
+
+export interface TaxonomyDraft {
+  label: string;
+  priority?: CategoryPriority;
+  foregroundHex?: string;
+  backgroundHex?: string;
 }
 
 export interface TransactionView {
@@ -97,8 +121,23 @@ export interface VaultProjection {
   createCategory(
     space: SpaceId,
     label: string,
-    priority: CategoryPriority,
+    priority: CategoryCreationPriority,
   ): Promise<TaxonomyValue>;
+  createAccount(space: SpaceId, draft: AccountDraft): Promise<AccountView>;
+  updateAccount(space: SpaceId, id: RecordId, draft: AccountDraft): Promise<AccountView>;
+  deleteAccount(space: SpaceId, id: RecordId): Promise<void>;
+  createTaxonomy(
+    space: SpaceId,
+    kind: TaxonomyKind,
+    draft: TaxonomyDraft,
+  ): Promise<TaxonomyValue>;
+  updateTaxonomy(
+    space: SpaceId,
+    kind: TaxonomyKind,
+    id: RecordId,
+    draft: TaxonomyDraft,
+  ): Promise<TaxonomyValue>;
+  deleteTaxonomy(space: SpaceId, kind: TaxonomyKind, id: RecordId): Promise<void>;
   resolveFilter(filter: TransactionFilter): Promise<FilterResolution>;
   queryTransactions(filter: TransactionFilter, page: PageRequest): Promise<TransactionPage>;
   getTransaction(space: SpaceId, id: RecordId): Promise<TransactionView | null>;

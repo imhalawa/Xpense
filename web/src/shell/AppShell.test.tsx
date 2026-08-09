@@ -99,7 +99,7 @@ describe("AppShell", () => {
     const identity = await screen.findByRole("button", { name: "Local user, Personal" });
     const addTransaction = screen.getByRole("button", { name: "Add transaction" });
     const overview = screen.getByRole("link", { name: "Overview" });
-    const manage = screen.getByRole("link", { name: "Manage" });
+    const accounts = screen.getByRole("button", { name: "Accounts" });
     const categories = screen.getByRole("button", { name: "Categories" });
     const notifications = screen.getByRole("button", { name: "No unread notifications" });
 
@@ -107,7 +107,8 @@ describe("AppShell", () => {
     expect(appearsBefore(notifications, addTransaction)).toBe(true);
     expect(appearsBefore(identity, addTransaction)).toBe(true);
     expect(appearsBefore(addTransaction, overview)).toBe(true);
-    expect(appearsBefore(manage, categories)).toBe(true);
+    expect(appearsBefore(accounts, categories)).toBe(true);
+    expect(screen.queryByRole("link", { name: "Manage" })).toBeNull();
   });
 
   it("locks and unlocks the vault from the identity menu on any route", async () => {
@@ -174,13 +175,29 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Overview" })).toBeDefined();
     expect(screen.getByRole("link", { name: "Transactions" })).toBeDefined();
     expect(screen.getByRole("link", { name: "Budgets" })).toBeDefined();
-    expect(screen.getByRole("link", { name: "Manage" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Manage" })).toBeNull();
     expect(screen.getByRole("link", { name: "Transactions" }).getAttribute("aria-current")).toBe(
       "page",
     );
     expect(
       screen.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page"),
     ).toHaveLength(1);
+  });
+
+  it("clears a deleted active filter, restores stable focus, and dismisses the notice", async () => {
+    setWindowWidth(true);
+    renderShell("/transactions?space=personal&account=account-1");
+
+    const account = await screen.findByRole("link", { name: /Current/ });
+    fireEvent.mouseEnter(account.parentElement!);
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Current" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+
+    expect(await screen.findByText(/account filter was cleared/)).toBeDefined();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Accounts" })).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss resource message" }));
+    expect(screen.queryByText(/account filter was cleared/)).toBeNull();
   });
 
   it("uses an inline drawer, 1200px content, and one matching heading on desktop", async () => {

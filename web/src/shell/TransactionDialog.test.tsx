@@ -7,11 +7,11 @@ import { fixtureProjection } from "../vault/fixtureProjection";
 import type { FixtureSeed } from "../vault/fixtureProjection";
 import type {
   AccountView,
-  CategoryPriority,
   TaxonomyValue,
   TransactionDraft,
   TransactionView,
 } from "../vault/VaultProjection";
+import type { QuickAddCategoryPriority } from "../transactions/quickAdd/types";
 import { VaultProvider } from "../vault/VaultProvider";
 import AppShell from "./AppShell";
 
@@ -46,7 +46,7 @@ vi.mock("../pages/Transactions/TransactionsForm/TransactionsForm", () => ({
     onSubmit: (draft: TransactionDraft) => Promise<void>;
     onCreateCategory: (
       label: string,
-      priority: CategoryPriority,
+      priority: QuickAddCategoryPriority,
     ) => Promise<{ id: string; label: string }>;
     taxonomy?: TaxonomyValue[];
     transaction?: TransactionView;

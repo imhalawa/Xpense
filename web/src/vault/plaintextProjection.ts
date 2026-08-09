@@ -1,11 +1,8 @@
-import {
-  createCategory,
-  listAccounts,
-  listCategories,
-  listMerchants,
-  listPriorities,
-  listTags,
-} from "../clients/options";
+import { createAccount, deleteAccount, listAccounts, updateAccount } from "../clients/accounts";
+import { createCategory, deleteCategory, listCategories, updateCategory } from "../clients/categories";
+import { createMerchant, deleteMerchant, listMerchants, updateMerchant } from "../clients/merchants";
+import { listPriorities } from "../clients/options";
+import { createTag, deleteTag, listTags, updateTag } from "../clients/tags";
 import {
   createTransaction,
   deleteTransaction,
@@ -26,6 +23,7 @@ import type {
 } from "../clients/types";
 import type {
   AccountView,
+  CategoryCreationPriority,
   CategoryPriority,
   SpaceSummary,
   TaxonomyKind,
@@ -41,11 +39,23 @@ const transactionPageSize = 200;
 const transactionRowCeiling = 2000;
 const lockedMessage = "The vault is locked";
 const missingTransferAccountMessage = "Select a destination account before saving the transfer";
-const priorityLabelByDraftPriority: Record<CategoryPriority, string> = {
+const priorityLabelByCreationPriority: Record<CategoryCreationPriority, CategoryPriority> = {
+  Essential: "Essential",
+  Important: "Important",
+  Useful: "Useful",
+  Optional: "Optional",
+  Avoidable: "Avoidable",
   High: "Important",
   Medium: "Useful",
   Low: "Optional",
 };
+const categoryPriorities: CategoryPriority[] = [
+  "Essential",
+  "Important",
+  "Useful",
+  "Optional",
+  "Avoidable",
+];
 
 const personalSpace: SpaceSummary = {
   id: personalSpaceId,
@@ -53,6 +63,9 @@ const personalSpace: SpaceSummary = {
   kind: "personal",
   canEdit: true,
 };
+
+const categoryPriorityOf = (label: string): CategoryPriority =>
+  categoryPriorities.find((priority) => priority === label) ?? "Useful";
 
 export interface RowCeilingReport {
   loadedRowCount: number;
@@ -71,6 +84,8 @@ const toAccountView = (account: IAccountResponse): AccountView => ({
   label: account.label,
   currency: account.balance.currency,
   canEdit: true,
+  balanceMinorUnits: account.balance.minorUnits,
+  isDefault: account.isDefault,
 });
 
 const toCategoryValue = (category: ICategoryResponse): TaxonomyValue => ({
@@ -79,6 +94,8 @@ const toCategoryValue = (category: ICategoryResponse): TaxonomyValue => ({
   label: category.label,
   foregroundHex: null,
   backgroundHex: null,
+  canEdit: true,
+  priority: categoryPriorityOf(category.priority.label),
 });
 
 const toMerchantValue = (merchant: IMerchantResponse): TaxonomyValue => ({
@@ -87,6 +104,7 @@ const toMerchantValue = (merchant: IMerchantResponse): TaxonomyValue => ({
   label: merchant.label,
   foregroundHex: null,
   backgroundHex: null,
+  canEdit: true,
 });
 
 const toTagValue = (tag: ITagResponse): TaxonomyValue => ({
@@ -95,6 +113,7 @@ const toTagValue = (tag: ITagResponse): TaxonomyValue => ({
   label: tag.label,
   foregroundHex: tag.fgColorHex,
   backgroundHex: tag.bgColorHex,
+  canEdit: true,
 });
 
 const accountSides = (
@@ -220,6 +239,17 @@ export const plaintextProjection = (): PlaintextProjection => {
     occurredAt: draft.occurredAt,
   });
 
+  const requirePersonalSpace = (space: string): void => {
+    if (space !== personalSpaceId) throw new Error("The space was not found");
+  };
+
+  const priorityId = (priority: CategoryCreationPriority | undefined): number => {
+    const label = priorityLabelByCreationPriority[priority ?? "Useful"];
+    const found = priorities.find((item) => item.label === label);
+    if (found === undefined) throw new Error("The category priority is unavailable");
+    return found.id;
+  };
+
   return {
     get state() {
       return currentState;
@@ -272,13 +302,88 @@ export const plaintextProjection = (): PlaintextProjection => {
 
     async createCategory(space, label, priority) {
       requireLoaded();
-      if (space !== personalSpaceId) throw new Error("The space was not found");
-      const priorityLabel = priorityLabelByDraftPriority[priority];
-      const knownPriority = priorities.find((item) => item.label === priorityLabel);
-      if (knownPriority === undefined) throw new Error("The category priority is unavailable");
-      const created = await createCategory({ label, priorityId: knownPriority.id });
+      requirePersonalSpace(space);
+      const created = await createCategory({ label, priorityId: priorityId(priority) });
       await load();
       return toCategoryValue(created);
+    },
+
+    async createAccount(space, draft) {
+      requireLoaded();
+      requirePersonalSpace(space);
+      const created = await createAccount({
+        label: draft.label,
+        balance: { minorUnits: draft.openingBalanceMinorUnits, currency: draft.currency },
+      });
+      await load();
+      if (!draft.isDefault) return toAccountView(created);
+      const updated = await updateAccount(created.accountNumber, { label: created.label, isDefault: true });
+      await load();
+      return toAccountView(updated);
+    },
+
+    async updateAccount(space, id, draft) {
+      requireLoaded();
+      requirePersonalSpace(space);
+      const updated = await updateAccount(id, { label: draft.label, isDefault: draft.isDefault });
+      await load();
+      return toAccountView(updated);
+    },
+
+    async deleteAccount(space, id) {
+      requireLoaded();
+      requirePersonalSpace(space);
+      await deleteAccount(id);
+      await load();
+    },
+
+    async createTaxonomy(space, kind, draft) {
+      requireLoaded();
+      requirePersonalSpace(space);
+      const created =
+        kind === "category"
+          ? toCategoryValue(await createCategory({ label: draft.label, priorityId: priorityId(draft.priority) }))
+          : kind === "tag"
+            ? toTagValue(await createTag({
+                label: draft.label,
+                bgColorHex: draft.backgroundHex ?? "#EDEDED",
+                fgColorHex: draft.foregroundHex ?? "#242424",
+              }))
+            : toMerchantValue(await createMerchant({ label: draft.label }));
+      await load();
+      return created;
+    },
+
+    async updateTaxonomy(space, kind, id, draft) {
+      requireLoaded();
+      requirePersonalSpace(space);
+      const existingPriority = taxonomy.find(
+        (value) => value.kind === "category" && value.id === id,
+      )?.priority;
+      const updated =
+        kind === "category"
+          ? toCategoryValue(await updateCategory(id, {
+              label: draft.label,
+              priorityId: priorityId(draft.priority ?? existingPriority),
+            }))
+          : kind === "tag"
+            ? toTagValue(await updateTag(id, {
+                label: draft.label,
+                bgColorHex: draft.backgroundHex ?? "#EDEDED",
+                fgColorHex: draft.foregroundHex ?? "#242424",
+              }))
+            : toMerchantValue(await updateMerchant(id, { label: draft.label }));
+      await load();
+      return updated;
+    },
+
+    async deleteTaxonomy(space, kind, id) {
+      requireLoaded();
+      requirePersonalSpace(space);
+      if (kind === "category") await deleteCategory(id);
+      else if (kind === "tag") await deleteTag(id);
+      else await deleteMerchant(id);
+      await load();
     },
 
     async resolveFilter(filter) {

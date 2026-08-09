@@ -225,6 +225,42 @@ describe("fixtureProjection", () => {
     ).toEqual(["merchant-1"]);
   });
 
+  it("creates, updates, and deletes sidebar resources without reordering their peers", async () => {
+    const projection = fixtureProjection(buildSeed([]));
+    const account = await projection.createAccount(personalSpace, {
+      label: "Cash",
+      currency: Currency.EUR,
+      openingBalanceMinorUnits: 500,
+      isDefault: false,
+    });
+    const tag = await projection.createTaxonomy(personalSpace, "tag", {
+      label: "Holiday",
+      backgroundHex: "#EDEDED",
+      foregroundHex: "#242424",
+    });
+    await projection.updateTaxonomy(personalSpace, "tag", tag.id, {
+      label: "Travel",
+      backgroundHex: "#FFFFFF",
+      foregroundHex: "#000000",
+    });
+
+    expect((await projection.listAccounts(personalSpace)).map((item) => item.label)).toEqual([
+      "Everyday",
+      "Savings",
+      "Cash",
+    ]);
+    expect((await projection.listTaxonomy(personalSpace, "tag")).map((item) => item.label)).toEqual([
+      "Work",
+      "Travel",
+    ]);
+
+    await projection.deleteAccount(personalSpace, account.id);
+    await projection.deleteTaxonomy(personalSpace, "tag", tag.id);
+    expect(await projection.resolveFilter(buildFilter({ account: account.id, tag: tag.id }))).toEqual(
+      expect.objectContaining({ removed: ["tag", "account"] }),
+    );
+  });
+
   it("adds a saved draft to the space it was written to", async () => {
     const projection = fixtureProjection(buildSeed([buildTransaction({ id: "one" })]));
 

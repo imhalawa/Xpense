@@ -31,7 +31,6 @@ import { useLoading } from "../../../contexts/LoadingContext";
 import { toMinorUnits } from "../../../typings/models/IMoney";
 import type {
   AccountView,
-  CategoryPriority,
   TransactionDraft,
 } from "../../../vault/VaultProjection";
 import type { TaxonomyValue, TransactionView } from "../../../vault/VaultProjection";
@@ -45,6 +44,7 @@ import type {
   QuickAddParserContext,
   QuickAddPickerRequest,
   QuickAddField,
+  QuickAddCategoryPriority,
 } from "../../../transactions/quickAdd/types";
 
 export interface ITransactionFormProps {
@@ -56,17 +56,17 @@ export interface ITransactionFormProps {
   taxonomy?: TaxonomyValue[];
   onCreateCategory?: (
     label: string,
-    priority: CategoryPriority,
+    priority: QuickAddCategoryPriority,
   ) => Promise<{ id: string; label: string }>;
   submitLabel?: string;
 }
 
 const currencies: Currency[] = Object.values(Currency);
-const categoryPriorities: CategoryPriority[] = ["Low", "Medium", "High"];
+const categoryPriorities: QuickAddCategoryPriority[] = ["Low", "Medium", "High"];
 
 interface PendingCategory {
   label: string;
-  priority: CategoryPriority;
+  priority: QuickAddCategoryPriority;
 }
 
 const useStyles = makeStyles({
@@ -181,7 +181,7 @@ const TransactionsForm = ({
   const [createdCategory, setCreatedCategory] = useState<{
     id: string;
     label: string;
-    priority: CategoryPriority;
+    priority: QuickAddCategoryPriority;
   } | null>(null);
   const [activePickerRequest, setActivePickerRequest] = useState<QuickAddPickerRequest | null>(null);
   const [submitFailure, setSubmitFailure] = useState<string | null>(null);
@@ -451,7 +451,7 @@ const TransactionsForm = ({
               selectedOptions={[pendingCategory.priority]}
               disabled={createdCategory !== null}
               onOptionSelect={(_event, data) => {
-                const priority = data.optionValue as CategoryPriority | undefined;
+                const priority = data.optionValue as QuickAddCategoryPriority | undefined;
                 if (priority !== undefined) {
                   setPendingCategory((current) =>
                     current === null ? null : { ...current, priority },

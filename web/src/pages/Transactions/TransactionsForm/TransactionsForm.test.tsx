@@ -4,11 +4,11 @@ import { LoadingContextProvider } from "../../../contexts/LoadingContext";
 import { Currency } from "../../../typings/enums/Currency";
 import type {
   AccountView,
-  CategoryPriority,
   TaxonomyValue,
   TransactionDraft,
   TransactionView,
 } from "../../../vault/VaultProjection";
+import type { QuickAddCategoryPriority } from "../../../transactions/quickAdd/types";
 import TransactionsForm from "./TransactionsForm";
 
 vi.mock("../../../components/Forms/AutoComplete/AccountAutoComplete/AccountAutoComplete", () => ({
@@ -80,7 +80,7 @@ const renderForm = (
   onSubmit = vi.fn<(_: TransactionDraft) => Promise<void>>().mockResolvedValue(undefined),
   onCreateCategory?: (
     label: string,
-    priority: CategoryPriority,
+    priority: QuickAddCategoryPriority,
   ) => Promise<{ id: string; label: string }>,
   options: {
     transaction?: TransactionView;

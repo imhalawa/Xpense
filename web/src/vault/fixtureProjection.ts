@@ -1,6 +1,6 @@
 import type {
   AccountView,
-  CategoryPriority,
+  CategoryCreationPriority,
   FilterFacet,
   FilterResolution,
   PageRequest,
@@ -19,6 +19,16 @@ import type {
 
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
 const lockedMessage = "The vault is locked";
+const priorityAliases: Record<CategoryCreationPriority, "Essential" | "Important" | "Useful" | "Optional" | "Avoidable"> = {
+  Essential: "Essential",
+  Important: "Important",
+  Useful: "Useful",
+  Optional: "Optional",
+  Avoidable: "Avoidable",
+  High: "Important",
+  Medium: "Useful",
+  Low: "Optional",
+};
 
 export interface FixtureSeed {
   spaces: SpaceSummary[];
@@ -51,11 +61,15 @@ const matchesFilter = (transaction: TransactionView, filter: TransactionFilter):
 export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
   const transactionsBySpace: Record<SpaceId, TransactionView[]> = {};
   const taxonomyBySpace: Record<SpaceId, TaxonomyValue[]> = {};
+  const accountsBySpace: Record<SpaceId, AccountView[]> = {};
   for (const [space, transactions] of Object.entries(seed.transactions)) {
     transactionsBySpace[space] = [...transactions];
   }
   for (const [space, values] of Object.entries(seed.taxonomy)) {
     taxonomyBySpace[space] = [...values];
+  }
+  for (const [space, accounts] of Object.entries(seed.accounts)) {
+    accountsBySpace[space] = [...accounts];
   }
 
   let currentState: VaultState = "ready";
@@ -77,7 +91,7 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
     taxonomyOf(space).some((value) => value.kind === kind && value.id === id);
 
   const knowsAccount = (space: SpaceId, id: RecordId): boolean =>
-    (seed.accounts[space] ?? []).some((account) => account.id === id);
+    (accountsBySpace[space] ?? []).some((account) => account.id === id);
 
   const findTaxonomyIdByLabel = (
     space: SpaceId,
@@ -113,7 +127,7 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
 
     async listAccounts(space: SpaceId): Promise<AccountView[]> {
       requireUnlocked();
-      return seed.accounts[space] ?? [];
+      return accountsBySpace[space] ?? [];
     },
 
     async listTaxonomy(space: SpaceId, kind: TaxonomyKind): Promise<TaxonomyValue[]> {
@@ -124,7 +138,7 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
     async createCategory(
       space: SpaceId,
       label: string,
-      _priority: CategoryPriority,
+      priority: CategoryCreationPriority,
     ): Promise<TaxonomyValue> {
       requireUnlocked();
       const categories = taxonomyOf(space).filter((value) => value.kind === "category");
@@ -134,9 +148,89 @@ export const fixtureProjection = (seed: FixtureSeed): VaultProjection => {
         label,
         foregroundHex: null,
         backgroundHex: null,
+        priority: priorityAliases[priority],
       };
       taxonomyBySpace[space] = [...taxonomyOf(space), created];
       return created;
+    },
+
+    async createAccount(space, draft) {
+      requireUnlocked();
+      const accounts = accountsBySpace[space] ?? [];
+      const created: AccountView = {
+        id: `fixture-account-${accounts.length + 1}`,
+        label: draft.label,
+        currency: draft.currency,
+        canEdit: true,
+        balanceMinorUnits: draft.openingBalanceMinorUnits,
+        isDefault: draft.isDefault,
+      };
+      accountsBySpace[space] = [...accounts.map((account) => ({ ...account, isDefault: draft.isDefault ? false : account.isDefault })), created];
+      return created;
+    },
+
+    async updateAccount(space, id, draft) {
+      requireUnlocked();
+      const accounts = accountsBySpace[space] ?? [];
+      const existing = accounts.find((account) => account.id === id);
+      if (existing === undefined) throw new Error("The account was not found");
+      if (!existing.canEdit) throw new Error("The account cannot be edited");
+      const updated = { ...existing, label: draft.label, isDefault: draft.isDefault };
+      accountsBySpace[space] = accounts.map((account) =>
+        account.id === id ? updated : { ...account, isDefault: draft.isDefault ? false : account.isDefault },
+      );
+      return updated;
+    },
+
+    async deleteAccount(space, id) {
+      requireUnlocked();
+      const accounts = accountsBySpace[space] ?? [];
+      const existing = accounts.find((account) => account.id === id);
+      if (existing === undefined) throw new Error("The account was not found");
+      if (!existing.canEdit) throw new Error("The account cannot be edited");
+      accountsBySpace[space] = accounts.filter((account) => account.id !== id);
+    },
+
+    async createTaxonomy(space, kind, draft) {
+      requireUnlocked();
+      const values = taxonomyOf(space);
+      const created: TaxonomyValue = {
+        id: `fixture-${kind}-${values.filter((value) => value.kind === kind).length + 1}`,
+        kind,
+        label: draft.label,
+        foregroundHex: kind === "tag" ? draft.foregroundHex ?? "#242424" : null,
+        backgroundHex: kind === "tag" ? draft.backgroundHex ?? "#EDEDED" : null,
+        canEdit: true,
+        priority: kind === "category" ? draft.priority ?? "Useful" : undefined,
+      };
+      taxonomyBySpace[space] = [...values, created];
+      return created;
+    },
+
+    async updateTaxonomy(space, kind, id, draft) {
+      requireUnlocked();
+      const values = taxonomyOf(space);
+      const existing = values.find((value) => value.kind === kind && value.id === id);
+      if (existing === undefined) throw new Error("The value was not found");
+      if (existing.canEdit === false) throw new Error("The value cannot be edited");
+      const updated: TaxonomyValue = {
+        ...existing,
+        label: draft.label,
+        foregroundHex: kind === "tag" ? draft.foregroundHex ?? existing.foregroundHex : null,
+        backgroundHex: kind === "tag" ? draft.backgroundHex ?? existing.backgroundHex : null,
+        priority: kind === "category" ? draft.priority ?? existing.priority ?? "Useful" : undefined,
+      };
+      taxonomyBySpace[space] = values.map((value) => (value.id === id ? updated : value));
+      return updated;
+    },
+
+    async deleteTaxonomy(space, kind, id) {
+      requireUnlocked();
+      const values = taxonomyOf(space);
+      const existing = values.find((value) => value.kind === kind && value.id === id);
+      if (existing === undefined) throw new Error("The value was not found");
+      if (existing.canEdit === false) throw new Error("The value cannot be edited");
+      taxonomyBySpace[space] = values.filter((value) => value.id !== id);
     },
 
     async resolveFilter(filter: TransactionFilter): Promise<FilterResolution> {

@@ -58,9 +58,11 @@ const tags: ITagResponse[] = [
 ];
 
 const priorities: IPriorityResponse[] = [
+  { id: 1, label: "Essential", weight: 1, createdAt, updatedAt: null },
   { id: 2, label: "Important", weight: 75, createdAt, updatedAt: null },
   { id: 3, label: "Useful", weight: 50, createdAt, updatedAt: null },
   { id: 4, label: "Optional", weight: 25, createdAt, updatedAt: null },
+  { id: 5, label: "Avoidable", weight: 5, createdAt, updatedAt: null },
 ];
 
 const buildTransaction = (
@@ -203,6 +205,7 @@ describe("plaintextProjection", () => {
     const { rows } = await projection.queryTransactions(buildFilter(), { offset: 0, limit: 50 });
 
     expect(category.id).toBe("7");
+    expect(category.priority).toBe("Essential");
     expect(merchant.id).toBe("3");
     expect(tag.id).toBe("5");
     expect(account.id).toBe(everydayAccountNumber);
@@ -340,7 +343,7 @@ describe("plaintextProjection", () => {
     const createdCategory: ICategoryResponse = {
       id: 8,
       label: "New food",
-      priority: priorities[1],
+      priority: priorities[2],
       createdAt,
       updatedAt: null,
     };
@@ -348,7 +351,7 @@ describe("plaintextProjection", () => {
 
     const projection = plaintextProjection();
     await projection.unlock();
-    const created = await projection.createCategory(personalSpace, "New food", "Medium");
+    const created = await projection.createCategory(personalSpace, "New food", "Useful");
 
     expect(vi.mocked(axios.post)).toHaveBeenCalledWith("/api/v1/categories", {
       label: "New food",
@@ -358,6 +361,24 @@ describe("plaintextProjection", () => {
       expect.objectContaining({ id: "8", kind: "category", label: "New food" }),
     );
     expect(callsTo("/api/v1/categories")).toHaveLength(2);
+  });
+
+  it("preserves the category priority when only its label changes", async () => {
+    stubSinglePage([]);
+    vi.mocked(axios.put).mockResolvedValue({
+      data: { ...categories[0], label: "Food and drink" },
+    });
+
+    const projection = plaintextProjection();
+    await projection.unlock();
+    await projection.updateTaxonomy(personalSpace, "category", "7", {
+      label: "Food and drink",
+    });
+
+    expect(vi.mocked(axios.put)).toHaveBeenCalledWith("/api/v1/categories/7", {
+      label: "Food and drink",
+      priorityId: 1,
+    });
   });
 
   it("asks the server to create a merchant or tag it has never seen", async () => {
