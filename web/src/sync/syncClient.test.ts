@@ -14,6 +14,7 @@ import {
   deleteVaultDatabase,
   openVaultDatabase,
   type VaultDatabase,
+  type VaultOutboxMutation,
   type VaultRecord,
 } from "../vault/vaultDatabase";
 
@@ -97,6 +98,44 @@ afterEach(async () => {
 });
 
 describe("SyncClient.pull", () => {
+  it("stages a pulled server revision without overwriting queued optimistic ciphertext", async () => {
+    const optimistic: VaultRecord = record(1, {
+      nonce: bytes(80),
+      ciphertext: bytes(90),
+    });
+    const mutation: VaultOutboxMutation = {
+      kind: "replace",
+      record: optimistic,
+      request: {
+        expectedRevision: 1,
+        protocolVersion: 1,
+        nonce: optimistic.nonce,
+        ciphertext: optimistic.ciphertext,
+      },
+    };
+    await database!.enqueueOutbox({
+      operationId: "55555555-5555-4555-8555-555555555555",
+      idempotencyKey: "66666666-6666-4666-8666-666666666666",
+      mutation,
+    });
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { records: [wireRecord(2)], nextCursor: "staged", hasMore: false },
+    });
+
+    await new SyncClient(database!, { decrypt: vi.fn().mockResolvedValue(accountPayload()) }).pull();
+
+    const local = await database!.getRecord(recordId);
+    expect(local).toMatchObject({ revision: 1 });
+    expect(Array.from(local!.ciphertext)).toEqual(Array.from(bytes(90)));
+    await expect(database!.outboxEntries()).resolves.toEqual([
+      expect.objectContaining({
+        mutation: expect.objectContaining({ record: expect.objectContaining({ revision: 1 }) }),
+        latestServerRecord: expect.objectContaining({ revision: 2 }),
+      }),
+    ]);
+    await expect(database!.getSyncState()).resolves.toEqual({ key: "changes", cursor: "staged" });
+  });
+
   it("applies created, updated, and tombstoned records in cursor-page order", async () => {
     vi.mocked(axios.get)
       .mockResolvedValueOnce({
@@ -283,6 +322,21 @@ describe("SyncClient.pull", () => {
 });
 
 describe("sync endpoint client", () => {
+  it("turns the server's 409 encrypted record body into a conflict", async () => {
+    const response = { status: 409, data: wireRecord(2) };
+    vi.mocked(axios.put).mockRejectedValue({ response });
+    vi.mocked(axios.isAxiosError).mockReturnValue(true);
+
+    await expect(replaceSyncRecord(recordId, {
+      expectedRevision: 1,
+      protocolVersion: 1,
+      nonce: bytes(1),
+      ciphertext: bytes(2),
+    })).rejects.toMatchObject({
+      record: expect.objectContaining({ id: recordId, revision: 2, ciphertext: bytes(22) }),
+    });
+  });
+
   it("uses the six sync routes and sends Base64 wire bytes", async () => {
     vi.mocked(axios.get).mockResolvedValue({ data: { records: [], nextCursor: "", hasMore: false } });
     vi.mocked(axios.post)

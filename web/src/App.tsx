@@ -13,6 +13,7 @@ import GlobalStyles from "./fluent/GlobalStyles.tsx";
 import { LoadingContextProvider } from "./contexts/LoadingContext.tsx";
 import { VaultProvider } from "./vault/VaultProvider.tsx";
 import { plaintextProjection } from "./vault/plaintextProjection.ts";
+import { SyncLifecycleCoordinator } from "./sync/lifecycle.ts";
 
 const useStyles = makeStyles({
   root: {
@@ -26,6 +27,7 @@ function App() {
   const { resolved } = useColorScheme();
 
   const projection = useMemo(() => plaintextProjection(), []);
+  const syncLifecycle = useMemo(() => new SyncLifecycleCoordinator(), []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolved;
@@ -37,7 +39,7 @@ function App() {
       data-theme={resolved}
       theme={resolved === "dark" ? darkTheme : lightTheme}>
       <GlobalStyles />
-      <VaultProvider projection={projection}>
+      <VaultProvider projection={projection} syncLifecycle={syncLifecycle}>
         <LoadingContextProvider>
           <Routes>
             <Route path="/" element={<Layout />}>

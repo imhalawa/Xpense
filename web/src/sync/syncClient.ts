@@ -71,6 +71,12 @@ export interface SyncChanges {
   hasMore: boolean;
 }
 
+export class SyncConflictError extends Error {
+  constructor(readonly record: SyncRecord) {
+    super("The record was changed on another device");
+  }
+}
+
 export interface CreateSyncRecord {
   id: string;
   idempotencyKey: string;
@@ -243,30 +249,54 @@ export const getSyncChanges = async (
   };
 };
 
-export const createSyncRecords = async (request: {
-  records: CreateSyncRecord[];
-}): Promise<SyncRecord[]> =>
+export const createSyncRecords = async (
+  request: { records: CreateSyncRecord[] },
+  signal?: AbortSignal,
+): Promise<SyncRecord[]> =>
   (
-    await axios.post<{ records: WireSyncRecord[] }>("/api/v1/sync/records", {
-      records: request.records.map(toWireCreateRecord),
-    })
+    signal === undefined
+      ? await axios.post<{ records: WireSyncRecord[] }>("/api/v1/sync/records", {
+          records: request.records.map(toWireCreateRecord),
+        })
+      : await axios.post<{ records: WireSyncRecord[] }>(
+          "/api/v1/sync/records",
+          { records: request.records.map(toWireCreateRecord) },
+          { signal },
+        )
   ).data.records.map(toSyncRecord);
 
 export const replaceSyncRecord = async (
   id: string,
   request: ReplaceSyncRecord,
+  signal?: AbortSignal,
 ): Promise<SyncRecord> =>
-  toSyncRecord(
-    (
-      await axios.put<WireSyncRecord>(
-        `/api/v1/sync/records/${encodeURIComponent(id)}`,
-        toWireReplaceRecord(request),
-      )
-    ).data,
-  );
+  {
+    try {
+      return toSyncRecord(
+        (
+          signal === undefined
+            ? await axios.put<WireSyncRecord>(
+                `/api/v1/sync/records/${encodeURIComponent(id)}`,
+                toWireReplaceRecord(request),
+              )
+            : await axios.put<WireSyncRecord>(
+                `/api/v1/sync/records/${encodeURIComponent(id)}`,
+                toWireReplaceRecord(request),
+                { signal },
+              )
+        ).data,
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        throw new SyncConflictError(toSyncRecord(error.response.data as WireSyncRecord));
+      }
+      throw error;
+    }
+  };
 
-export const deleteSyncRecord = async (id: string): Promise<void> => {
-  await axios.delete(`/api/v1/sync/records/${encodeURIComponent(id)}`);
+export const deleteSyncRecord = async (id: string, signal?: AbortSignal): Promise<void> => {
+  if (signal === undefined) await axios.delete(`/api/v1/sync/records/${encodeURIComponent(id)}`);
+  else await axios.delete(`/api/v1/sync/records/${encodeURIComponent(id)}`, { signal });
 };
 
 export const addSyncRecordEnvelope = async (
@@ -321,11 +351,24 @@ export class SyncClient {
     signal: AbortSignal | undefined,
   ): Promise<VaultSyncMutation[]> {
     const stored = toVaultRecord(record);
-    const current = await this.database.getRecord(record.id);
+    const [current, pending] = await Promise.all([
+      this.database.getRecord(record.id),
+      this.database.outboxEntryForRecord(record.id),
+    ]);
     assertNotAborted(signal);
     if (current !== undefined && current.revision > stored.revision) return [];
 
     if (stored.tombstone) {
+      if (pending !== undefined) {
+        return [
+          {
+            kind: "stage-outbox-server-record",
+            operationId: pending.operationId,
+            record: stored,
+          },
+          { kind: "delete-quarantine", recordId: stored.id, revision: stored.revision },
+        ];
+      }
       return [
         { kind: "put-record", record: stored },
         { kind: "delete-quarantine", recordId: stored.id, revision: stored.revision },
@@ -348,6 +391,16 @@ export class SyncClient {
     }
 
     assertNotAborted(signal);
+    if (pending !== undefined) {
+      return [
+        {
+          kind: "stage-outbox-server-record",
+          operationId: pending.operationId,
+          record: stored,
+        },
+        { kind: "delete-quarantine", recordId: stored.id, revision: stored.revision },
+      ];
+    }
     return [
       { kind: "put-record", record: stored },
       { kind: "delete-quarantine", recordId: stored.id, revision: stored.revision },

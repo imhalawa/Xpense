@@ -3,7 +3,7 @@ import { PROTOCOL_VERSION, type RecordType } from "../crypto/protocol";
 export const VAULT_DATABASE_NAME = "xpense-vault";
 export const LEGACY_QUARANTINE_REVISION = 0;
 
-const vaultDatabaseVersion = 2;
+const vaultDatabaseVersion = 3;
 
 export type VaultStoreName =
   | "records"
@@ -63,10 +63,45 @@ export interface VaultQuarantineEntry {
   reason: "authentication-failed" | "invalid-payload";
 }
 
+export interface VaultOutboxCreateRequest {
+  id: string;
+  recordType: number;
+  parentResourceId: string | null;
+  protocolVersion: number;
+  nonce: Uint8Array;
+  ciphertext: Uint8Array;
+  personalEnvelope: {
+    wrappedKey: Uint8Array;
+    nonce: Uint8Array;
+    protocolVersion: number;
+  };
+}
+
+export interface VaultOutboxReplaceRequest {
+  expectedRevision: number;
+  protocolVersion: number;
+  nonce: Uint8Array;
+  ciphertext: Uint8Array;
+}
+
+export type VaultOutboxMutation =
+  | { kind: "create"; record: VaultRecord; request: VaultOutboxCreateRequest }
+  | { kind: "replace"; record: VaultRecord; request: VaultOutboxReplaceRequest }
+  | { kind: "delete"; record: VaultRecord };
+
+export interface VaultOutboxEntry {
+  operationId: string;
+  idempotencyKey: string;
+  sequence: number;
+  mutation: VaultOutboxMutation;
+  latestServerRecord?: VaultRecord;
+}
+
 export type VaultSyncMutation =
   | { kind: "put-record"; record: VaultRecord }
   | { kind: "put-quarantine"; entry: VaultQuarantineEntry }
-  | { kind: "delete-quarantine"; recordId: string; revision: number };
+  | { kind: "delete-quarantine"; recordId: string; revision: number }
+  | { kind: "stage-outbox-server-record"; operationId: string; record: VaultRecord };
 
 interface StoredVaultRecord {
   id: string;
@@ -215,6 +250,62 @@ export class VaultDatabase {
     return this.put("syncState", state);
   }
 
+  async enqueueOutbox(
+    entry: Omit<VaultOutboxEntry, "sequence">,
+  ): Promise<VaultOutboxEntry> {
+    return new Promise((resolve, reject) => {
+      const transaction = this.database.transaction(["outbox", "records"], "readwrite");
+      const outbox = transaction.objectStore("outbox");
+      const records = transaction.objectStore("records");
+      const request = outbox.getAll();
+      request.onsuccess = () => {
+        const sequence = (request.result as VaultOutboxEntry[]).reduce(
+          (highest, queued) => Math.max(highest, queued.sequence ?? 0),
+          0,
+        ) + 1;
+        const queued = { ...entry, sequence };
+        outbox.put(queued);
+        records.put(entry.mutation.record);
+        transaction.oncomplete = () => resolve(queued);
+      };
+      transaction.onerror = () => reject(transaction.error ?? request.error);
+      transaction.onabort = () => reject(transaction.error ?? request.error);
+    });
+  }
+
+  outboxEntries(): Promise<VaultOutboxEntry[]> {
+    return runTransaction<VaultOutboxEntry[]>(this.database, "outbox", "readonly", (store) =>
+      store.getAll(),
+    ).then((entries) => entries.sort((left, right) => left.sequence - right.sequence));
+  }
+
+  async outboxEntryForRecord(recordId: string): Promise<VaultOutboxEntry | undefined> {
+    return (await this.outboxEntries()).find((entry) => entry.mutation.record.id === recordId);
+  }
+
+  async replaceOutbox(entry: VaultOutboxEntry): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = this.database.transaction(["outbox", "records"], "readwrite");
+      transaction.objectStore("outbox").put(entry);
+      transaction.objectStore("records").put(entry.mutation.record);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
+  async acknowledgeOutbox(operationId: string, record?: VaultRecord): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      const stores = record === undefined ? ["outbox"] : ["outbox", "records"];
+      const transaction = this.database.transaction(stores, "readwrite");
+      transaction.objectStore("outbox").delete(operationId);
+      if (record !== undefined) transaction.objectStore("records").put(record);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
   putQuarantine(entry: VaultQuarantineEntry): Promise<IDBValidKey> {
     return this.put("quarantine", entry);
   }
@@ -240,10 +331,11 @@ export class VaultDatabase {
     assertNotAborted(signal);
     return new Promise((resolve, reject) => {
       const transaction = this.database.transaction(
-        ["records", "quarantine", "syncState"],
+        ["records", "outbox", "quarantine", "syncState"],
         "readwrite",
       );
       const records = transaction.objectStore("records");
+      const outbox = transaction.objectStore("outbox");
       const quarantine = transaction.objectStore("quarantine");
       const syncState = transaction.objectStore("syncState");
       const abort = (): void => {
@@ -273,7 +365,17 @@ export class VaultDatabase {
           assertNotAborted(signal);
           if (mutation.kind === "put-record") records.put(mutation.record);
           else if (mutation.kind === "put-quarantine") quarantine.put(mutation.entry);
-          else quarantine.delete([mutation.recordId, mutation.revision]);
+          else if (mutation.kind === "delete-quarantine") {
+            quarantine.delete([mutation.recordId, mutation.revision]);
+          } else {
+            const request = outbox.get(mutation.operationId);
+            request.onsuccess = () => {
+              const entry = request.result as VaultOutboxEntry | undefined;
+              if (entry?.mutation.record.id === mutation.record.id) {
+                outbox.put({ ...entry, latestServerRecord: mutation.record });
+              }
+            };
+          }
         }
         assertNotAborted(signal);
         syncState.put({ key: "changes", cursor });
@@ -318,6 +420,26 @@ export const openVaultDatabase = (): Promise<VaultDatabase> =>
         if (!database.objectStoreNames.contains(definition.name)) {
           database.createObjectStore(definition.name, { keyPath: definition.keyPath });
         }
+      }
+      if (event.oldVersion < 3) {
+        const outbox = request.transaction!.objectStore("outbox");
+        if (!outbox.indexNames.contains("sequence")) {
+          outbox.createIndex("sequence", "sequence", { unique: true });
+        }
+        const existing = outbox.getAll();
+        existing.onsuccess = () => {
+          let nextSequence = (existing.result as Array<Record<string, unknown>>).reduce(
+            (highest, value) =>
+              typeof value.sequence === "number" ? Math.max(highest, value.sequence) : highest,
+            0,
+          ) + 1;
+          for (const value of existing.result as Array<Record<string, unknown>>) {
+            if (typeof value.sequence !== "number") {
+              outbox.put({ ...value, sequence: nextSequence });
+              nextSequence += 1;
+            }
+          }
+        };
       }
     };
     request.onsuccess = () => resolve(new VaultDatabase(request.result));

@@ -22,6 +22,29 @@ const normalise = (value: unknown): unknown => {
   return value;
 };
 
+const seedVersionTwoDatabase = (): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const request = indexedDB.open("xpense-vault", 2);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore("records", { keyPath: "id" });
+      request.result.createObjectStore("envelopes", { keyPath: ["recordId", "groupId"] });
+      request.result.createObjectStore("wrappers", { keyPath: "id" });
+      request.result.createObjectStore("syncState", { keyPath: "key" });
+      const outbox = request.result.createObjectStore("outbox", { keyPath: "operationId" });
+      request.result.createObjectStore("quarantine", { keyPath: ["recordId", "revision"] });
+      outbox.put({
+        operationId,
+        idempotencyKey: "original-key",
+        mutation: { ciphertext: bytes(60) },
+      });
+    };
+    request.onsuccess = () => {
+      request.result.close();
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+
 const fixtures: Array<{
   store: VaultStoreName;
   key: IDBValidKey;
@@ -124,6 +147,30 @@ describe("vault ciphertext database", () => {
     expect(Array.from(database!.objectStoreNames).sort()).toEqual(
       ["records", "envelopes", "wrappers", "syncState", "outbox", "quarantine"].sort(),
     );
+  });
+
+  it("upgrades a version-two outbox without dropping its encrypted operations", async () => {
+    database!.close();
+    await deleteVaultDatabase();
+    await seedVersionTwoDatabase();
+
+    database = await openVaultDatabase();
+
+    expect(database.version).toBe(3);
+    const upgraded = await database.get<Record<string, unknown>>("outbox", operationId);
+    expect({
+      ...upgraded,
+      mutation: {
+        ...(upgraded!.mutation as Record<string, unknown>),
+        ciphertext: Array.from((upgraded!.mutation as { ciphertext: Uint8Array }).ciphertext),
+      },
+    }).toMatchObject({
+      operationId,
+      idempotencyKey: "original-key",
+      sequence: 1,
+      mutation: { ciphertext: Array.from(bytes(60)) },
+    });
+    expect(JSON.stringify(await database.get("outbox", operationId))).not.toContain(hiddenLabel);
   });
 
   it("stores no plaintext or cryptographic keys", async () => {

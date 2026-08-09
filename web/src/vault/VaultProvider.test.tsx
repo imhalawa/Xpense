@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { createUserMasterKey } from "../crypto/keyHierarchy";
+import { SyncLifecycleCoordinator } from "../sync/lifecycle";
 import type { VaultWorkerResponse } from "../crypto/worker/commands";
 import type {
   VaultWorkerMessage,
@@ -54,6 +55,9 @@ const stubProjection = (initialState: VaultState = "ready"): StubProjection => {
     listSpaces: unsupported,
     listAccounts: unsupported,
     listTaxonomy: unsupported,
+    listBudgets: unsupported,
+    saveBudget: unsupported,
+    deleteBudget: unsupported,
     createCategory: unsupported,
     createAccount: unsupported,
     updateAccount: unsupported,
@@ -62,6 +66,7 @@ const stubProjection = (initialState: VaultState = "ready"): StubProjection => {
     updateTaxonomy: unsupported,
     deleteTaxonomy: unsupported,
     resolveFilter: unsupported,
+    listTransactions: unsupported,
     queryTransactions: unsupported,
     getTransaction: unsupported,
     saveTransaction: unsupported,
@@ -239,6 +244,21 @@ describe("VaultProvider", () => {
     expect(worker.terminate).toHaveBeenCalledOnce();
     expect(projection.state).toBe("locked");
     expect(screen.getByTestId("state").textContent).toBe("locked");
+  });
+
+  it("manual lock clears decrypted sync conflicts through the production lifecycle", () => {
+    const syncLifecycle = new SyncLifecycleCoordinator();
+    const clear = vi.spyOn(syncLifecycle.conflicts, "clear");
+
+    render(
+      <VaultProvider projection={stubProjection()} syncLifecycle={syncLifecycle}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
+
+    expect(clear).toHaveBeenCalledOnce();
+    expect(syncLifecycle.conflicts.entries()).toEqual([]);
   });
 
   it("keeps a failed unwrap locked and offers another wrapper", async () => {

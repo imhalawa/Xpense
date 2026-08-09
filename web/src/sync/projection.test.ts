@@ -142,7 +142,7 @@ describe("rebuildProjection", () => {
     const decrypt = vi.fn().mockResolvedValue(accountPayload(accountId, "Legacy cash"));
     const projection = await rebuildProjection(database, { decrypt });
 
-    expect(database.version).toBe(2);
+    expect(database.version).toBe(3);
     const upgraded = await database.getRecord(accountId);
     expect(upgraded).toBeDefined();
     expect({
