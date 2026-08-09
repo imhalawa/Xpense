@@ -112,6 +112,15 @@ const assertionChallenge = (credential: PublicKeyCredential): string => {
   return parsed.challenge;
 };
 
+export const verifyPasskeyAssertionChallenge = (
+  credential: PublicKeyCredential,
+  expectedChallenge: ByteSource,
+): void => {
+  if (assertionChallenge(credential) !== encodeBase64Url(expectedChallenge)) {
+    throw new Error("The passkey assertion challenge does not match");
+  }
+};
+
 export const derivePasskeyWrappingKey = (prfOutput: Uint8Array): Promise<CryptoKey> =>
   deriveWrappingKey(
     prfOutput,
@@ -127,12 +136,10 @@ export const requestPrfAssertion = async (
     await navigator.credentials.get(optionsWithPrf(options, salt)),
   );
   const expectedChallenge = options.publicKey?.challenge;
-  if (
-    expectedChallenge === undefined ||
-    assertionChallenge(credential) !== encodeBase64Url(expectedChallenge)
-  ) {
+  if (expectedChallenge === undefined) {
     throw new Error("The passkey assertion challenge does not match");
   }
+  verifyPasskeyAssertionChallenge(credential, expectedChallenge);
   const output = prfResult(credential)?.results?.first;
   if (output === undefined) {
     throw new Error("The passkey assertion did not return a PRF result");
