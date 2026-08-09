@@ -47,6 +47,7 @@ public static class IoC
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddScoped<AccessRules>();
+        services.AddScoped<GroupTransactionLock>();
         services.AddScoped<SyncAuthorization>();
         services.AddScoped(typeof(OptionResolver<>));
 

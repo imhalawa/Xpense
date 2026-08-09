@@ -17,4 +17,20 @@ public class Group
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public void Rename(byte[] nameCiphertext, byte[] nameNonce, int protocolVersion)
+    {
+        NameCiphertext = nameCiphertext;
+        NameNonce = nameNonce;
+        ProtocolVersion = protocolVersion;
+        Touch();
+    }
+
+    public void MarkAsDeleted()
+    {
+        IsDeleted = true;
+        Touch();
+    }
+
+    public void Touch() => UpdatedAt = DateTime.UtcNow;
 }
