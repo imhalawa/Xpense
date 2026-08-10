@@ -99,6 +99,9 @@ const useStyles = makeStyles({
   },
   header: {
     display: "flex",
+    // NavDrawerHeader lays its children out in a column, which stacked the notification
+    // bell under the identity block. State the axis so they sit on one row.
+    flexDirection: "row",
     alignItems: "center",
     gap: tokens.spacingHorizontalS,
     paddingBlock: tokens.spacingVerticalM,
@@ -107,6 +110,9 @@ const useStyles = makeStyles({
   identityMenu: {
     flexGrow: 1,
     minWidth: 0,
+  },
+  headerNotifications: {
+    flexShrink: 0,
   },
   body: {
     display: "flex",
@@ -392,18 +398,20 @@ const AppShell = ({ children }: AppShellProps) => {
               onThemeModeChange={setThemeMode}
             />
           </div>
-          {usesLegacyNotifications && <NotificationBell
-            notifications={notifications}
-            unreadCount={unreadCount}
-            page={notificationsPage}
-            totalPages={notificationPages}
-            onPageChange={setNotificationsPage}
-            onMarkRead={(id) => markNotificationRead(id).then(refreshNotifications)}
-            onMarkSelectedRead={(ids) =>
-              Promise.all(ids.map(markNotificationRead)).then(refreshNotifications)
-            }
-            onMarkAllRead={() => markAllNotificationsRead().then(refreshNotifications)}
-          />}
+          {usesLegacyNotifications && <div className={styles.headerNotifications}>
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              page={notificationsPage}
+              totalPages={notificationPages}
+              onPageChange={setNotificationsPage}
+              onMarkRead={(id) => markNotificationRead(id).then(refreshNotifications)}
+              onMarkSelectedRead={(ids) =>
+                Promise.all(ids.map(markNotificationRead)).then(refreshNotifications)
+              }
+              onMarkAllRead={() => markAllNotificationsRead().then(refreshNotifications)}
+            />
+          </div>}
         </NavDrawerHeader>
         <NavDrawerBody className={styles.body}>
           <Button
