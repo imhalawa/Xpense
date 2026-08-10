@@ -60,6 +60,7 @@ interface TransactionsViewProps {
   activeFilterCount: number;
   onAddTransaction: () => void;
   onClearFilters: () => void;
+  canAddTransaction?: boolean;
   limit?: number;
   hidePagination?: boolean;
   refreshKey?: string | number;
@@ -216,6 +217,7 @@ const TransactionsView = ({
   activeFilterCount,
   onAddTransaction,
   onClearFilters,
+  canAddTransaction = true,
   limit,
   hidePagination = false,
   refreshKey,
@@ -465,10 +467,16 @@ const TransactionsView = ({
   if (transactions.length === 0 && !isLoadingRows) {
     return activeFilterCount === 0 ? (
       <div className={styles.state}>
-        <Body1>Add your first transaction to start your ledger.</Body1>
-        <Button appearance="primary" onClick={onAddTransaction}>
-          Add transaction
-        </Button>
+        {canAddTransaction ? (
+          <>
+            <Body1>Add your first transaction to start your ledger.</Body1>
+            <Button appearance="primary" onClick={onAddTransaction}>
+              Add transaction
+            </Button>
+          </>
+        ) : (
+          <Body1>Create an account first, then record what moves through it.</Body1>
+        )}
       </div>
     ) : (
       <div className={styles.state}>

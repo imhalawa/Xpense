@@ -117,6 +117,7 @@ const Overview = () => {
         <TransactionsView
           filter={transactionFilter.filter}
           activeFilterCount={transactionFilter.activeFilterCount}
+          canAddTransaction={accounts.length > 0}
           limit={5}
           hidePagination
           onAddTransaction={() =>

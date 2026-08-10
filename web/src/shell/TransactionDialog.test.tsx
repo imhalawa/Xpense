@@ -164,9 +164,32 @@ describe("TransactionDialog", () => {
     expect(within(dialog).queryByRole("option", { name: "Shared view" })).toBeNull();
   });
 
-  it("disables creation and explains when no account can be edited", async () => {
+  it("asks for a first account instead of offering a transaction nothing can hold", async () => {
     setWideScreen();
     renderShell({ ...baseSeed, accounts: { personal: [] } }, "/transactions/new");
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Start with an account, then record what moves through it."),
+      ).toBeDefined(),
+    );
+    expect(screen.queryByRole("button", { name: "Add transaction" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Add account" }).length).toBeGreaterThan(0);
+  });
+
+  it("disables creation and explains when an account exists but none can be edited", async () => {
+    setWideScreen();
+    renderShell(
+      {
+        ...baseSeed,
+        accounts: {
+          personal: [
+            { id: "readonly", label: "Shared view", currency: Currency.EUR, canEdit: false },
+          ],
+        },
+      },
+      "/transactions/new",
+    );
 
     const addTransaction = screen.getByRole("button", { name: "Add transaction" });
     await waitFor(() => expect(addTransaction).toBeDisabled());

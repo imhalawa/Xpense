@@ -107,6 +107,7 @@ const Transactions = () => {
       <TransactionsView
         filter={transactionFilter.filter}
         activeFilterCount={transactionFilter.activeFilterCount}
+        canAddTransaction={accounts.some((account) => account.canEdit)}
         refreshKey={`${location.key}-${refreshVersion}`}
         onAddTransaction={addTransaction}
         onClearFilters={transactionFilter.clearFilters}

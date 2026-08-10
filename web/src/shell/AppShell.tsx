@@ -78,6 +78,11 @@ const notificationsPageSize = 10;
 const taxonomyKinds: TaxonomyKind[] = ["category", "tag", "merchant"];
 const unlockFailureMessage = "The vault could not be unlocked. Try again.";
 
+const newAccountResource: SidebarResource = {
+  kind: "account",
+  value: { id: "", label: "", currency: "EUR" as AccountView["currency"], canEdit: true },
+};
+
 const useStyles = makeStyles({
   root: {
     display: "flex",
@@ -283,6 +288,8 @@ const AppShell = ({ children }: AppShellProps) => {
   }, [projection, resourceVersion, state, transactionFilter.filter.space]);
 
   const editableAccounts = accounts.filter((account) => account.canEdit);
+  const needsFirstAccount = accountsLoaded && accounts.length === 0;
+  const noEditableAccounts = accountsLoaded && accounts.length > 0 && editableAccounts.length === 0;
 
   const closeNavigation = () => setIsNavigationOpen(false);
 
@@ -410,31 +417,42 @@ const AppShell = ({ children }: AppShellProps) => {
           </div>}
         </NavDrawerHeader>
         <NavDrawerBody className={styles.body}>
-          <Button
-            ref={addTransactionRef}
-            className={styles.addTransaction}
-            appearance="primary"
-            icon={<AddRegular />}
-            disabled={!accountsLoaded || editableAccounts.length === 0}
-            aria-describedby={
-              accountsLoaded && editableAccounts.length === 0
-                ? "add-transaction-description"
-                : undefined
-            }
-            title={
-              accountsLoaded && editableAccounts.length === 0
-                ? "No account in this space can be edited."
-                : undefined
-            }
-            onClick={() => {
-              navigate("/transactions/new", {
-                state: { returnTo: `${location.pathname}${location.search}` },
-              });
-              closeNavigation();
-            }}>
-            Add transaction
-          </Button>
-          {accountsLoaded && editableAccounts.length === 0 && (
+          {needsFirstAccount ? (
+            <Button
+              ref={addTransactionRef}
+              className={styles.addTransaction}
+              appearance="primary"
+              icon={<AddRegular />}
+              onClick={(event) => {
+                openResourceDialog("create", newAccountResource, event.currentTarget);
+                closeNavigation();
+              }}>
+              Add account
+            </Button>
+          ) : (
+            <Button
+              ref={addTransactionRef}
+              className={styles.addTransaction}
+              appearance="primary"
+              icon={<AddRegular />}
+              disabled={!accountsLoaded || editableAccounts.length === 0}
+              aria-describedby={noEditableAccounts ? "add-transaction-description" : undefined}
+              title={noEditableAccounts ? "No account in this space can be edited." : undefined}
+              onClick={() => {
+                navigate("/transactions/new", {
+                  state: { returnTo: `${location.pathname}${location.search}` },
+                });
+                closeNavigation();
+              }}>
+              Add transaction
+            </Button>
+          )}
+          {needsFirstAccount && (
+            <Caption1 className={styles.addTransactionExplanation}>
+              Start with an account, then record what moves through it.
+            </Caption1>
+          )}
+          {noEditableAccounts && (
             <Caption1
               id="add-transaction-description"
               className={styles.addTransactionExplanation}>
