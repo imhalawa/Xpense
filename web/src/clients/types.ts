@@ -21,6 +21,13 @@ export interface ICategoryResponse {
   updatedAt: string | null;
 }
 
+export interface ICreateCategoryRequest {
+  label: string;
+  priorityId: number;
+}
+
+export type IUpdateCategoryRequest = ICreateCategoryRequest;
+
 export interface IAccountResponse {
   accountNumber: string;
   label: string;
@@ -30,11 +37,25 @@ export interface IAccountResponse {
   updatedAt: string | null;
 }
 
+export interface ICreateAccountRequest {
+  label: string;
+  balance: IMoneyRequest;
+}
+
+export interface IUpdateAccountRequest {
+  label: string;
+  isDefault: boolean;
+}
+
 export interface IMerchantResponse {
   id: number;
   label: string;
   createdAt: string;
   updatedAt: string | null;
+}
+
+export interface IMerchantRequest {
+  label: string;
 }
 
 export interface ITagResponse {
@@ -44,6 +65,12 @@ export interface ITagResponse {
   fgColorHex: string;
   createdAt: string;
   updatedAt: string | null;
+}
+
+export interface ITagRequest {
+  label: string;
+  bgColorHex: string;
+  fgColorHex: string;
 }
 
 export interface ITransactionOptionResponse {
@@ -108,6 +135,8 @@ export interface ICreateTransactionRequest {
   reason?: string | null;
   occurredAt?: string | null;
 }
+
+export type IUpdateTransactionRequest = ICreateTransactionRequest;
 
 export interface IBudgetPeriodResponse {
   name: string;

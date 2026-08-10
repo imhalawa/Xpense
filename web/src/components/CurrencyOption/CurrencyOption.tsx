@@ -1,16 +1,28 @@
-import Box from "@mui/material/Box";
-import { DollarIcon, EuroIcon } from "../../icons/icons";
+import { makeStyles, tokens } from "@fluentui/react-components";
+import { MoneyRegular } from "@fluentui/react-icons";
 import { Currency } from "../../typings/enums/Currency";
 
 interface CurrencyOptionProps {
   currency: Currency;
 }
 
-const CurrencyOption = ({ currency }: CurrencyOptionProps) => (
-  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-    {currency === Currency.EUR ? <EuroIcon size={16} /> : <DollarIcon size={16} />}
-    {currency}
-  </Box>
-);
+const useStyles = makeStyles({
+  root: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
+  },
+});
+
+const CurrencyOption = ({ currency }: CurrencyOptionProps) => {
+  const styles = useStyles();
+
+  return (
+    <span className={styles.root}>
+      <MoneyRegular />
+      {currency}
+    </span>
+  );
+};
 
 export default CurrencyOption;

@@ -32,7 +32,7 @@ public class ApiEndpointTests
     public async Task SetUp()
     {
         factory = new WebApiTestFactory(await PostgresFixture.CreateDatabase());
-        client = factory.CreateClient();
+        client = await factory.CreateAuthenticatedClient();
     }
 
     [TearDown]
@@ -215,6 +215,43 @@ public class ApiEndpointTests
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
+    [Test]
+    public async Task Post_merchants_returns_the_created_resource_at_its_id_route()
+    {
+        var response = await client.PostAsync(
+            "/api/v1/merchants",
+            JsonBody("{\"label\":\"Albert Heijn\"}"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().Be(new Uri("http://localhost/api/v1/merchants/1"));
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("id").GetInt32().Should().Be(1);
+        document.RootElement.GetProperty("label").GetString().Should().Be("Albert Heijn");
+
+        var getResponse = await client.GetAsync(response.Headers.Location);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Put_merchants_updates_the_resource_and_delete_returns_no_content()
+    {
+        var createResponse = await client.PostAsync(
+            "/api/v1/merchants",
+            JsonBody("{\"label\":\"Albert Heijn\"}"));
+
+        var updateResponse = await client.PutAsync(
+            "/api/v1/merchants/1",
+            JsonBody("{\"label\":\"Local market\"}"));
+        var deleteResponse = await client.DeleteAsync("/api/v1/merchants/1");
+        var getResponse = await client.GetAsync("/api/v1/merchants/1");
+
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await updateResponse.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("label").GetString().Should().Be("Local market");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
 
     [Test]
     public async Task Post_income_creates_a_direct_resource_and_uses_the_get_by_id_location()
@@ -303,6 +340,60 @@ public class ApiEndpointTests
         transaction.GetProperty("updatedAt").ValueKind.Should().Be(JsonValueKind.Null);
 
         (await GetAccountBalance(seeded.AccountNumber)).Should().Be(1901);
+    }
+
+    [Test]
+    public async Task Put_transaction_reverses_the_old_effect_and_applies_the_replacement()
+    {
+        var seeded = await SeedAccountAndCategory(2000);
+        var createResponse = await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber,
+            categoryId = seeded.CategoryId,
+            merchant = new { label = "Coffee Shop", create = true }
+        });
+        using var createdDocument = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
+        var transactionId = createdDocument.RootElement.GetProperty("id").GetInt32();
+
+        var response = await client.PutAsJsonAsync($"/api/v1/transactions/{transactionId}", new
+        {
+            amount = new { minorUnits = 250, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber,
+            categoryId = seeded.CategoryId,
+            merchant = new { label = "Lunch", create = true },
+            occurredAt = new DateTimeOffset(2026, 8, 8, 12, 30, 0, TimeSpan.Zero)
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        document.RootElement.GetProperty("id").GetInt32().Should().Be(transactionId);
+        document.RootElement.GetProperty("amount").GetProperty("minorUnits").GetInt64().Should().Be(250);
+        document.RootElement.GetProperty("merchant").GetProperty("label").GetString().Should().Be("Lunch");
+        document.RootElement.GetProperty("updatedAt").ValueKind.Should().NotBe(JsonValueKind.Null);
+        (await GetAccountBalance(seeded.AccountNumber)).Should().Be(1750);
+    }
+
+    [Test]
+    public async Task Delete_transaction_reverses_its_effect_and_soft_deletes_the_resource()
+    {
+        var seeded = await SeedAccountAndCategory(2000);
+        var createResponse = await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            amount = new { minorUnits = 100, currency = "EUR" },
+            sourceAccountNumber = seeded.AccountNumber,
+            categoryId = seeded.CategoryId,
+            merchant = new { label = "Coffee Shop", create = true }
+        });
+        using var createdDocument = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
+        var transactionId = createdDocument.RootElement.GetProperty("id").GetInt32();
+
+        var response = await client.DeleteAsync($"/api/v1/transactions/{transactionId}");
+        var getResponse = await client.GetAsync($"/api/v1/transactions/{transactionId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await GetAccountBalance(seeded.AccountNumber)).Should().Be(2000);
     }
 
     [Test]
@@ -640,7 +731,7 @@ public class ApiEndpointTests
         using var failing = new WebApiTestFactory(
             await PostgresFixture.CreateDatabase(),
             new FailOnSaveInterceptor<Transaction>());
-        using var failingClient = failing.CreateClient();
+        using var failingClient = await failing.CreateAuthenticatedClient();
 
         using (var scope = failing.Services.CreateScope())
         {

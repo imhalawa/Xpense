@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Persistence;
 using Xpense.Domain.Exceptions;
 
@@ -27,7 +28,7 @@ public sealed class UpdateAccount : IEndpoint
     }
 
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPut("/api/v1/accounts/{accountNumber}", Handle).WithName(nameof(UpdateAccount)).Validated();
+        app.MapPut("/api/v1/accounts/{accountNumber}", Handle).WithName(nameof(UpdateAccount)).Validated().BlocksDuringLegacyClaim();
 
     private static async Task<Ok<AccountResponse>> Handle(
         string accountNumber,

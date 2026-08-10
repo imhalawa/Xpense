@@ -2,33 +2,18 @@ import { describe, expect, it } from "vitest";
 import { contrastRatio } from "./contrast";
 import { tokens } from "./tokens";
 
-describe("ink and money tokens", () => {
-  const cases: [string, string, string, number][] = [
-    ["primary ink light", tokens.ink.light.primary, tokens.surface.light.card, 15.9],
-    ["primary ink dark", tokens.ink.dark.primary, tokens.surface.dark.card, 14.1],
-    ["expense ordinary light", tokens.money.light.expenseOrdinary, tokens.surface.light.card, 5.6],
-    ["expense ordinary dark", tokens.money.dark.expenseOrdinary, tokens.surface.dark.card, 6.4],
-    ["expense alert light", tokens.money.light.expenseAlert, tokens.surface.light.card, 4.5],
-    ["expense alert dark", tokens.money.dark.expenseAlert, tokens.surface.dark.card, 5.2],
-    ["income light", tokens.money.light.income, tokens.surface.light.card, 6.6],
-    ["income dark", tokens.money.dark.income, tokens.surface.dark.card, 7.8],
-  ];
-
-  it.each(cases)("%s clears AA body text", (_name, foreground, background, floor) => {
-    expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(floor);
-  });
-});
-
-describe("delta chip tokens", () => {
+describe("money tokens", () => {
   const cases: [string, string, string][] = [
-    ["over budget light", tokens.chip.light.overBudget.text, tokens.chip.light.overBudget.wash],
-    ["comparison light", tokens.chip.light.comparison.text, tokens.chip.light.comparison.wash],
-    ["over budget dark", tokens.chip.dark.overBudget.text, tokens.chip.dark.overBudget.wash],
-    ["comparison dark", tokens.chip.dark.comparison.text, tokens.chip.dark.comparison.wash],
+    ["expense ordinary light", tokens.money.light.expenseOrdinary, tokens.surface.light.card],
+    ["expense ordinary dark", tokens.money.dark.expenseOrdinary, tokens.surface.dark.card],
+    ["expense alert light", tokens.money.light.expenseAlert, tokens.surface.light.card],
+    ["expense alert dark", tokens.money.dark.expenseAlert, tokens.surface.dark.card],
+    ["income light", tokens.money.light.income, tokens.surface.light.card],
+    ["income dark", tokens.money.dark.income, tokens.surface.dark.card],
   ];
 
-  it.each(cases)("%s clears AA body text on its own wash", (_name, text, wash) => {
-    expect(contrastRatio(text, wash)).toBeGreaterThanOrEqual(4.5);
+  it.each(cases)("%s clears AA body text", (_name, foreground, background) => {
+    expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5);
   });
 });
 

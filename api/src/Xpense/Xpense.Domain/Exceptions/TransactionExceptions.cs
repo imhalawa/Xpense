@@ -9,6 +9,12 @@ public class DepositCreationFailedException(decimal amount, string accountNumber
 public class WithdrawCreationFailedException(decimal amount, string accountNumber, Exception? innerException = null)
     : PersistenceFailedException($"Failed Attempt to withdraw amount {amount} from account {accountNumber}", innerException);
 
+public class TransactionUpdateFailedException(int id, Exception? innerException = null)
+    : PersistenceFailedException($"Failed to update transaction with id:[{id}]", innerException);
+
+public class TransactionDeletionFailedException(int id, Exception? innerException = null)
+    : PersistenceFailedException($"Failed to delete transaction with id:[{id}]", innerException);
+
 public class InvalidTransactionException(string message) : DomainRuleViolationException(message);
 
 public class InsufficientFundsForTransferException(int accountId, object balance, object amount)

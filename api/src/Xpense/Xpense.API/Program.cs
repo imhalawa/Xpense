@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Xpense.API.Extensions;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,10 +19,12 @@ builder.Host.UseSerilog((context, services, configuration) =>
 });
 
 builder.Services.AddSingleton<Serilog.ILogger>(_ => Log.Logger);
-builder.Services.AddCors();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.ConfigureSwagger();
 builder.Services.ConfigurePersistence(builder.Configuration);
+builder.Services.AddXpenseForwardedHeaders(builder.Configuration);
+builder.Services.AddXpenseAuthentication(builder.Configuration);
+builder.Services.AddLegacyClaim(builder.Configuration);
 builder.Services.AddDomainServices();
 builder.Services.AddRequestValidation();
 builder.Services.AddExceptionHandlers();
@@ -30,19 +34,22 @@ var app = builder.Build();
 
 
 app.UseExceptionHandler();
+app.UseForwardedHeaders();
 
 app.UseStaticFiles("/static");
 app.UseRouting();
-app.UseCors(policy =>
-{
-    policy.WithOrigins("http://localhost:5173");
-    policy.AllowAnyHeader();
-    policy.AllowAnyMethod();
-});
+app.UseCors(AuthenticationPolicyNames.Cors);
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapEndpoints();
 
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health")
+    .WithMetadata(new HttpMethodMetadata(["GET"]))
+    .WithName("Health")
+    .WithDisplayName("Service health")
+    .AllowAnonymous();
 
 if (app.Environment.IsDevelopment())
 {

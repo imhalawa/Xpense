@@ -13,21 +13,26 @@ internal static class ProblemDetailsWriter
         System.Exception exception,
         int statusCode,
         string title,
-        string detail)
+        string detail,
+        string? errorCode = null)
     {
         context.Response.StatusCode = statusCode;
+        var problemDetails = new ProblemDetails
+        {
+            Status = statusCode,
+            Title = title,
+            Detail = detail,
+            Instance = $"{context.Request.Method} {context.Request.Path}"
+        };
+
+        if (errorCode is not null)
+            problemDetails.Extensions["errorCode"] = errorCode;
 
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = context,
             Exception = exception,
-            ProblemDetails = new ProblemDetails
-            {
-                Status = statusCode,
-                Title = title,
-                Detail = detail,
-                Instance = $"{context.Request.Method} {context.Request.Path}"
-            }
+            ProblemDetails = problemDetails
         });
     }
 

@@ -41,6 +41,7 @@ These are enforced by `Xpense.Tests/Architecture/SliceIsolationTests.cs`. Breaki
 2. **Slices never reference each other.** Not the request, not the handler, not the response. Anything shared moves to `Xpense.API/Contracts/` (HTTP contracts) or `Xpense.Domain` (domain concepts).
 3. **Slices never catch domain exceptions.** Throw; `ExceptionHandlers/` owns the HTTP mapping. A `try/catch` for a domain exception in a slice is a bug.
 4. **Endpoints implement `IEndpoint`** with a `public static void Map(IEndpointRouteBuilder)` and live under `Features/`. Discovery is a startup scan — there is no registration step.
+5. **Authorization is explicit in each query.** Do not add global authorization query filters. Start every decision from the current user, correlate the group, membership, grant and resource type in the same SQL query, and return the approved neutral 404 when a caller must not learn whether a private resource exists. Feature code never returns 403.
 
 `GET /health` is the one deliberate exception: it is mapped directly in `Program.cs` because it is infrastructure, not a feature. It has no request, no contract to version and no slice to belong to. The architecture tests allow it — they constrain types under `Xpense.API.Features.*` and types implementing `IEndpoint`, and it is neither. Do not treat it as precedent for a second one.
 
@@ -74,7 +75,7 @@ Three versions are held deliberately. Bumping any of them needs a reason.
 - **Requests nest inside their slice** (`CreateTag.Request`), even when two look alike today. Responses are shared per feature or in `Contracts/`, because a resource should look the same however you fetched it.
 - **Return `TypedResults`**, not `IActionResult`. The concrete return type is the OpenAPI description.
 - **Creates return an absolute `Location`** via `HttpContext.ResourceUri(path)`. `TypedResults.Created` emits a relative header if you hand it a bare path.
-- **Deletes are soft** — `MarkAsDeleted()` + `Touch()`. A global query filter hides the rows. Do not use `Remove`.
+- **Resource deletes are soft** — `MarkAsDeleted()` + `Touch()`. A global visibility filter may hide ordinary deleted resources, but it is never an authorization boundary. Memberships, grants and invitations use their explicit revoked state and retain history; do not force them through `MarkAsDeleted()`. Do not use `Remove` for user data.
 - **Money is `{cents, currency}` on the wire** via `Contracts/MoneyResponse`, and `Money` in the domain. Accounts are denominated in one currency and nothing converts — a mismatched amount is a 400, never a conversion. See [`api/docs/multi-currency.md`](api/docs/multi-currency.md).
 - **Timestamps are UTC.** `DateTime.UtcNow` everywhere; a value converter in `XpenseDbContext` tags reads as UTC.
 - **Validation is FluentValidation only.** Do not add DataAnnotations — two validation systems produce two error shapes.

@@ -1,13 +1,18 @@
-import Typography from "@mui/material/Typography";
-import Page from "../../components/Page/Page";
+import { Body1, makeStyles, tokens } from "@fluentui/react-components";
+
+const useStyles = makeStyles({
+  supporting: {
+    color: tokens.colorNeutralForeground2,
+  },
+});
 
 const Settings = () => {
+  const styles = useStyles();
+
   return (
-    <Page title="Settings">
-      <Typography variant="body1" sx={{ color: "text.secondary" }}>
-        Account, category, merchant and tag management is coming here soon.
-      </Typography>
-    </Page>
+    <Body1 className={styles.supporting}>
+      Account, category, merchant and tag management is coming here soon.
+    </Body1>
   );
 };
 

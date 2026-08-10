@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ThemeProvider } from "@mui/material/styles";
-import theme from "../../theme/theme";
 import { INotificationResponse } from "../../clients/types";
 import NotificationBell from "./NotificationBell";
 
@@ -26,14 +24,12 @@ const renderBell = (
   onMarkAllRead = vi.fn()
 ) =>
   render(
-    <ThemeProvider theme={theme}>
-      <NotificationBell
-        notifications={notifications}
-        unreadCount={unreadCount}
-        onMarkRead={onMarkRead}
-        onMarkAllRead={onMarkAllRead}
-      />
-    </ThemeProvider>
+    <NotificationBell
+      notifications={notifications}
+      unreadCount={unreadCount}
+      onMarkRead={onMarkRead}
+      onMarkAllRead={onMarkAllRead}
+    />
   );
 
 describe("NotificationBell", () => {

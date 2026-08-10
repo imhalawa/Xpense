@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Persistence;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Exceptions;
@@ -31,7 +32,7 @@ public sealed class CreateTag : IEndpoint
     }
 
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPost("/api/v1/tags", Handle).WithName(nameof(CreateTag)).Validated();
+        app.MapPost("/api/v1/tags", Handle).WithName(nameof(CreateTag)).Validated().BlocksDuringLegacyClaim();
 
     private static async Task<Created<TagResponse>> Handle(
         Request request,

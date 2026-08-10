@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Contracts;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Persistence;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Exceptions;
@@ -33,7 +34,7 @@ public sealed class CreateCategory : IEndpoint
     }
 
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPost("/api/v1/categories", Handle).WithName(nameof(CreateCategory)).Validated();
+        app.MapPost("/api/v1/categories", Handle).WithName(nameof(CreateCategory)).Validated().BlocksDuringLegacyClaim();
 
     private static async Task<Created<CategoryResponse>> Handle(
         Request request,

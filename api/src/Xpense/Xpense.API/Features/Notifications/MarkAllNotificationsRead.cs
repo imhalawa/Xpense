@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Persistence;
 
 namespace Xpense.API.Features.Notifications;
@@ -16,7 +17,8 @@ public sealed class MarkAllNotificationsRead : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapPost("/api/v1/notifications/read-all", Handle)
-            .WithName(nameof(MarkAllNotificationsRead));
+            .WithName(nameof(MarkAllNotificationsRead))
+            .WritesLegacyClaimSource();
 
     private static async Task<Ok<MarkAllReadResponse>> Handle(XpenseDbContext dbContext, CancellationToken cancellationToken)
     {

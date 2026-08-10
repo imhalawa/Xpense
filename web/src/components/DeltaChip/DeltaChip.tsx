@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
-import Box from "@mui/material/Box";
-import { ArrowDownIcon, ArrowUpIcon } from "../../icons/icons";
-import { tokens } from "../../theme/tokens";
+import { Badge } from "@fluentui/react-components";
+import { ArrowSortDownRegular, ArrowSortUpRegular } from "@fluentui/react-icons";
 
 interface DeltaChipProps {
   direction: "up" | "down";
@@ -10,32 +9,27 @@ interface DeltaChipProps {
 }
 
 const DeltaChip = ({ direction, tone, children }: DeltaChipProps) => {
-  const Arrow = direction === "up" ? ArrowUpIcon : ArrowDownIcon;
   const arrowLabel = direction === "up" ? "increase" : "decrease";
+  const icon =
+    direction === "up" ? (
+      <span aria-label={arrowLabel}>
+        <ArrowSortUpRegular />
+      </span>
+    ) : (
+      <span aria-label={arrowLabel}>
+        <ArrowSortDownRegular />
+      </span>
+    );
 
   return (
-    <Box
-      component="span"
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.5,
-        borderRadius: `${tokens.radius.pill}px`,
-        paddingInline: 1.25,
-        paddingBlock: 0.375,
-        fontSize: "0.75rem",
-        fontWeight: 700,
-        color: tokens.chip.light[tone].text,
-        backgroundColor: tokens.chip.light[tone].wash,
-        "[data-theme='dark'] &": {
-          color: tokens.chip.dark[tone].text,
-          backgroundColor: tokens.chip.dark[tone].wash,
-        },
-      }}
-    >
-      <Arrow size={13} title={arrowLabel} />
+    <Badge
+      appearance="tint"
+      color={tone === "overBudget" ? "danger" : "brand"}
+      icon={icon}
+      iconPosition="before"
+      size="small">
       {children}
-    </Box>
+    </Badge>
   );
 };
 

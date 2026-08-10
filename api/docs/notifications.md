@@ -9,7 +9,7 @@ POST /api/v1/transactions
   └─ writes the Transaction and a TransactionRecorded event, one transaction
 
 Xpense.Notifications  (its own container)
-  └─ claims the event, asks every rule, stores what they decided
+  └─ claims the event, asks every rule, stores notifications or sends invitation email
 
 GET /api/v1/notifications
   └─ the API serves them
@@ -122,6 +122,18 @@ docker compose exec -T postgres psql -U xpense -d xpense \
 
 Replaying is safe: the unique index means anything already said is not said again.
 
+## Invitation email
+
+A targeted invitation writes the invitation, one Pending `InvitationDelivery` and one `GroupInvitationCreated` event in the same database transaction. Open invitations create the event but no delivery. The email rule returns no in-app notification.
+
+The API protects the one-time link with Data Protection purpose `Xpense.InvitationDelivery`; the worker decrypts it with application name `Xpense`. Both processes must mount the same key directory. The database stores only the protected payload, never the plaintext link.
+
+Email is opt-in through `XPENSE_EMAIL_ENABLED`. When disabled or when an invitation is revoked, expired, consumed or belongs to a deleted group, the delivery becomes Disabled and its payload is cleared. Successful delivery records Sent and clears the payload. Failures keep a fixed safe error for retry; the fifth failure marks the delivery Failed, clears the payload and leaves the event as its own dead letter.
+
+The event pump pauses while `XPENSE_LEGACY_CLAIM_ENABLED=true`. This prevents notification rows from changing underneath the pinned legacy dataset. Keep claim mode enabled through the Task 32 contract migration; disable it earlier only for a deliberate operator rollback.
+
+SMTP configuration includes host, port, from address, TLS, paired optional username/password and a timeout from 1 to 30 seconds. The sender uses a stable Message-Id derived from the delivery id and a linked asynchronous deadline. Credentials belong in the operator's `.env` or secret manager, never in source control.
+
 ## Things that will bite
 
 **`libgssapi_krb5.so.2` in the worker log is not an error.** Npgsql probes for Kerberos on its first
@@ -131,8 +143,7 @@ connection and does not find it on Alpine. Same line the API logs; see `docs/doc
 drains at speed; an idle queue costs one indexed query per second.
 
 **The worker has no healthcheck.** It serves no HTTP. Whether it is working shows in its log and in
-whether `Events` drains — adding an endpoint purely to be probed would mean carrying ASP.NET Core in a
-worker with no other use for it.
+whether `Events` drains. It carries the ASP.NET runtime for shared Data Protection, not to host an endpoint.
 
 **Timestamps returned to a client are microsecond-precision.** Postgres `timestamptz` cannot hold .NET's
 100-nanosecond ticks, so `Notification.MarkAsRead` truncates deliberately. Without that, the response to

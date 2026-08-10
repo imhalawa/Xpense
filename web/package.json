@@ -9,19 +9,17 @@
     "check:init": "vite build --ssr src/initcheck.ts --outDir .ssrcheck --logLevel error && node .ssrcheck/initcheck.js",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:watch": "vitest"
   },
-  "overrides": {
-    "@mui/x-charts-vendor": "9.4.0"
-  },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@fontsource/manrope": "^5.3.0",
+    "@fluentui/react-charts": "^9.3.23",
+    "@fluentui/react-components": "^9.74.5",
+    "@fluentui/react-datepicker-compat": "^0.6.35",
+    "@fluentui/react-icons": "^2.0.335",
     "@hookform/resolvers": "^3.10.0",
-    "@mui/material": "^9.3.1",
-    "@mui/x-charts": "^9.11.0",
-    "@mui/x-date-pickers": "^9.11.0",
+    "@hpke/core": "^1.9.0",
+    "@noble/hashes": "^2.3.0",
     "axios": "^1.19.0",
     "dayjs": "^1.11.21",
     "react": "^19.2.8",
@@ -33,10 +31,14 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react-swc": "^4.3.3",
+    "@vitest/browser-playwright": "4.1.10",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
+    "playwright": "1.62.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"

@@ -1,0 +1,387 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { createUserMasterKey } from "../crypto/keyHierarchy";
+import { SyncLifecycleCoordinator } from "../sync/lifecycle";
+import type { VaultWorkerResponse } from "../crypto/worker/commands";
+import type {
+  VaultWorkerMessage,
+  VaultWorkerReply,
+  WorkerPort,
+} from "../crypto/worker/vaultWorkerClient";
+import * as vaultDatabase from "./vaultDatabase";
+import { VaultProvider, useVault } from "./VaultProvider";
+import type { RowCeilingReport } from "./plaintextProjection";
+import type { VaultProjection, VaultState } from "./VaultProjection";
+import type { EncryptedProjection } from "./transitionVaultProjection";
+
+const unsupported = () => Promise.reject(new Error("Not part of this test"));
+
+interface StubProjection extends VaultProjection {
+  rowCeiling: RowCeilingReport | null;
+  unlockCount: number;
+  listenerCount: number;
+}
+
+const stubProjection = (initialState: VaultState = "ready"): StubProjection => {
+  let currentState = initialState;
+  const listeners = new Set<(state: VaultState) => void>();
+
+  const moveTo = (state: VaultState): void => {
+    currentState = state;
+    for (const listener of listeners) listener(state);
+  };
+
+  return {
+    get state() {
+      return currentState;
+    },
+    get listenerCount() {
+      return listeners.size;
+    },
+    rowCeiling: null,
+    unlockCount: 0,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    async unlock() {
+      this.unlockCount += 1;
+      moveTo("ready");
+    },
+    lock() {
+      moveTo("locked");
+    },
+    listSpaces: unsupported,
+    listAccounts: unsupported,
+    listAccountBalances: unsupported,
+    listTaxonomy: unsupported,
+    listBudgets: unsupported,
+    saveBudget: unsupported,
+    deleteBudget: unsupported,
+    createCategory: unsupported,
+    createAccount: unsupported,
+    updateAccount: unsupported,
+    deleteAccount: unsupported,
+    createTaxonomy: unsupported,
+    updateTaxonomy: unsupported,
+    deleteTaxonomy: unsupported,
+    resolveFilter: unsupported,
+    listTransactions: unsupported,
+    queryTransactions: unsupported,
+    getTransaction: unsupported,
+    saveTransaction: unsupported,
+    deleteTransaction: unsupported,
+  };
+};
+
+const VaultProbe = () => {
+  const { availableWrappers, claimEncryptionReady, encryptClaimRecord, lock, sensitiveError, state, rowCeiling, unlockWithMasterKey } =
+    useVault();
+  return (
+    <div>
+      <span data-testid="state">{state}</span>
+      <span data-testid="ceiling">
+        {rowCeiling === null ? "none" : String(rowCeiling.loadedRowCount)}
+      </span>
+      <span data-testid="wrappers">{availableWrappers.join(",")}</span>
+      <span data-testid="sensitive-error">{sensitiveError ?? "none"}</span>
+      <span data-testid="claim-encryption-ready">{String(claimEncryptionReady)}</span>
+      <button type="button" onClick={lock}>
+        Lock vault
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void createUserMasterKey().then((masterKey) =>
+            unlockWithMasterKey(
+              masterKey,
+              "11111111-1111-4111-8111-111111111111",
+            ),
+          );
+        }}>
+        Unlock vault
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void encryptClaimRecord(
+            new Uint8Array([1]),
+            {
+              recordId: "22222222-2222-4222-8222-222222222222",
+              recordType: "account",
+              ownerId: "11111111-1111-4111-8111-111111111111",
+              revision: 1,
+            },
+            {
+              recordId: "22222222-2222-4222-8222-222222222222",
+              ownerId: "11111111-1111-4111-8111-111111111111",
+              groupId: null,
+            },
+          );
+        }}>
+        Encrypt claim record
+      </button>
+    </div>
+  );
+};
+
+class ImmediateWorker implements WorkerPort {
+  onmessage: ((event: MessageEvent<VaultWorkerReply>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  readonly terminate = vi.fn();
+  readonly messages: VaultWorkerMessage[] = [];
+
+  constructor(private readonly response: VaultWorkerResponse) {}
+
+  postMessage(message: VaultWorkerMessage): void {
+    this.messages.push(message);
+    queueMicrotask(() => {
+      this.onmessage?.(
+        new MessageEvent("message", {
+          data: { requestId: message.requestId, response: this.response },
+        }),
+      );
+    });
+  }
+}
+
+describe("VaultProvider", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("names itself in the error a component outside it gets", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect(() => renderHook(() => useVault())).toThrow(
+      "useVault must be used inside a VaultProvider",
+    );
+  });
+
+  it("publishes the projection's current state", () => {
+    render(
+      <VaultProvider projection={stubProjection()}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    expect(screen.getByTestId("state").textContent).toBe("unlocked");
+    expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("false");
+  });
+
+  it("marks claim encryption ready only after the Worker receives the master key", async () => {
+    const worker = new ImmediateWorker({ ok: true, value: { unlocked: true } });
+    render(
+      <VaultProvider projection={stubProjection()} workerFactory={() => worker}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("true"));
+    fireEvent.click(screen.getByRole("button", { name: "Encrypt claim record" }));
+    await waitFor(() => expect(worker.messages).toHaveLength(2));
+    expect(worker.messages[1]!.command).toMatchObject({
+      type: "encryptRecord",
+      payloadDescriptor: {
+        recordId: "22222222-2222-4222-8222-222222222222",
+        recordType: "account",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
+    expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("false");
+  });
+
+  it("attaches the unlocked Worker bridge before the encrypted projection rebuilds", async () => {
+    const worker = new ImmediateWorker({ ok: true, value: { unlocked: true } });
+    const projection = stubProjection("locked") as StubProjection & EncryptedProjection;
+    projection.attachCrypto = vi.fn();
+    const unlock = vi.spyOn(projection, "unlock");
+    render(
+      <VaultProvider projection={projection} workerFactory={() => worker} autoUnlock={false}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
+
+    await waitFor(() => expect(projection.attachCrypto).toHaveBeenCalledOnce());
+    expect(projection.unlockCount).toBe(1);
+    expect(vi.mocked(projection.attachCrypto).mock.invocationCallOrder[0]).toBeLessThan(
+      unlock.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER,
+    );
+  });
+
+  it("keeps Worker encryption ready for claim maintenance without opening a projection", async () => {
+    const worker = new ImmediateWorker({ ok: true, value: { unlocked: true } });
+    const projection = stubProjection("locked");
+    Object.defineProperty(projection, "dataMode", { value: "claiming" });
+    render(
+      <VaultProvider projection={projection} workerFactory={() => worker} autoUnlock={false}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
+
+    await waitFor(() => expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("true"));
+    expect(projection.unlockCount).toBe(0);
+  });
+
+  it("unlocks a locked projection once on mount", async () => {
+    const projection = stubProjection("locked");
+
+    await act(async () => {
+      render(
+        <VaultProvider projection={projection}>
+          <VaultProbe />
+        </VaultProvider>,
+      );
+    });
+
+    expect(projection.unlockCount).toBe(1);
+    expect(screen.getByTestId("state").textContent).toBe("unlocked");
+  });
+
+  it("leaves an already unlocked projection alone", () => {
+    const projection = stubProjection();
+
+    render(
+      <VaultProvider projection={projection}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    expect(projection.unlockCount).toBe(0);
+  });
+
+  it("re-renders when the projection locks", () => {
+    const projection = stubProjection();
+
+    render(
+      <VaultProvider projection={projection}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    act(() => {
+      projection.lock();
+    });
+
+    expect(screen.getByTestId("state").textContent).toBe("locked");
+  });
+
+  it("surfaces the row ceiling a projection reports", () => {
+    const projection = stubProjection();
+    projection.rowCeiling = {
+      loadedRowCount: 2000,
+      availableRowCount: 4000,
+      reachedCeiling: true,
+    };
+
+    render(
+      <VaultProvider projection={projection}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    expect(screen.getByTestId("ceiling").textContent).toBe("2000");
+  });
+
+  it("reports no ceiling for a projection that does not track one", () => {
+    render(
+      <VaultProvider projection={stubProjection()}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    expect(screen.getByTestId("ceiling").textContent).toBe("none");
+  });
+
+  it("stops listening when it unmounts", () => {
+    const projection = stubProjection();
+
+    const view = render(
+      <VaultProvider projection={projection}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+    expect(projection.listenerCount).toBe(1);
+
+    view.unmount();
+
+    expect(projection.listenerCount).toBe(0);
+  });
+
+  it("manual lock terminates the worker and clears the decrypted projection", () => {
+    const projection = stubProjection();
+    const worker = new ImmediateWorker({ ok: true, value: { unlocked: true } });
+
+    render(
+      <VaultProvider projection={projection} workerFactory={() => worker}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
+
+    expect(worker.terminate).toHaveBeenCalledOnce();
+    expect(projection.state).toBe("locked");
+    expect(screen.getByTestId("state").textContent).toBe("locked");
+  });
+
+  it("manual lock clears decrypted sync conflicts through the production lifecycle", () => {
+    const syncLifecycle = new SyncLifecycleCoordinator();
+    const clear = vi.spyOn(syncLifecycle.conflicts, "clear");
+
+    render(
+      <VaultProvider projection={stubProjection()} syncLifecycle={syncLifecycle}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
+
+    expect(clear).toHaveBeenCalledOnce();
+    expect(syncLifecycle.conflicts.entries()).toEqual([]);
+  });
+
+  it("keeps a failed unwrap locked and offers another wrapper", async () => {
+    const worker = new ImmediateWorker({
+      ok: false,
+      error: { code: "operation-failed", message: "sensitive decrypt detail" },
+    });
+
+    render(
+      <VaultProvider
+        projection={stubProjection()}
+        workerFactory={() => worker}
+        availableWrappers={["recoveryPassword", "recoveryFile"]}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
+
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("locked"));
+    expect(screen.getByTestId("wrappers").textContent).toBe(
+      "recoveryPassword,recoveryFile",
+    );
+    expect(screen.getByTestId("sensitive-error").textContent).toBe("none");
+  });
+
+  it("never restores an unlocked key from the vault database on reload", () => {
+    const openDatabase = vi.spyOn(vaultDatabase, "openVaultDatabase");
+
+    render(
+      <VaultProvider projection={stubProjection("locked")} autoUnlock={false}>
+        <VaultProbe />
+      </VaultProvider>,
+    );
+
+    expect(screen.getByTestId("state").textContent).toBe("locked");
+    expect(openDatabase).not.toHaveBeenCalled();
+  });
+});

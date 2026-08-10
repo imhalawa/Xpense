@@ -88,6 +88,18 @@ These need one small API addition: recent transactions with their category, whic
 Deterministic. No AI, no token, works offline, fully unit-testable. Highest priority of all the
 adapters for exactly those reasons.
 
+The grammar is a hybrid. Natural phrases cover the common path, while explicit tokens remove
+ambiguity. These inputs are equivalent:
+
+```
+Spent 5 euros at Albert Heijn #shopping
+5 EUR Albert Heijn #shopping @Cash
+```
+
+The first uses the default source account. The second names it. Both produce an expense draft for
+5 EUR, merchant Albert Heijn, category Shopping and today's date. `#shopping` is a category, not a
+tag. Tags use `~shopping` so categories and tags never compete for the same token.
+
 | Token | Meaning | Resolution |
 |---|---|---|
 | `42.18`, `€42.18`, `42.18 usd` | amount and currency | minor units via the currency's exponent; currency via `CurrencyParser` |
@@ -97,6 +109,154 @@ adapters for exactly those reasons.
 | `~work` | tag, repeatable | created if new |
 | `today`, `yesterday`, `mon`–`sun`, `5 aug`, `2026-08-05` | date | `dayjs`, already a dependency |
 | everything left over | merchant | created if new |
+
+### Natural phrases and explicit tokens
+
+Parsing is case-insensitive, whitespace-tolerant and independent of field order. Quotation marks
+keep multi-word names together: `#"Eating out"`, `~"family trip"`, `@"Joint account"` and
+`>"Rainy day"`.
+
+| Concept | Natural forms | Explicit form |
+|---|---|---|
+| Expense | `spent`, `paid`, `bought`, `purchased`, `charged`, `withdrew` | source account without a destination |
+| Income | `received`, `earned`, `deposited`, `was paid`, `refund` | destination account without a source |
+| Transfer | `moved`, `transferred`, `sent … from … to …` | both source and destination accounts |
+| Amount | `5`, `5.20`, `5,20` in comma-decimal locales | none |
+| Currency | `euro`, `euros`, `EUR`, `€`, `dollar`, `dollars`, `USD`, `$`, or any supported ISO code | none |
+| Merchant | `at Albert Heijn`, `from Employer`, or remaining text for a one-sided transaction | `merchant:"Albert Heijn"` |
+| Category | `for shopping`, when Shopping is an exact known category | `#shopping` |
+| Source account | `from Cash`, when Cash is an exact known account | `@Cash` |
+| Destination account | `to Savings`, when Savings is an exact known account | `>Savings` |
+| Tag | none | `~shopping`, repeatable |
+| Date | `today`, `yesterday`, weekday, `last Friday`, `5 Aug`, `Aug 5`, ISO date | `date:2026-08-05` |
+| Time | `this morning`, `this afternoon`, `this evening`, `14:30`, `2pm` | `time:14:30` |
+| Transfer reason | remaining text after both accounts resolve | `reason:"rent buffer"` |
+
+Natural `for <name>` becomes a category only when the complete name matches an existing category.
+Otherwise it stays unresolved rather than stealing words from the merchant. Explicit tokens may
+name an existing value or request inline creation where creation is allowed.
+
+### Defaults
+
+Defaults reduce typing but never invent analytical data:
+
+- no kind verb defaults to expense unless the account tokens prove income or transfer;
+- no currency uses the chosen account's currency;
+- no account uses the active space's default account for an expense or income;
+- no date uses now;
+- merchant and category never default, except when the user's own merchant history supplies an
+  exact, visible category suggestion that the user confirms;
+- tags and transfer reason remain empty.
+
+An explicit value always wins over a default. Two conflicting explicit values do not use
+last-write-wins; both become a visible conflict that the user must resolve.
+
+### Meaningful combinations
+
+Word order does not create different combinations. The parser normalises every permutation into
+the same draft, so the test matrix covers field combinations rather than every possible sentence
+ordering.
+
+| Kind | Minimum valid information after defaults | Optional information | Forbidden information |
+|---|---|---|---|
+| Expense | amount, source account, merchant, category | explicit currency, date/time, tags | destination account |
+| Income | amount, destination account, merchant, category | explicit currency, date/time, tags | source account |
+| Transfer | amount, source account, destination account | explicit currency, date/time, tags, reason | merchant, category |
+
+Representative accepted combinations:
+
+| Input | Result |
+|---|---|
+| `Spent 5 euros at Albert Heijn #shopping` | expense, default account, EUR, merchant, category, today |
+| `5 Albert Heijn #shopping` | expense, default account and currency, today |
+| `€5 at Albert Heijn #shopping` | expense with symbol currency |
+| `5,20 EUR at Albert Heijn #shopping` | locale decimal amount |
+| `paid Albert Heijn 5 EUR #shopping` | order-independent expense |
+| `bought coffee for 4.50 #"Eating out"` | expense with multi-word category |
+| `spent 18 @Cash at Cinema #Entertainment` | explicit source account |
+| `spent 18 from Cash at Cinema #Entertainment` | natural source account |
+| `spent 18 at Cinema #Entertainment yesterday` | relative date |
+| `spent 18 at Cinema #Entertainment last Friday` | relative weekday |
+| `spent 18 at Cinema #Entertainment 2026-08-05` | ISO date |
+| `spent 18 at Cinema #Entertainment 14:30` | today at an explicit time |
+| `spent 18 at Cinema #Entertainment ~family ~weekend` | multiple tags |
+| `received 2400 EUR from Employer #Salary` | income to the default account |
+| `earned 2400 from Employer #Salary >Checking` | explicit income destination |
+| `refund 12 from Albert Heijn #Refunds >Cash` | refund represented as income |
+| `deposited $100 from Client #Freelance yesterday` | income with currency and date |
+| `moved 500 from Checking to Savings` | transfer with natural accounts |
+| `transferred 500 @Checking >Savings` | transfer with explicit accounts |
+| `500 @Checking >Savings` | kind inferred entirely from account tokens |
+| `moved 500 EUR @Checking >Savings yesterday` | dated transfer |
+| `moved 500 @Checking >Savings reason:"rent buffer"` | transfer reason |
+| `moved 500 @Checking >Savings ~monthly ~saving` | tagged transfer |
+| `moved 500 @"Joint checking" >"Rainy day"` | multi-word accounts |
+
+The parser must also handle the cross-product of optional currency, account, date/time and tags for
+expenses and income, and optional currency, date/time, tags and reason for transfers. Adding one
+optional field cannot change any already-resolved field.
+
+### Rejected and unresolved combinations
+
+| Input pattern | Outcome |
+|---|---|
+| no amount | unresolved amount; cannot save |
+| zero or negative amount | amount error; kind carries direction, not the sign |
+| two unrelated amounts | conflict; the user chooses one |
+| unsupported or conflicting currencies | currency conflict |
+| unknown account | unresolved account; accounts are never created inline |
+| ambiguous account prefix | unresolved list of matching accounts |
+| expense or income without merchant | unresolved merchant |
+| expense or income without category | unresolved category |
+| transfer with merchant text | parse error |
+| transfer with `#category` | parse error |
+| transfer to the same account | validation error |
+| transfer between different currencies | validation error; no conversion |
+| impossible or ambiguous date | unresolved date |
+| future date | validation error under the current form contract |
+| duplicate category, account, date or kind tokens | conflict even when later tokens differ |
+| text after all supported fields resolve | unresolved text; never silently discarded |
+
+### Parse order and precedence
+
+The implementation consumes tokens in this order:
+
+1. quoted explicit tokens;
+2. sigils and named explicit tokens;
+3. amount and currency;
+4. date and time;
+5. kind verbs and natural account phrases;
+6. natural category and merchant phrases;
+7. transfer reason or unresolved remainder.
+
+This order is an implementation detail with a user-visible guarantee: explicit syntax beats
+natural inference, and inference beats defaults. Nothing silently overwrites an explicit value.
+
+### Todoist-style parse feedback
+
+The Quick Add control remains one editable sentence, but every recognised text range is decorated
+as the user types:
+
+- amount and currency;
+- kind;
+- merchant;
+- category;
+- source and destination account;
+- each tag;
+- date and time;
+- transfer reason.
+
+Decoration uses Fluent semantic colours, a subtle background and an icon or text label; colour is
+never the only signal. The active token can open its matching picker. Deleting or editing text
+immediately re-parses the whole sentence. Unresolved text gets a neutral dotted underline;
+conflicts and invalid values use the error role. A screen-reader-only live region announces concise
+changes such as `Category Shopping recognised` without reading the full sentence after every
+keystroke.
+
+Below the field, compact chips mirror the decorated ranges and provide a reliable interaction
+surface on touch screens. Selecting a chip focuses its source range. Correcting through a picker
+rewrites that range to an explicit token, preserving the rest of the sentence. The full traditional
+form remains the confirmation surface and updates live from the same draft.
 
 Kind falls out of the account tokens, matching the API validator:
 

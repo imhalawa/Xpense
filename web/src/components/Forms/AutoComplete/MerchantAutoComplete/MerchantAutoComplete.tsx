@@ -1,5 +1,5 @@
-import { Autocomplete, createFilterOptions, TextField } from "@mui/material";
 import { useEffect, useState } from "react";
+import { Combobox, Field, Option } from "@fluentui/react-components";
 import { IMerchant } from "../../../../typings";
 import { listMerchants } from "../../../../clients/options";
 import { useLoading } from "../../../../contexts/LoadingContext";
@@ -13,16 +13,19 @@ interface IMerchantAutoCompleteProps {
   onChange: (value: IMerchant | null) => void;
 }
 
-const filter = createFilterOptions<IMerchant>();
-
 const searchDelayMilliseconds = 250;
 
-const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMerchantAutoCompleteProps) => {
+const MerchantAutoComplete = ({
+  label,
+  value,
+  onChange,
+  error,
+  helperText,
+}: IMerchantAutoCompleteProps) => {
   const { setLoading } = useLoading();
-
   const [merchantOptions, setMerchantOptions] = useState<IMerchant[]>([]);
-  const [selected, setSelected] = useState<IMerchant | null>(null);
-  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<IMerchant | null>(value);
+  const [search, setSearch] = useState(value?.label ?? "");
   const [searching, setSearching] = useState(false);
   const debouncedSearch = useDebouncedValue(search, searchDelayMilliseconds);
 
@@ -37,9 +40,9 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
         setMerchantOptions(merchants);
         setLoading(false);
       })
-      .catch((error) => {
+      .catch((loadError) => {
         if (stale) return;
-        console.error(error);
+        console.error(loadError);
         setLoading(false);
       });
 
@@ -52,77 +55,43 @@ const MerchantAutoComplete = ({ label, value, onChange, error, helperText }: IMe
     onChange(selected);
   }, [selected]);
 
-  return (
-    <Autocomplete
-      freeSolo
-      id="tags-Create"
-      options={merchantOptions}
-      onInputChange={(_event, newInputValue) => {
-        setSearching(true);
-        setSearch(newInputValue);
-      }}
-      onChange={(_event, newValue, _reason, _details) => {
-        if (typeof newValue === "string") {
-          setSelected({
-            id: null,
-            label: newValue,
-            create: true,
-          });
-        } else if (newValue && newValue.create) {
-          setSelected({
-            id: null,
-            label: newValue.label,
-            create: true,
-          });
-        } else {
-          setSelected(newValue);
-        }
-      }}
-      filterSelectedOptions
-      filterOptions={(options, params): IMerchant[] => {
-        const filtered = filter(options, params);
+  const hasExactMatch = merchantOptions.some((option) => option.label === search);
 
-        const { inputValue } = params;
-        const isExisting = options.some((option) => inputValue === option.label);
-        if (inputValue !== "" && !isExisting) {
-          filtered.push({
-            id: null,
-            label: inputValue,
-            create: true,
-          });
-        }
-        return filtered;
-      }}
-      selectOnFocus
-      clearOnBlur
-      handleHomeEndKeys
-      getOptionLabel={(option) => {
-        if (typeof option === "string") {
-          return option;
-        }
-        if (option.create) {
-          return option.label;
-        }
-        return option.label;
-      }}
-      renderOption={(props, option) => (
-        <li {...props} key={option.id}>
-          {option.label}
-        </li>
-      )}
-      renderInput={(params) => (
-        <TextField
-          required
-          {...params}
-          onFocus={() => setSearching(true)}
-          label={label}
-          value={value}
-          placeholder={label}
-          error={error}
-          helperText={helperText}
-        />
-      )}
-    />
+  return (
+    <Field
+      label={label}
+      required
+      validationState={error ? "error" : "none"}
+      validationMessage={helperText}>
+      <Combobox
+        freeform
+        value={search}
+        selectedOptions={selected?.id === null || selected === null ? [] : [String(selected.id)]}
+        onFocus={() => setSearching(true)}
+        onChange={(event) => {
+          setSearching(true);
+          setSearch(event.target.value);
+        }}
+        onOptionSelect={(_event, data) => {
+          const existing = merchantOptions.find((option) => String(option.id) === data.optionValue);
+          const next =
+            existing ??
+            (search === "" ? null : { id: null, label: search, create: true });
+          setSelected(next);
+          setSearch(next?.label ?? "");
+        }}>
+        {merchantOptions.map((merchant) => (
+          <Option key={merchant.id} value={String(merchant.id)} text={merchant.label}>
+            {merchant.label}
+          </Option>
+        ))}
+        {search !== "" && !hasExactMatch && (
+          <Option value={search} text={`Create ${search}`}>
+            Create “{search}”
+          </Option>
+        )}
+      </Combobox>
+    </Field>
   );
 };
 

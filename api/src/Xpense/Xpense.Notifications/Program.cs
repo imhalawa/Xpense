@@ -1,25 +1,48 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Serilog;
-using Xpense.Notifications;
+using Xpense.Notifications.Email;
 using Xpense.Notifications.Rules;
 using Xpense.Persistence;
 
-var builder = Host.CreateApplicationBuilder(args);
+namespace Xpense.Notifications;
 
-builder.Services.AddSerilog((services, configuration) => configuration
-    .ReadFrom.Configuration(builder.Configuration)
-    .ReadFrom.Services(services)
-    .Enrich.FromLogContext()
-    .WriteTo.Console());
+public static class NotificationsProgram
+{
+    public static async Task Main(string[] args)
+    {
+        var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddDbContext<XpenseDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+        builder.Services.AddSerilog((services, configuration) => configuration
+            .ReadFrom.Configuration(builder.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .WriteTo.Console());
 
-builder.Services.AddNotificationRules();
+        builder.Services.AddDbContext<XpenseDbContext>(options =>
+            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+        builder.Services.AddNotificationRules();
+        builder.Services.AddOptions<LegacyClaimOptions>()
+            .Bind(builder.Configuration.GetSection(LegacyClaimOptions.SectionName))
+            .ValidateOnStart();
 
-builder.Services.AddScoped<EventProcessor>();
-builder.Services.AddHostedService<EventPump>();
+        var keyDirectory = builder.Configuration["DataProtection:KeyDirectory"]
+            ?? throw new InvalidOperationException("The data-protection key directory is required.");
 
-await builder.Build().RunAsync();
+        builder.Services.AddDataProtection()
+            .SetApplicationName("Xpense")
+            .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
+
+        builder.Services.AddOptions<EmailOptions>()
+            .Bind(builder.Configuration.GetSection(EmailOptions.SectionName))
+            .ValidateOnStart();
+        builder.Services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
+        builder.Services.AddSingleton<ISmtpTransport, SmtpTransport>();
+        builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        builder.Services.AddScoped<EventProcessor>();
+        builder.Services.AddHostedService<EventPump>();
+
+        await builder.Build().RunAsync();
+    }
+}

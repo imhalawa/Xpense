@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
+using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Domain.Exceptions;
 using Xpense.Persistence;
 
@@ -15,7 +16,8 @@ public sealed class MarkNotificationRead : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapPatch("/api/v1/notifications/{id:int}/read", Handle)
-            .WithName(nameof(MarkNotificationRead));
+            .WithName(nameof(MarkNotificationRead))
+            .WritesLegacyClaimSource();
 
     private static async Task<Ok<NotificationResponse>> Handle(
         int id,

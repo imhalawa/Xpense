@@ -35,6 +35,14 @@ services:
     command: ["--connection", *connection]
     restart: "no"
 
+  dataprotection-init:
+    image: alpine:3.22
+    user: "0:0"
+    command: ["sh", "-c", "chown 1001:1001 /keys && chmod 0700 /keys"]
+    restart: "no"
+    volumes:
+      - xpense-dataprotection:/keys
+
   api:
     build:
       context: .
@@ -45,12 +53,26 @@ services:
     depends_on:
       migrations:
         condition: service_completed_successfully
+      dataprotection-init:
+        condition: service_completed_successfully
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: ${XPENSE_ENVIRONMENT:-Development}
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__DefaultConnection: *connection
+      DataProtection__KeyDirectory: /keys
+      Authentication__RelyingPartyDomain: ${XPENSE_AUTH_RP_DOMAIN:-localhost}
+      Authentication__RelyingPartyName: ${XPENSE_AUTH_RP_NAME:-Xpense}
+      Authentication__AllowedOrigins__0: ${XPENSE_AUTH_ORIGIN:-http://localhost:5173}
+      Authentication__Registration: ${XPENSE_AUTH_REGISTRATION:-Open}
+      Authentication__PublicUrl: ${XPENSE_PUBLIC_URL:-http://localhost:5173}
+      LegacyClaim__Enabled: ${XPENSE_LEGACY_CLAIM_ENABLED:-false}
+      LegacyClaim__DesignatedUserId: ${XPENSE_LEGACY_CLAIM_DESIGNATED_USER_ID:-}
+      LegacyClaim__DataMode: ${XPENSE_DATA_MODE:-legacy}
+      ForwardedHeaders__KnownIPNetworks__0: ${XPENSE_TRUSTED_PROXY_NETWORK:-127.0.0.1/32}
     ports:
       - "127.0.0.1:4000:8080"
+    volumes:
+      - xpense-dataprotection:/keys
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 10s
@@ -68,9 +90,24 @@ services:
     depends_on:
       migrations:
         condition: service_completed_successfully
+      dataprotection-init:
+        condition: service_completed_successfully
     environment:
-      DOTNET_ENVIRONMENT: Development
+      DOTNET_ENVIRONMENT: ${XPENSE_ENVIRONMENT:-Development}
       ConnectionStrings__DefaultConnection: *connection
+      DataProtection__KeyDirectory: /keys
+      LegacyClaim__Enabled: ${XPENSE_LEGACY_CLAIM_ENABLED:-false}
+      Email__Enabled: ${XPENSE_EMAIL_ENABLED:-false}
+      Email__Host: ${XPENSE_EMAIL_HOST:-}
+      Email__Port: ${XPENSE_EMAIL_PORT:-587}
+      Email__FromAddress: ${XPENSE_EMAIL_FROM_ADDRESS:-}
+      Email__UseTls: ${XPENSE_EMAIL_USE_TLS:-true}
+      Email__Username: ${XPENSE_EMAIL_USERNAME:-}
+      Email__Password: ${XPENSE_EMAIL_PASSWORD:-}
+      Email__TimeoutSeconds: ${XPENSE_EMAIL_TIMEOUT_SECONDS:-10}
+    volumes:
+      - xpense-dataprotection:/keys
 
 volumes:
   xpense-postgres-data:
+  xpense-dataprotection:

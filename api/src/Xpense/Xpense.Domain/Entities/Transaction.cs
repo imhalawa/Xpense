@@ -115,6 +115,51 @@ namespace Xpense.Domain.Entities
             return transaction;
         }
 
+        public void ReverseBalanceEffect()
+        {
+            switch (Kind)
+            {
+                case TransactionKind.Income:
+                    DestinationAccount!.Withdraw(Amount);
+                    break;
+                case TransactionKind.Expense:
+                    SourceAccount!.Deposit(Amount);
+                    break;
+                case TransactionKind.Transfer:
+                    SourceAccount!.Deposit(Amount);
+                    DestinationAccount!.Withdraw(Amount);
+                    break;
+                default:
+                    throw new InvalidTransactionException("The transaction kind cannot be reversed.");
+            }
+        }
+
+        public void ReplaceWith(Transaction replacement)
+        {
+            AmountMinorUnits = replacement.AmountMinorUnits;
+            Currency = replacement.Currency;
+            OccurredAt = replacement.OccurredAt;
+            Reason = replacement.Reason;
+            SourceAccount = replacement.SourceAccount;
+            SourceAccountId = replacement.SourceAccount?.Id is > 0
+                ? replacement.SourceAccount.Id
+                : replacement.SourceAccountId;
+            DestinationAccount = replacement.DestinationAccount;
+            DestinationAccountId = replacement.DestinationAccount?.Id is > 0
+                ? replacement.DestinationAccount.Id
+                : replacement.DestinationAccountId;
+            Category = replacement.Category;
+            CategoryId = replacement.Category?.Id is > 0
+                ? replacement.Category.Id
+                : replacement.CategoryId;
+            Merchant = replacement.Merchant;
+            MerchantId = replacement.Merchant?.Id is > 0
+                ? replacement.Merchant.Id
+                : replacement.MerchantId;
+            Tags = replacement.Tags;
+            Touch();
+        }
+
         private static Transaction Build(Money amount, DateTime occurredAt, IEnumerable<Tag>? tags) =>
             new()
             {

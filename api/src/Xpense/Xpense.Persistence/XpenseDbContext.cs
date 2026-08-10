@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Linq.Expressions;
@@ -7,7 +9,16 @@ using Xpense.Domain.Entities;
 
 namespace Xpense.Persistence
 {
-    public class XpenseDbContext : DbContext
+    public class XpenseDbContext : IdentityDbContext<
+        XpenseUser,
+        IdentityRole<Guid>,
+        Guid,
+        IdentityUserClaim<Guid>,
+        IdentityUserRole<Guid>,
+        IdentityUserLogin<Guid>,
+        IdentityRoleClaim<Guid>,
+        IdentityUserToken<Guid>,
+        IdentityUserPasskey<Guid>>
     {
         public XpenseDbContext() { }
 
@@ -22,14 +33,30 @@ namespace Xpense.Persistence
         public virtual DbSet<Budget> Budgets { get; set; }
         public virtual DbSet<EventRecord> Events { get; set; }
         public virtual DbSet<Notification> Notifications { get; set; }
+        public virtual DbSet<UserProfile> UserProfiles { get; set; }
+        public virtual DbSet<UserEncryptionIdentity> UserEncryptionIdentities { get; set; }
+        public virtual DbSet<VaultWrapper> VaultWrappers { get; set; }
+        public virtual DbSet<PendingRegistration> PendingRegistrations { get; set; }
+        public virtual DbSet<PendingPasskeyAssertion> PendingPasskeyAssertions { get; set; }
+        public virtual DbSet<Group> Groups { get; set; }
+        public virtual DbSet<GroupMembership> GroupMemberships { get; set; }
+        public virtual DbSet<GroupInvitation> GroupInvitations { get; set; }
+        public virtual DbSet<ResourceGrant> ResourceGrants { get; set; }
+        public virtual DbSet<SharedResource> SharedResources { get; set; }
+        public virtual DbSet<InvitationDelivery> InvitationDeliveries { get; set; }
+        public virtual DbSet<EncryptedRecord> EncryptedRecords { get; set; }
+        public virtual DbSet<RecordEnvelope> RecordEnvelopes { get; set; }
+        public virtual DbSet<SyncOperation> SyncOperations { get; set; }
+        public virtual DbSet<ClaimToken> ClaimTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.HasSequence<long>("EncryptedRecordSequence", "Xpense");
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
             ConfigureDecimalColumnsStore(modelBuilder, 18, 2);
             ConfigureUtcDateTimes(modelBuilder);
             ApplyGlobalQueryFilter(modelBuilder, entity => !entity.IsDeleted);
-            base.OnModelCreating(modelBuilder);
         }
 
         private static void ConfigureUtcDateTimes(ModelBuilder modelBuilder)

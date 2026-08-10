@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { ThemeProvider } from "@mui/material/styles";
 import dayjs from "dayjs";
-import theme from "../../theme/theme";
-import { tokens } from "../../theme/tokens";
 import { Currency } from "../../typings/enums/Currency";
 import { IBudgetPeriodResponse, IBudgetResponse, IMoneyResponse } from "../../clients/types";
 import BudgetMeter from "./BudgetMeter";
@@ -45,16 +42,7 @@ const budget = (period: IBudgetResponse["period"]): IBudgetResponse => ({
 });
 
 const renderMeter = (item: IBudgetResponse, now = dayjs("2026-08-10T00:00:00Z")) =>
-  render(
-    <ThemeProvider theme={theme}>
-      <BudgetMeter budget={item} now={now} />
-    </ThemeProvider>
-  );
-
-const collectStyleRules = (): string =>
-  Array.from(document.querySelectorAll("style"))
-    .map((styleElement) => styleElement.textContent ?? "")
-    .join("");
+  render(<BudgetMeter budget={item} now={now} />);
 
 describe("BudgetMeter", () => {
   it("names the category", () => {
@@ -62,21 +50,19 @@ describe("BudgetMeter", () => {
     expect(screen.getByText("Groceries")).toBeDefined();
   });
 
-  it("shows spent and remaining", () => {
+  it("shows spent, remaining, and days left", () => {
     renderMeter(budget(augustPeriod(25000, 75000)));
     expect(screen.getByText(/250[.,]00/)).toBeDefined();
     expect(screen.getByText(/750[.,]00/)).toBeDefined();
-  });
-
-  it("shows how many days are left", () => {
-    renderMeter(budget(augustPeriod(10000, 90000)));
     expect(screen.getByText(/21 days left/i)).toBeDefined();
   });
 
-  it("exposes progress to assistive technology, not just as a colour", () => {
+  it("exposes the progressbar value to assistive technology", () => {
     renderMeter(budget(augustPeriod(25000, 75000)));
     const meter = screen.getByRole("progressbar");
-    expect(meter.getAttribute("aria-valuenow")).toBe("25");
+    expect(meter.getAttribute("aria-valuemin")).toBe("0");
+    expect(meter.getAttribute("aria-valuemax")).toBe("1");
+    expect(meter.getAttribute("aria-valuenow")).toBe("0.25");
   });
 
   it("says the budget is not measuring when it has no period", () => {
@@ -95,14 +81,5 @@ describe("BudgetMeter", () => {
   it("warns when the burn rate projects an overspend", () => {
     renderMeter(budget(augustPeriod(20000, 80000)), dayjs("2026-08-05T00:00:00Z"));
     expect(screen.getByText(/projected/i)).toBeDefined();
-  });
-
-  it("repaints the bar for the dark colour scheme", () => {
-    renderMeter(budget(augustPeriod(10000, 90000)));
-    const darkBarRule = collectStyleRules().match(
-      /\[data-theme='dark'] \.css-[^{]*MuiLinearProgress-bar[^{]*\{([^}]*)\}/
-    );
-    expect(darkBarRule).not.toBeNull();
-    expect(darkBarRule?.[1] ?? "").toContain(tokens.brand[400]);
   });
 });

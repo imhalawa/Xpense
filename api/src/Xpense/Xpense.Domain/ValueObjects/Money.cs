@@ -1,3 +1,4 @@
+using System.Globalization;
 using Xpense.Domain.Enums;
 using Xpense.Domain.Exceptions;
 
@@ -21,7 +22,8 @@ namespace Xpense.Domain.ValueObjects
             return MinorUnits / 100m;
         }
 
-        public override string ToString() => $"{ToDecimal():0.00} {Currency}";
+        public override string ToString() =>
+            $"{ToDecimal().ToString("0.00", CultureInfo.InvariantCulture)} {Currency}";
 
         public static Money operator +(Money lhs, Money rhs)
         {

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { ThemeProvider } from "@mui/material/styles";
-import theme from "../../theme/theme";
 import { Currency } from "../../typings/enums/Currency";
 import { IAccountResponse } from "../../clients/types";
 import AccountBalances from "./AccountBalances";
@@ -20,12 +18,7 @@ const account = (
   updatedAt: null,
 });
 
-const renderBalances = (accounts: IAccountResponse[]) =>
-  render(
-    <ThemeProvider theme={theme}>
-      <AccountBalances accounts={accounts} />
-    </ThemeProvider>
-  );
+const renderBalances = (accounts: IAccountResponse[]) => render(<AccountBalances accounts={accounts} />);
 
 describe("AccountBalances", () => {
   it("shows one tile per account", () => {
