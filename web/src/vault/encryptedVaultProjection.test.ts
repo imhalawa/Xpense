@@ -199,6 +199,38 @@ describe("encrypted vault projection", () => {
     expect(Array.from(replacementRecord.envelopes[0]!.wrappedKey)).toEqual(Array.from(replacement));
   });
 
+  it("leaves exactly one default account when a new one claims the flag", async () => {
+    const replacement = bytes(50);
+    const bridge: ProjectionCryptoBridge = {
+      ownerId,
+      decrypt: vi.fn(async (record) => new Uint8Array(plaintext.get(record.id)!)),
+      encryptNew: vi.fn(async (record, value) => {
+        plaintext.set(record.id, new Uint8Array(value));
+        return { sealedPayload: { nonce: bytes(20), ciphertext: bytes(30) }, personalEnvelope: { nonce: bytes(40), ciphertext: replacement } };
+      }),
+      encryptReplacement: vi.fn(async (record, value) => {
+        plaintext.set(record.id, new Uint8Array(value));
+        return { nonce: bytes(60), ciphertext: bytes(70) };
+      }),
+    };
+    const api: SyncMutationApi = {
+      create: vi.fn(async ({ records }) => [syncRecord(records[0]!)]),
+      replace: vi.fn(async (id, request) => ({ ...syncRecord({ id, idempotencyKey: "ignored", recordType: 0, parentResourceId: id, protocolVersion: 1, nonce: request.nonce, ciphertext: request.ciphertext, personalEnvelope: { wrappedKey: replacement, nonce: bytes(40), protocolVersion: 1 } }), revision: 2 })),
+      remove: vi.fn(),
+    };
+    const projection = encryptedVaultProjection(new SyncLifecycleCoordinator(), { pull: vi.fn(), syncApi: api, id: () => createdAccountId, now: () => new Date(instant) });
+    projection.attachCrypto(bridge);
+    await projection.unlock();
+
+    const before = await projection.listAccounts("personal");
+    await projection.createAccount("personal", { label: "Savings", currency: Currency.EUR, openingBalanceMinorUnits: 800, isDefault: true });
+    const after = await projection.listAccounts("personal");
+    projection.lock();
+
+    expect(before.filter((account) => account.isDefault).map((account) => account.label)).toEqual(["Wallet"]);
+    expect(after.filter((account) => account.isDefault).map((account) => account.label)).toEqual(["Savings"]);
+  });
+
   it("rejects changing an existing transaction root account before encryption", async () => {
     const bridge: ProjectionCryptoBridge = {
       ownerId,

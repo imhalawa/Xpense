@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
@@ -42,6 +43,13 @@ public sealed class UpdateAccount : IEndpoint
         account.Label = request.Label;
         account.IsDefault = request.IsDefault;
         account.Touch();
+
+        if (request.IsDefault)
+            await Queryable
+                .Where(dbContext.Accounts, other => other.Id != account.Id && other.IsDefault && !other.IsDeleted)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(other => other.IsDefault, false),
+                    cancellationToken);
 
         if (await dbContext.SaveChangesAsync(cancellationToken) < 1)
             throw new AccountUpdateFailedException(account.Id);

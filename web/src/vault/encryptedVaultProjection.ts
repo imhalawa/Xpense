@@ -240,6 +240,26 @@ export const encryptedVaultProjection = (
     }
   };
 
+  const activeAccounts = () =>
+    [...payloads.values()].filter(({ record }) => record.recordType === "account" && !record.tombstone);
+
+  const hasDefaultAccount = (): boolean =>
+    activeAccounts().some(({ payload }) => payload.isDefault === true);
+
+  const demoteOtherDefaultAccounts = async (keptRecordId: string): Promise<void> => {
+    const demoted = activeAccounts().filter(
+      ({ record, payload }) => record.id !== keptRecordId && payload.isDefault === true,
+    );
+    for (const { record, payload } of demoted) {
+      await stage(
+        "account",
+        record.parentResourceId,
+        { ...payload, isDefault: false, updatedAt: now().toISOString() },
+        record,
+      );
+    }
+  };
+
   const queueRemove = async (recordId: string): Promise<void> => {
     if (outbox === null) throw new Error("The vault is locked");
     await outbox.queue({ kind: "delete", recordId }, abortController?.signal);
@@ -317,13 +337,16 @@ export const encryptedVaultProjection = (
     async createAccount(space: SpaceId, draft: AccountDraft) {
       if (space !== personalSpace) throw new Error("Group spaces are not available yet.");
       const recordId = id(); const instant = now().toISOString();
-      await stage("account", recordId, { ...common(recordId, instant, null), label: draft.label, balance: { minorUnits: draft.openingBalanceMinorUnits, currency: draft.currency }, openingBalanceMinorUnits: draft.openingBalanceMinorUnits, currency: draft.currency, isDefault: draft.isDefault });
+      const isDefault = draft.isDefault || !hasDefaultAccount();
+      await stage("account", recordId, { ...common(recordId, instant, null), label: draft.label, balance: { minorUnits: draft.openingBalanceMinorUnits, currency: draft.currency }, openingBalanceMinorUnits: draft.openingBalanceMinorUnits, currency: draft.currency, isDefault });
+      if (isDefault) await demoteOtherDefaultAccounts(recordId);
       return (await requireReady().listAccounts(space)).find((account) => account.id === recordId)!;
     },
     async updateAccount(space, recordId, draft) {
       const item = payloads.get(recordId); if (item?.record.recordType !== "account") throw new Error("The account was not found");
       if (item.payload.currency !== draft.currency) throw new Error("The account currency cannot be changed.");
       await stage("account", recordId, { ...item.payload, label: draft.label, openingBalanceMinorUnits: draft.openingBalanceMinorUnits, isDefault: draft.isDefault, updatedAt: now().toISOString() }, item.record);
+      if (draft.isDefault) await demoteOtherDefaultAccounts(recordId);
       return (await requireReady().listAccounts(space)).find((account) => account.id === recordId)!;
     },
     deleteAccount: (_space, recordId) => remove(recordId),
