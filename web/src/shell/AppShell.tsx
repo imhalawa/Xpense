@@ -522,6 +522,7 @@ const AppShell = ({ children }: AppShellProps) => {
       />
       <ResourceDialog
         request={resourceDialog}
+        accounts={accounts}
         onClose={() => setResourceDialog(null)}
         onSubmit={saveResource}
       />

@@ -15,6 +15,14 @@ export const appGlobalStyles = [
     ":where(.fui-Input, .fui-Combobox, .fui-Select, .fui-Textarea, .fui-Dropdown, .fui-SpinButton) :where(input, select, textarea):focus-visible": {
       outline: "none",
     },
+    ":where(.fui-Input, .fui-Combobox, .fui-Select__select, .fui-Textarea, .fui-Dropdown, .fui-SpinButton)::after": {
+      content: "none",
+    },
+    ":where(.fui-Input, .fui-Combobox, .fui-Select, .fui-Textarea, .fui-Dropdown, .fui-SpinButton)": {
+      transitionProperty: "outline-color, border-color, background-color",
+      transitionDuration: fluentTokens.durationFast,
+      transitionTimingFunction: fluentTokens.curveEasyEase,
+    },
     '[data-portal-node="true"]': {
       backgroundColor: "transparent",
     },

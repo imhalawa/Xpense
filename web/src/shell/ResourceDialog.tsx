@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Button,
+  Caption1,
   Checkbox,
   Dialog,
   DialogActions,
@@ -12,7 +13,6 @@ import {
   Input,
   MessageBar,
   MessageBarBody,
-  Option,
   Select,
   makeStyles,
   mergeClasses,
@@ -20,7 +20,7 @@ import {
 } from "@fluentui/react-components";
 import { Currency } from "../typings/enums/Currency";
 import { matchingPreset, tagPresetChoices } from "../theme/tagPresets";
-import type { AccountDraft, CategoryPriority, TaxonomyDraft } from "../vault/VaultProjection";
+import type { AccountDraft, AccountView, CategoryPriority, TaxonomyDraft } from "../vault/VaultProjection";
 import type { SidebarResource, SidebarResourceAction } from "./SidebarFilters";
 
 export interface ResourceDialogRequest {
@@ -31,6 +31,7 @@ export interface ResourceDialogRequest {
 
 interface ResourceDialogProps {
   request: ResourceDialogRequest | null;
+  accounts?: AccountView[];
   onClose: () => void;
   onSubmit: (request: ResourceDialogRequest, draft?: AccountDraft | TaxonomyDraft) => Promise<void>;
 }
@@ -64,6 +65,7 @@ const useStyles = makeStyles({
     ":hover": { transform: "translateY(-1px)" },
   },
   swatchChosen: { outlineColor: tokens.colorBrandStroke1 },
+  hint: { color: tokens.colorNeutralForeground3 },
 });
 
 const categoryPriorities: CategoryPriority[] = [
@@ -96,11 +98,12 @@ const parseMajorUnits = (value: string): number | null => {
   return Math.round(Number(trimmed.replace(",", ".")) * minorUnitsPerMajor);
 };
 
-const ResourceDialog = ({ request, onClose, onSubmit }: ResourceDialogProps) => {
+const ResourceDialog = ({ request, accounts = [], onClose, onSubmit }: ResourceDialogProps) => {
   const styles = useStyles();
   const [draft, setDraft] = useState<AccountDraft | TaxonomyDraft | null>(null);
   const [openingBalance, setOpeningBalance] = useState("0");
   const [customColours, setCustomColours] = useState(false);
+  const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -129,19 +132,14 @@ const ResourceDialog = ({ request, onClose, onSubmit }: ResourceDialogProps) => 
 
   const submit = async () => {
     if (request === null) return;
-    if (request.action !== "delete" && (draft === null || !draft.label.trim())) {
-      setError("Enter a label before saving.");
-      return;
-    }
+    setTouched(true);
+    if (request.action !== "delete" && (draft === null || !draft.label.trim())) return;
     const openingBalanceMinorUnits = parseMajorUnits(openingBalance);
     if (
       request.action === "create" &&
       request.resource.kind === "account" &&
       openingBalanceMinorUnits === null
-    ) {
-      setError("Enter an opening balance such as 250 or 250.75.");
-      return;
-    }
+    ) return;
     setError(null);
     setIsSaving(true);
     try {
@@ -150,7 +148,12 @@ const ResourceDialog = ({ request, onClose, onSubmit }: ResourceDialogProps) => 
         request.action === "delete" || draft === null
           ? undefined
           : "currency" in draft
-            ? { ...draft, label: draft.label.trim(), openingBalanceMinorUnits: openingBalanceMinorUnits ?? draft.openingBalanceMinorUnits }
+            ? {
+                ...draft,
+                label: draft.label.trim(),
+                openingBalanceMinorUnits: openingBalanceMinorUnits ?? draft.openingBalanceMinorUnits,
+                isDefault: defaultLocked ? true : draft.isDefault,
+              }
             : { ...draft, label: draft.label.trim() },
       );
       close();
@@ -168,6 +171,20 @@ const ResourceDialog = ({ request, onClose, onSubmit }: ResourceDialogProps) => 
   const editingTag = request?.resource.kind === "tag";
   const accountDraft = draft !== null && "currency" in draft ? draft : null;
   const taxonomyDraft = draft !== null && "priority" in draft ? draft : null;
+  const editedAccountId = request?.resource.kind === "account" ? request.resource.value.id : null;
+  const otherAccounts = accounts.filter((account) => account.id !== editedAccountId);
+  const currentDefault = otherAccounts.find((account) => account.isDefault === true) ?? null;
+  const isFirstAccount = editingAccount && request?.action === "create" && accounts.length === 0;
+  const isOnlyDefault = editingAccount && request?.action === "edit" && currentDefault === null;
+  const defaultLocked = isFirstAccount === true || isOnlyDefault === true;
+  const demotedAccount = accountDraft?.isDefault === true ? currentDefault : null;
+  const labelError = !touched || deleting || (draft?.label.trim() ?? "") !== ""
+    ? null
+    : `Give this ${name} a name.`;
+  const balanceError = !touched || deleting || !editingAccount || request?.action !== "create" ||
+    parseMajorUnits(openingBalance) !== null
+    ? null
+    : "Enter an amount such as 250 or 250.75.";
 
   return <Dialog open={open} onOpenChange={(_event, data) => { if (!data.open && !isSaving) close(); }}>
     <DialogSurface>
@@ -175,28 +192,71 @@ const ResourceDialog = ({ request, onClose, onSubmit }: ResourceDialogProps) => 
         <DialogTitle>{deleting ? `Delete ${name}` : `${request?.action === "edit" ? "Edit" : "Add"} ${name}`}</DialogTitle>
         <DialogContent>
           {deleting ? <p>Delete “{request?.resource.value.label}”? Any active {name} filter will be cleared, and affected transaction filters will no longer match this value.</p> : <div className={styles.form}>
-            <Field label="Label" required><Input autoFocus value={draft?.label ?? ""} onChange={(_event, data) => setDraft((current) => current === null ? current : { ...current, label: data.value })} /></Field>
+            <Field
+              label="Label"
+              required
+              validationState={labelError === null ? "none" : "error"}
+              validationMessage={labelError ?? undefined}>
+              <Input
+                autoFocus
+                value={draft?.label ?? ""}
+                onBlur={() => setTouched(true)}
+                onChange={(_event, data) => setDraft((current) => current === null ? current : { ...current, label: data.value })}
+              />
+            </Field>
             {editingAccount && accountDraft !== null && <>
               {request?.action === "create" && <>
                 <Field
                   label="Opening balance"
                   required
                   hint={`How much this account holds today, in ${accountDraft.currency}.`}
-                  validationState={parseMajorUnits(openingBalance) === null ? "error" : "none"}
-                  validationMessage={parseMajorUnits(openingBalance) === null
-                    ? "Enter an amount such as 250 or 250.75."
-                    : undefined}>
+                  validationState={balanceError === null ? "none" : "error"}
+                  validationMessage={balanceError ?? undefined}>
                   <Input
                     inputMode="decimal"
                     value={openingBalance}
+                    onBlur={() => setTouched(true)}
                     onChange={(_event, data) => setOpeningBalance(data.value)}
                   />
                 </Field>
-                <Field label="Currency"><Select value={accountDraft.currency} onChange={(_event, data) => setDraft({ ...accountDraft, currency: data.value as Currency })}>{Object.values(Currency).map((currency) => <Option key={currency} value={currency}>{currency}</Option>)}</Select></Field>
+                <Field label="Currency" required hint="Fixed once the account exists.">
+                  <Select
+                    value={accountDraft.currency}
+                    onChange={(_event, data) => setDraft({ ...accountDraft, currency: data.value as Currency })}>
+                    {Object.values(Currency).map((currency) => (
+                      <option key={currency} value={currency}>{currency}</option>
+                    ))}
+                  </Select>
+                </Field>
               </>}
-              <Checkbox checked={accountDraft.isDefault} onChange={(_event, data) => setDraft({ ...accountDraft, isDefault: data.checked === true })} label="Default account" />
+              <Checkbox
+                checked={defaultLocked ? true : accountDraft.isDefault}
+                disabled={defaultLocked}
+                onChange={(_event, data) => setDraft({ ...accountDraft, isDefault: data.checked === true })}
+                label="Default account"
+              />
+              {defaultLocked && <Caption1 className={styles.hint}>
+                {isFirstAccount
+                  ? "Your first account is the default one."
+                  : "Make another account the default to move it off this one."}
+              </Caption1>}
+              {demotedAccount !== null && <MessageBar intent="warning">
+                <MessageBarBody>
+                  “{demotedAccount.label}” will stop being the default account.
+                </MessageBarBody>
+              </MessageBar>}
             </>}
-            {editingCategory && taxonomyDraft !== null && <Field label="Priority"><Select value={taxonomyDraft.priority ?? "Useful"} onChange={(_event, data) => setDraft({ ...taxonomyDraft, priority: data.value as CategoryPriority })}>{categoryPriorities.map((priority) => <Option key={priority} value={priority}>{priority}</Option>)}</Select></Field>}
+            {editingCategory && taxonomyDraft !== null && (
+              <Field label="How essential is it?" hint="Used to report what your spending was really for.">
+                <Select
+                  value={taxonomyDraft.priority ?? "Useful"}
+                  onChange={(_event, data) => setDraft({ ...taxonomyDraft, priority: data.value as CategoryPriority })}>
+                  {categoryPriorities.map((priority) => (
+                    <option key={priority} value={priority}>{priority}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
             {editingTag && taxonomyDraft !== null && <>
               <Field label="Colour">
                 <div className={styles.swatches} role="radiogroup" aria-label="Tag colour">
