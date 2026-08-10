@@ -24,6 +24,7 @@ import {
   ReceiptRegular,
   WalletRegular,
 } from "@fluentui/react-icons";
+import { signOut } from "../auth/authApi";
 import NotificationBell from "../components/NotificationBell/NotificationBell";
 import { useLoading } from "../contexts/LoadingContext";
 import {
@@ -346,6 +347,17 @@ const AppShell = ({ children }: AppShellProps) => {
     projection.unlock().catch(() => setUnlockError(unlockFailureMessage));
   }, [projection]);
 
+  // Drop the decrypted projection before the session, so nothing readable outlives the
+  // sign-out even if the logout request fails.
+  const endSession = useCallback(async () => {
+    projection.lock();
+    try {
+      await signOut();
+    } finally {
+      await navigate("/signin", { replace: true });
+    }
+  }, [navigate, projection]);
+
   return (
     <div className={styles.root}>
       {loading && <ProgressBar className={styles.loading} />}
@@ -376,6 +388,7 @@ const AppShell = ({ children }: AppShellProps) => {
               onSelectSpace={selectSpace}
               onLock={() => projection.lock()}
               onUnlock={unlockVault}
+              onSignOut={() => void endSession()}
               onThemeModeChange={setThemeMode}
             />
           </div>

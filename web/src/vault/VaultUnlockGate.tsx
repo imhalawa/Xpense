@@ -1,8 +1,17 @@
 import { Body1, Button, Card, Label, MessageBar, MessageBarBody, Select, Spinner, Title2, makeStyles, tokens } from "@fluentui/react-components";
+import axios from "axios";
 import { useEffect, useState, type ReactNode } from "react";
 import { Navigate } from "react-router";
 import { loadLegacyClaimPasskeys, unlockLegacyClaim, type ClaimPasskeySelection } from "../claim/claimUnlock";
 import { useVault } from "./VaultProvider";
+
+/**
+ * Every route behind the gate needs a session. Without one the data-mode probe answers 401,
+ * which is a missing sign-in rather than a broken deployment — send the browser to sign in
+ * instead of reporting that the protected mode could not be verified.
+ */
+const isUnauthenticated = (error: unknown): boolean =>
+  axios.isAxiosError(error) && error.response?.status === 401;
 
 const useStyles = makeStyles({
   page: { minHeight: "100vh", display: "grid", placeItems: "center", backgroundColor: tokens.colorNeutralBackground2 },
@@ -16,11 +25,15 @@ export const VaultUnlockGate = ({ children }: { children: ReactNode }) => {
   const [selected, setSelected] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [modeError, setModeError] = useState(false);
+  const [signedOut, setSignedOut] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
 
   useEffect(() => {
     if (projection.dataMode !== "unknown") return;
-    void projection.unlock().catch(() => setModeError(true));
+    void projection.unlock().catch((failure: unknown) => {
+      if (isUnauthenticated(failure)) setSignedOut(true);
+      else setModeError(true);
+    });
   }, [projection]);
 
   useEffect(() => {
@@ -30,10 +43,15 @@ export const VaultUnlockGate = ({ children }: { children: ReactNode }) => {
       if (!current) return;
       setPasskeys(values);
       setSelected(values.length === 1 ? values[0]!.id : "");
-    }).catch(() => current && setError("Passkey wrappers could not be loaded."));
+    }).catch((failure: unknown) => {
+      if (!current) return;
+      if (isUnauthenticated(failure)) setSignedOut(true);
+      else setError("Passkey wrappers could not be loaded.");
+    });
     return () => { current = false; };
   }, [projection.dataMode, state]);
 
+  if (signedOut) return <Navigate to="/signin" replace />;
   if (projection.dataMode === "claiming") return <Navigate to="/claim" replace />;
   if (state === "unlocked") return children;
   if (projection.dataMode === "unknown") return <div className={styles.page}>{modeError ? <MessageBar intent="error"><MessageBarBody>The protected data mode could not be verified. Xpense will not open legacy data.</MessageBarBody></MessageBar> : <Spinner label="Checking protected data mode" />}</div>;
