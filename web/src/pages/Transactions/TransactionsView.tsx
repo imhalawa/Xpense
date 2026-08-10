@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent, UIEvent } from "react";
 import {
-  Badge,
   Body1,
   Button,
   Caption1,
@@ -37,7 +36,7 @@ import {
   ChevronRightRegular,
   MoreHorizontalRegular,
 } from "@fluentui/react-icons";
-import { categoryPaletteSlot, resolveTagColors } from "../../theme/tagColors";
+import CategoryChip from "../../components/Chips/CategoryChip/CategoryChip";
 import { formatIsoDate } from "../../utils/DateUtils";
 import { useVault } from "../../vault/VaultProvider";
 import type {
@@ -74,14 +73,36 @@ const useStyles = makeStyles({
     flexDirection: "column",
     gap: tokens.spacingVerticalS,
   },
+  card: {
+    overflow: "hidden",
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderRadius: tokens.borderRadiusLarge,
+    borderTopWidth: tokens.strokeWidthThin,
+    borderRightWidth: tokens.strokeWidthThin,
+    borderBottomWidth: tokens.strokeWidthThin,
+    borderLeftWidth: tokens.strokeWidthThin,
+    borderTopStyle: "solid",
+    borderRightStyle: "solid",
+    borderBottomStyle: "solid",
+    borderLeftStyle: "solid",
+    borderTopColor: tokens.colorNeutralStroke2,
+    borderRightColor: tokens.colorNeutralStroke2,
+    borderBottomColor: tokens.colorNeutralStroke2,
+    borderLeftColor: tokens.colorNeutralStroke2,
+    boxShadow: tokens.shadow4,
+  },
   surface: {
     overflow: "hidden",
+  },
+  footer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: "44px",
+    paddingInline: tokens.spacingHorizontalM,
     borderTopWidth: tokens.strokeWidthThin,
     borderTopStyle: "solid",
     borderTopColor: tokens.colorNeutralStroke2,
-    borderBottomWidth: tokens.strokeWidthThin,
-    borderBottomStyle: "solid",
-    borderBottomColor: tokens.colorNeutralStroke2,
   },
   amount: {
     display: "block",
@@ -114,10 +135,6 @@ const useStyles = makeStyles({
   },
   expense: {
     color: "var(--xpense-expense)",
-  },
-  category: {
-    borderInlineStartWidth: tokens.strokeWidthThick,
-    borderInlineStartStyle: "solid",
   },
   tags: {
     display: "flex",
@@ -172,12 +189,6 @@ const useStyles = makeStyles({
   },
   skeletonRow: {
     height: "44px",
-  },
-  pagination: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: "44px",
   },
   paginationActions: {
     display: "flex",
@@ -308,17 +319,14 @@ const TransactionsView = ({
       <span className={styles.tags}>
         {transaction.tagIds.map((tagId) => {
           const tag = taxonomyById.get(tagId);
-          const colors = resolveTagColors(
-            tag?.foregroundHex ?? null,
-            tag?.backgroundHex ?? null,
-          );
           return (
-            <Badge
+            <CategoryChip
               key={tagId}
-              appearance="filled"
-              style={{ color: colors.foreground, backgroundColor: colors.background }}>
-              {tags.get(tagId) ?? tagId}
-            </Badge>
+              categoryId={tagId}
+              foregroundHex={tag?.foregroundHex ?? null}
+              backgroundHex={tag?.backgroundHex ?? null}
+              label={tags.get(tagId) ?? tagId}
+            />
           );
         })}
       </span>
@@ -416,14 +424,10 @@ const TransactionsView = ({
           item.categoryId === null ? (
             "—"
           ) : (
-            <Badge
-              appearance="outline"
-              className={styles.category}
-              style={{
-                borderInlineStartColor: `var(--xpense-category-${categoryPaletteSlot(item.categoryId)})`,
-              }}>
-              {categories.get(item.categoryId) ?? item.categoryId}
-            </Badge>
+            <CategoryChip
+              categoryId={item.categoryId}
+              label={categories.get(item.categoryId) ?? item.categoryId}
+            />
           ),
       }),
       createTableColumn({
@@ -494,6 +498,7 @@ const TransactionsView = ({
         </MessageBar>
       )}
 
+      <div className={styles.card}>
       <div
         className={styles.surface}
         onScroll={(event: UIEvent<HTMLDivElement>) => setScrollTop(event.currentTarget.scrollTop)}>
@@ -578,7 +583,7 @@ const TransactionsView = ({
         )}
       </div>
 
-      <div className={styles.pagination}>
+      <div className={styles.footer}>
         <Caption1 aria-label="Transaction total">{totalRows} transactions</Caption1>
         {!hidePagination && limit === undefined && pageCount > 1 && (
           <div className={styles.paginationActions}>
@@ -603,6 +608,7 @@ const TransactionsView = ({
             />
           </div>
         )}
+      </div>
       </div>
 
       <Dialog
