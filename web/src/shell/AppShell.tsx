@@ -22,6 +22,7 @@ import {
   DismissRegular,
   HomeRegular,
   ReceiptRegular,
+  SettingsRegular,
   WalletRegular,
 } from "@fluentui/react-icons";
 import { signOut } from "../auth/authApi";
@@ -70,6 +71,7 @@ const destinations: Destination[] = [
   { path: "/", label: "Overview", icon: <HomeRegular /> },
   { path: "/transactions", label: "Transactions", icon: <ReceiptRegular /> },
   { path: "/budgets", label: "Budgets", icon: <WalletRegular /> },
+  { path: "/settings", label: "Settings", icon: <SettingsRegular /> },
 ];
 
 const fallbackSpace = "personal";
@@ -512,7 +514,13 @@ const AppShell = ({ children }: AppShellProps) => {
             </MessageBar>
           )}
           <PageTitle title={activeDestination.label} />
-          <ResourceVersionProvider version={resourceVersion}>{children}</ResourceVersionProvider>
+          <ResourceVersionProvider
+            version={resourceVersion}
+            openAccount={(action, account, trigger) =>
+              openResourceDialog(action, { kind: "account", value: account }, trigger)
+            }>
+            {children}
+          </ResourceVersionProvider>
         </div>
       </main>
       <TransactionDialog

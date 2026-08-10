@@ -6,6 +6,7 @@ import {
   ProgressBar,
   Subtitle2,
   makeStyles,
+  progressBarClassNames,
   tokens,
 } from "@fluentui/react-components";
 import { IBudgetResponse } from "../../clients/types";
@@ -34,6 +35,13 @@ const useStyles = makeStyles({
     flexDirection: "column",
     gap: tokens.spacingVerticalM,
     padding: tokens.spacingHorizontalL,
+  },
+  meter: {
+    [`& .${progressBarClassNames.bar}`]: {
+      transitionProperty: "width",
+      transitionDuration: tokens.durationNormal,
+      transitionTimingFunction: tokens.curveEasyEase,
+    },
   },
   header: {
     display: "flex",
@@ -76,7 +84,7 @@ const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
   const progressPercent = Math.min(progress.spentRatio, 1);
 
   return (
-    <Card className={styles.card}>
+    <Card className={styles.card} size="large">
       <div className={styles.header}>
         <Subtitle2>{budget.category.label}</Subtitle2>
         {progress.state === "exceeded" && (
@@ -96,6 +104,7 @@ const BudgetMeter = ({ budget, now, actions }: BudgetMeterProps) => {
       ) : (
         <>
           <ProgressBar
+            className={styles.meter}
             value={progressPercent}
             max={1}
             color={barToneByState[progress.state]}

@@ -23,6 +23,11 @@ export const appGlobalStyles = [
       transitionDuration: fluentTokens.durationFast,
       transitionTimingFunction: fluentTokens.curveEasyEase,
     },
+    ":where(.fui-Button, .fui-ToggleButton, .fui-MenuItem, .fui-NavItem, .fui-Tab)": {
+      transitionProperty: "background-color, color, border-color, box-shadow",
+      transitionDuration: fluentTokens.durationFast,
+      transitionTimingFunction: fluentTokens.curveEasyEase,
+    },
     '[data-portal-node="true"]': {
       backgroundColor: "transparent",
     },

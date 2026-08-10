@@ -51,6 +51,11 @@ const useStyles = makeStyles({
       gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     },
   },
+  threshold: {
+    transitionProperty: "background-color, color, border-color",
+    transitionDuration: tokens.durationFast,
+    transitionTimingFunction: tokens.curveEasyEase,
+  },
   control: {
     minWidth: 0,
     width: "100%",
@@ -188,6 +193,7 @@ const BudgetForm = ({
       <Field label="Alert threshold" validationMessage={errors.alertThresholdPercent}>
         <div className={styles.thresholdGroup} role="group" aria-label="Alert threshold">
           <ToggleButton
+            className={styles.threshold}
             checked={alertChoice === noAlertChoice}
             onClick={() => selectAlertChoice(noAlertChoice)}>
             No alert
@@ -195,12 +201,14 @@ const BudgetForm = ({
           {alertPresets.map((preset) => (
             <ToggleButton
               key={preset}
+              className={styles.threshold}
               checked={alertChoice === String(preset)}
               onClick={() => selectAlertChoice(String(preset))}>
               {preset}%
             </ToggleButton>
           ))}
           <ToggleButton
+            className={styles.threshold}
             checked={alertChoice === customAlertChoice}
             onClick={() => selectAlertChoice(customAlertChoice)}>
             Custom

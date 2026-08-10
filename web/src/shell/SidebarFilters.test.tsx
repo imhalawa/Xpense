@@ -129,12 +129,18 @@ describe("SidebarFilters", () => {
 
   it("provides section create actions and hides all mutating controls for viewers", () => {
     const { onResourceAction, unmount } = renderFilters();
-    fireEvent.click(screen.getByRole("button", { name: "Add account" }));
-    expect(onResourceAction).toHaveBeenCalledWith("create", expect.objectContaining({ kind: "account" }), expect.any(HTMLElement));
+    fireEvent.click(screen.getByRole("button", { name: "Add category" }));
+    expect(onResourceAction).toHaveBeenCalledWith("create", expect.objectContaining({ kind: "category" }), expect.any(HTMLElement));
 
     unmount();
     renderFilters(false);
-    expect(screen.queryByRole("button", { name: "Add account" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add category" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Actions for Everyday" })).toBeNull();
+  });
+
+  it("leaves account creation to the settings page", () => {
+    renderFilters();
+    expect(screen.queryByRole("button", { name: "Add account" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Add category" })).toBeDefined();
   });
 });

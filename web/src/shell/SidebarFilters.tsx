@@ -197,7 +197,7 @@ const SidebarFilters = ({ accounts, values, filter, canEdit, onToggleTaxonomy, o
       return <div key={kind} className={styles.section}>
         <div className={styles.sectionHeader}>
           <Button ref={(element) => { sectionTriggers.current[kind] = element; }} className={styles.sectionToggle} appearance="subtle" icon={isExpanded ? <ChevronDownRegular /> : <ChevronRightRegular />} aria-expanded={isExpanded} aria-controls={`sidebar-${kind}`} onClick={() => toggle(kind)}>{label}</Button>
-          {canEdit && <Button className={styles.add} appearance="subtle" size="small" icon={<AddRegular />} aria-label={`Add ${singularLabels[kind]}`} onClick={(event) => onResourceAction("create", newResource(kind), event.currentTarget)} />}
+          {canEdit && kind !== "account" && <Button className={styles.add} appearance="subtle" size="small" icon={<AddRegular />} aria-label={`Add ${singularLabels[kind]}`} onClick={(event) => onResourceAction("create", newResource(kind), event.currentTarget)} />}
         </div>
         {isExpanded && <div id={`sidebar-${kind}`} className={styles.panel} role="region" aria-label={label}>{resourcesFor(kind).map(renderResource)}</div>}
       </div>;

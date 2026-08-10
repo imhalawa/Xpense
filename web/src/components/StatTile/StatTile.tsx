@@ -30,7 +30,7 @@ const StatTile = ({ label, value, hint, badge }: StatTileProps) => {
   const styles = useStyles();
 
   return (
-    <Card className={styles.card}>
+    <Card className={styles.card} size="large">
       <div className={styles.heading}>
         <Caption1 className={styles.supporting}>{label}</Caption1>
         {badge}

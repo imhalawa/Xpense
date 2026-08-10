@@ -69,5 +69,7 @@ export const darkTheme: Theme = {
   ...shared,
   colorNeutralBackground2: xpenseTokens.surface.dark.page,
   colorNeutralBackground1: xpenseTokens.surface.dark.card,
+  shadow4: elevation.dark.card,
+  shadow8: elevation.dark.raised,
   shadow16: elevation.dark.overlay,
 };

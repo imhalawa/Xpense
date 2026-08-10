@@ -8,6 +8,7 @@ import Transactions from "./pages/Transactions/Transactions.tsx";
 import Budgets from "./pages/Budgets/Budgets.tsx";
 import Auth from "./pages/Auth/Auth.tsx";
 import Claim from "./pages/Claim/Claim.tsx";
+import Settings from "./pages/Settings/Settings.tsx";
 import Layout from "./pages/Layout.tsx";
 import { darkTheme, lightTheme } from "./fluent/theme.ts";
 import { useColorScheme } from "./fluent/useColorScheme.ts";
@@ -59,6 +60,7 @@ function App() {
               <Route path="/transactions/new" element={<Transactions />} />
               <Route path="/transactions/:id/edit" element={<Transactions />} />
               <Route path="/budgets" element={<Budgets />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
           </Routes>
         </LoadingContextProvider>
