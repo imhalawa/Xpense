@@ -3,9 +3,17 @@ import { tokens as xpenseTokens } from "../theme/tokens";
 
 export const appGlobalStyles = [
   {
-    ":where(a, button, input, select, textarea, [tabindex]):focus-visible": {
+    ":where(a, button, [tabindex]):focus-visible": {
       outline: `${fluentTokens.strokeWidthThick} solid ${fluentTokens.colorBrandStroke1}`,
       outlineOffset: fluentTokens.strokeWidthThick,
+      borderRadius: fluentTokens.borderRadiusMedium,
+    },
+    ":where(.fui-Input, .fui-Combobox, .fui-Select, .fui-Textarea, .fui-Dropdown, .fui-SpinButton):has(:focus-visible)": {
+      outline: `${fluentTokens.strokeWidthThick} solid ${fluentTokens.colorBrandStroke1}`,
+      outlineOffset: fluentTokens.strokeWidthThick,
+    },
+    ":where(.fui-Input, .fui-Combobox, .fui-Select, .fui-Textarea, .fui-Dropdown, .fui-SpinButton) :where(input, select, textarea):focus-visible": {
+      outline: "none",
     },
     '[data-portal-node="true"]': {
       backgroundColor: "transparent",

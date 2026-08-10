@@ -44,15 +44,26 @@ const useStyles = makeStyles({
     alignItems: "center",
     minWidth: "auto",
     borderRadius: tokens.borderRadiusCircular,
+    borderTopStyle: "none",
+    borderRightStyle: "none",
+    borderBottomStyle: "none",
+    borderLeftStyle: "none",
     paddingInline: tokens.spacingHorizontalM,
     paddingBlock: tokens.spacingVerticalXS,
+    fontFamily: tokens.fontFamilyBase,
+    fontSize: tokens.fontSizeBase200,
     fontWeight: tokens.fontWeightSemibold,
-    borderWidth: tokens.strokeWidthThick,
-    borderStyle: "solid",
-    borderColor: "transparent",
+    outlineStyle: "solid",
+    outlineWidth: tokens.strokeWidthThick,
+    outlineColor: "transparent",
+    outlineOffset: "2px",
     cursor: "pointer",
+    transitionProperty: "outline-color, transform",
+    transitionDuration: tokens.durationNormal,
+    transitionTimingFunction: tokens.curveEasyEase,
+    ":hover": { transform: "translateY(-1px)" },
   },
-  swatchChosen: { borderColor: tokens.colorBrandStroke1 },
+  swatchChosen: { outlineColor: tokens.colorBrandStroke1 },
 });
 
 const categoryPriorities: CategoryPriority[] = [
@@ -102,7 +113,7 @@ const ResourceDialog = ({ request, onClose, onSubmit }: ResourceDialogProps) => 
     setCustomColours(
       next !== null && "priority" in next &&
       (next.foregroundHex !== null || next.backgroundHex !== null) &&
-      matchingPreset(next.foregroundHex, next.backgroundHex) === null,
+      matchingPreset(next.foregroundHex ?? null, next.backgroundHex ?? null) === null,
     );
     setError(null);
     setIsSaving(false);

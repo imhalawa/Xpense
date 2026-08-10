@@ -13,7 +13,9 @@ import {
 import { useState, type FormEvent } from "react";
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router";
 import { registerHttpDependencies, signInHttpDependencies } from "../../auth/authApi";
+import Wordmark from "../../fluent/Wordmark";
 import { registerWithPasskey, signInWithPasskey } from "../../auth/authFlow";
+import { validateAuthForm } from "../../auth/authFormRules";
 import { useVault } from "../../vault/VaultProvider";
 
 const useStyles = makeStyles({
@@ -48,13 +50,18 @@ export const Auth = ({ mode }: { mode: "signIn" | "register" }) => {
   const [email, setEmail] = useState("");
   const [passkeyLabel, setPasskeyLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const registering = mode === "register";
+  const errors = validateAuthForm({ email, passkeyLabel });
+  const shown = touched ? errors : {};
 
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
-    if (email.trim() === "" || busy) return;
+    if (busy) return;
+    setTouched(true);
+    if (Object.keys(errors).length > 0) return;
     setBusy(true);
     setError(null);
     try {
@@ -81,7 +88,8 @@ export const Auth = ({ mode }: { mode: "signIn" | "register" }) => {
   return (
     <main className={styles.page}>
       <Card className={styles.card}>
-        <Title1 as="h1">{registering ? "Create your Xpense account" : "Sign in to Xpense"}</Title1>
+        <Wordmark size={36} />
+        <Title1 as="h1">{registering ? "Create your account" : "Welcome back"}</Title1>
         <Body1 className={styles.copy}>
           {registering
             ? "Xpense protects your records with a passkey. The keys stay on your devices — the server never sees them."
@@ -92,19 +100,27 @@ export const Auth = ({ mode }: { mode: "signIn" | "register" }) => {
             <MessageBarBody>{error}</MessageBarBody>
           </MessageBar>
         )}
-        <form className={styles.form} onSubmit={(event) => void submit(event)}>
-          <Field label="Email">
+        <form className={styles.form} noValidate onSubmit={(event) => void submit(event)}>
+          <Field
+            label="Email"
+            required
+            validationState={shown.email === undefined ? "none" : "error"}
+            validationMessage={shown.email}>
             <Input
               type="email"
               name="email"
               autoComplete="username webauthn"
-              required
               value={email}
+              onBlur={() => setTouched(true)}
               onChange={(_, data) => setEmail(data.value)}
             />
           </Field>
           {registering && (
-            <Field label="Passkey name" hint="Helps you tell your devices apart later.">
+            <Field
+              label="Passkey name"
+              hint="Helps you tell your devices apart later."
+              validationState={shown.passkeyLabel === undefined ? "none" : "error"}
+              validationMessage={shown.passkeyLabel}>
               <Input
                 name="passkeyLabel"
                 value={passkeyLabel}
@@ -113,7 +129,7 @@ export const Auth = ({ mode }: { mode: "signIn" | "register" }) => {
               />
             </Field>
           )}
-          <Button appearance="primary" type="submit" disabled={busy || email.trim() === ""}>
+          <Button appearance="primary" type="submit" disabled={busy}>
             {busy
               ? registering ? "Creating…" : "Signing in…"
               : registering ? "Create account" : "Sign in"}
