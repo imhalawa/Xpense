@@ -36,6 +36,7 @@ export interface SerializedAttestation {
   id: string;
   rawId: string;
   type: string;
+  clientExtensionResults: Record<string, unknown>;
   response: {
     clientDataJSON: string;
     attestationObject: string;
@@ -47,6 +48,7 @@ export interface SerializedAssertion {
   id: string;
   rawId: string;
   type: string;
+  clientExtensionResults: Record<string, unknown>;
   response: {
     clientDataJSON: string;
     authenticatorData: string;
@@ -68,6 +70,20 @@ const encodeBase64Url = (source: ByteSource): string => {
   let binary = "";
   for (const value of copyBytes(source)) binary += String.fromCharCode(value);
   return btoa(binary).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
+};
+
+/**
+ * The API deserializes a WebAuthn credential and requires `clientExtensionResults`, so it
+ * has to be present. The PRF result is deliberately dropped: it is the secret the vault
+ * wrapping key is derived from, and it must never leave the browser.
+ */
+const publishableExtensionResults = (
+  credential: PublicKeyCredential,
+): Record<string, unknown> => {
+  if (typeof credential.getClientExtensionResults !== "function") return {};
+  const { prf: _prf, ...rest } = credential.getClientExtensionResults() as
+    Record<string, unknown> & { prf?: unknown };
+  return rest;
 };
 
 const requireCredential = (credential: Credential | null): PublicKeyCredential => {
@@ -195,6 +211,7 @@ export const serializeAttestationForApi = (
     id: credential.id,
     rawId: encodeBase64Url(credential.rawId),
     type: credential.type,
+    clientExtensionResults: publishableExtensionResults(credential),
     response: {
       clientDataJSON: encodeBase64Url(response.clientDataJSON),
       attestationObject: encodeBase64Url(response.attestationObject),
@@ -214,6 +231,7 @@ export const serializeAssertionForApi = (
     id: credential.id,
     rawId: encodeBase64Url(credential.rawId),
     type: credential.type,
+    clientExtensionResults: publishableExtensionResults(credential),
     response: {
       clientDataJSON: encodeBase64Url(response.clientDataJSON),
       authenticatorData: encodeBase64Url(response.authenticatorData),
