@@ -4,7 +4,6 @@ import {
   Button,
   Caption1,
   Checkbox,
-  Divider,
   Subtitle2,
   makeStyles,
   mergeClasses,
@@ -57,6 +56,18 @@ const useStyles = makeStyles({
     alignItems: "flex-start",
     gap: tokens.spacingHorizontalS,
     paddingBlock: tokens.spacingVerticalS,
+    paddingInline: tokens.spacingHorizontalXS,
+    borderRadius: tokens.borderRadiusMedium,
+    transitionProperty: "background-color",
+    transitionDuration: tokens.durationFast,
+    transitionTimingFunction: tokens.curveEasyEase,
+    ":hover": { backgroundColor: tokens.colorSubtleBackgroundHover },
+    ":focus-within": { backgroundColor: tokens.colorSubtleBackgroundHover },
+  },
+  separated: {
+    borderBottomWidth: tokens.strokeWidthThin,
+    borderBottomStyle: "solid",
+    borderBottomColor: tokens.colorNeutralStroke2,
   },
   content: {
     display: "grid",
@@ -155,33 +166,35 @@ const NotificationList = ({
         const iconLabel = isBudgetAlert ? "Budget exceeded" : "Notification";
 
         return (
-          <div key={item.id}>
-            {index > 0 && <Divider />}
-            <div className={styles.item}>
-              <Checkbox
-                aria-label={`Select ${item.title}`}
-                checked={selectedIds.has(item.id)}
-                onChange={(_event, data) => toggleSelected(item.id, data.checked === true)}
-              />
-              <button
-                type="button"
-                className={mergeClasses(styles.content, !isUnread && styles.read)}
-                onClick={() => isUnread && onMarkRead(item.id)}>
-                {isBudgetAlert ? (
-                  <WarningRegular
-                    className={mergeClasses(styles.icon, styles.dangerIcon)}
-                    role="img"
-                    aria-label={iconLabel}
-                  />
-                ) : (
-                  <AlertRegular className={styles.icon} role="img" aria-label={iconLabel} />
-                )}
-                <span className={styles.text}>
-                  <Body1 className={isUnread ? styles.unreadTitle : undefined}>{item.title}</Body1>
-                  <Caption1 className={styles.message}>{item.message}</Caption1>
-                </span>
-              </button>
-            </div>
+          <div
+            key={item.id}
+            className={mergeClasses(
+              styles.item,
+              index < notifications.length - 1 && styles.separated
+            )}>
+            <Checkbox
+              aria-label={`Select ${item.title}`}
+              checked={selectedIds.has(item.id)}
+              onChange={(_event, data) => toggleSelected(item.id, data.checked === true)}
+            />
+            <button
+              type="button"
+              className={mergeClasses(styles.content, !isUnread && styles.read)}
+              onClick={() => isUnread && onMarkRead(item.id)}>
+              {isBudgetAlert ? (
+                <WarningRegular
+                  className={mergeClasses(styles.icon, styles.dangerIcon)}
+                  role="img"
+                  aria-label={iconLabel}
+                />
+              ) : (
+                <AlertRegular className={styles.icon} role="img" aria-label={iconLabel} />
+              )}
+              <span className={styles.text}>
+                <Body1 className={isUnread ? styles.unreadTitle : undefined}>{item.title}</Body1>
+                <Caption1 className={styles.message}>{item.message}</Caption1>
+              </span>
+            </button>
           </div>
         );
       })}

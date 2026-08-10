@@ -48,11 +48,15 @@ describe("NotificationBell", () => {
     expect(screen.getByLabelText(/no unread notifications/i)).toBeDefined();
   });
 
-  it("separates the items with one divider less than the item count", () => {
+  it("separates the items with one separator less than the item count", () => {
     const notifications = [notification(1, null), notification(2, null), notification(3, null)];
     renderBell(notifications, 3);
     fireEvent.click(screen.getByLabelText(/3 unread notifications/i));
-    expect(screen.getAllByRole("separator").length).toBe(notifications.length - 1);
+    const separated = screen
+      .getAllByRole("button", { name: /Groceries is over budget/ })
+      .map((button) => button.parentElement as HTMLElement)
+      .filter((row) => window.getComputedStyle(row).borderBottomStyle === "solid");
+    expect(separated.length).toBe(notifications.length - 1);
   });
 
   it("still shows an icon for a kind it does not know", () => {

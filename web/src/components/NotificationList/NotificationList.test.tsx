@@ -13,10 +13,13 @@ const notification = (id: number, readAt: string | null): INotificationResponse 
   createdAt: "2026-08-07T10:00:00Z",
 });
 
-const renderList = (onMarkSelectedRead = vi.fn()) =>
+const renderList = (
+  onMarkSelectedRead = vi.fn(),
+  notifications = [notification(1, null), notification(2, null)]
+) =>
   render(
     <NotificationList
-      notifications={[notification(1, null), notification(2, null)]}
+      notifications={notifications}
       unreadCount={2}
       page={1}
       totalPages={2}
@@ -34,6 +37,19 @@ describe("NotificationList", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Budget exceeded 1" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark selected read" }));
     expect(onMarkSelectedRead).toHaveBeenCalledWith([1]);
+  });
+
+  it("separates every row except the last", () => {
+    renderList(vi.fn(), [
+      notification(1, null),
+      notification(2, "2026-08-08T10:00:00Z"),
+      notification(3, null),
+    ]);
+    const rows = screen
+      .getAllByRole("button", { name: /Groceries is over budget/ })
+      .map((button) => button.parentElement as HTMLElement);
+    const borders = rows.map((row) => window.getComputedStyle(row).borderBottomStyle);
+    expect(borders).toEqual(["solid", "solid", ""]);
   });
 
   it("supports paging", () => {
