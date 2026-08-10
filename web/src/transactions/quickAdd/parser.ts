@@ -4,6 +4,7 @@ import {
   QuickAddCategoryReference,
   QuickAddField,
   QuickAddIssue,
+  QuickAddKind,
   QuickAddOption,
   QuickAddParseResult,
   QuickAddParserContext,
@@ -19,6 +20,12 @@ interface Candidate<T> {
 interface DateCandidate {
   value: Date | null;
   rangeId: string;
+}
+
+interface KindMatch {
+  value: QuickAddKind;
+  start: number;
+  end: number;
 }
 
 const currencyAliases: Record<string, Currency> = {
@@ -42,6 +49,12 @@ const kindWords = [
   { expression: /\b(?:moved|transferred|sent)\b/gi, kind: "transfer" as const },
   { expression: /\b(?:spent|paid|bought|purchased|charged|withdrew)\b/gi, kind: "expense" as const },
 ];
+
+const connectiveWords = ["at", "in", "on", "from", "to", "for"];
+
+const leadingConnectiveExpression = new RegExp(`^(?:${connectiveWords.join("|")})\\s+`, "i");
+
+const trailingConnectiveExpression = new RegExp(`\\s+(?:${connectiveWords.join("|")})$`, "i");
 
 const monthIndexes: Record<string, number> = {
   jan: 0,
@@ -238,7 +251,6 @@ export const parseQuickAdd = (
     issues.push({ code, field, message, severity: "error", rangeIds, candidates });
   };
 
-  const kindCandidates: Candidate<"expense" | "income" | "transfer">[] = [];
   const amountCandidates: Candidate<number>[] = [];
   const currencyCandidates: Candidate<Currency>[] = [];
   let currencyTokenCount = 0;
@@ -251,6 +263,15 @@ export const parseQuickAdd = (
   const timeCandidates: Candidate<{ hours: number; minutes: number } | null>[] = [];
   const reasonCandidates: Candidate<string>[] = [];
 
+  const addMerchantCandidate = (rangeId: string, label: string) => {
+    const merchant = optionReference(label, context.merchants);
+    merchantCandidates.push({ value: merchant, rangeId });
+    if (!merchant.create) return;
+    updateRanges([rangeId], "unresolved");
+    const range = ranges.find((candidate) => candidate.id === rangeId);
+    if (range !== undefined) range.label = `No merchant matches ${merchant.label}`;
+  };
+
   const explicitExpression = /\b(merchant|category|source|destination|tag|date|time|reason):(?:"([^"]+)"|([^\s]+))/gi;
   for (const match of input.matchAll(explicitExpression)) {
     const start = match.index;
@@ -259,7 +280,7 @@ export const parseQuickAdd = (
     const value = (match[2] ?? match[3]).trim();
     const field = name === "source" ? "sourceAccount" : name === "destination" ? "destinationAccount" : name;
     const rangeId = addRange(start, end, field as QuickAddField, `${field}: ${value}`);
-    if (name === "merchant") merchantCandidates.push({ value: optionReference(value, context.merchants), rangeId });
+    if (name === "merchant") addMerchantCandidate(rangeId, value);
     if (name === "category") {
       const category = categoryReference(value, context.categories);
       categoryCandidates.push({ value: category, rangeId });
@@ -425,15 +446,18 @@ export const parseQuickAdd = (
     }
   }
 
+  const kindMatches: KindMatch[] = [];
   for (const definition of kindWords) {
     for (const match of input.matchAll(definition.expression)) {
       const start = match.index;
       const end = start + match[0].length;
       if (!isFree(start, end)) continue;
-      const rangeId = addRange(start, end, "kind", definition.kind);
-      kindCandidates.push({ value: definition.kind, rangeId });
+      consume(start, end);
+      kindMatches.push({ value: definition.kind, start, end });
     }
   }
+  const highlightKindMatches = (status: QuickAddRange["status"]) =>
+    kindMatches.map((match) => addRange(match.start, match.end, "kind", match.value, status));
 
   const conflict = <T>(field: QuickAddField, candidates: Candidate<T>[], message: string) => {
     if (candidates.length < 2) return false;
@@ -443,8 +467,16 @@ export const parseQuickAdd = (
     return true;
   };
 
-  const kindConflict = conflict("kind", kindCandidates, "More than one transaction kind was provided");
-  let kind = kindConflict ? null : (kindCandidates[0]?.value ?? null);
+  const kindConflict = kindMatches.length > 1;
+  if (kindConflict) {
+    addIssue(
+      "conflicting-kind",
+      "kind",
+      "More than one transaction kind was provided",
+      highlightKindMatches("conflict")
+    );
+  }
+  let kind = kindConflict ? null : (kindMatches[0]?.value ?? null);
 
   const parseNaturalAccounts = (side: "source" | "destination", preposition: "from" | "to") => {
     const candidates = side === "source" ? sourceCandidates : destinationCandidates;
@@ -490,7 +522,7 @@ export const parseQuickAdd = (
           : null;
   if (kind !== null && accountKind !== null && kind !== accountKind) {
     const rangeIds = [
-      ...kindCandidates.map((candidate) => candidate.rangeId),
+      ...highlightKindMatches("conflict"),
       ...sourceCandidates.map((candidate) => candidate.rangeId),
       ...destinationCandidates.map((candidate) => candidate.rangeId),
     ];
@@ -588,7 +620,12 @@ export const parseQuickAdd = (
     const last = parts[parts.length - 1];
     let start = first.start;
     let end = last.end;
-    let text = input.slice(start, end).trim().replace(/^(?:at|from)\s+/i, "").replace(/\s+for$/i, "").trim();
+    let text = input
+      .slice(start, end)
+      .trim()
+      .replace(leadingConnectiveExpression, "")
+      .replace(trailingConnectiveExpression, "")
+      .trim();
     const offset = input.slice(start, end).indexOf(text);
     if (offset >= 0) start += offset;
     end = start + text.length;
@@ -599,7 +636,7 @@ export const parseQuickAdd = (
     consume(first.start, start);
     consume(end, last.end);
     const rangeId = addRange(start, end, field, `${field === "merchant" ? "Merchant" : "Reason"} ${text}`);
-    if (field === "merchant") merchantCandidates.push({ value: optionReference(text, context.merchants), rangeId });
+    if (field === "merchant") addMerchantCandidate(rangeId, text);
     else reasonCandidates.push({ value: text, rangeId });
   };
 

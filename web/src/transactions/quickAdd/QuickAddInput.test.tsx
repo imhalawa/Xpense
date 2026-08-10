@@ -62,6 +62,7 @@ describe("QuickAddInput", () => {
     const input = screen.getByRole("textbox", { name: "Quick Add" }) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "Spent 5 euros at Albert Heijn #shopping" } });
 
+    expect(screen.queryByRole("button", { name: /^Type/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Merchant: Albert Heijn, recognized" }));
 
     expect(document.activeElement).toBe(input);

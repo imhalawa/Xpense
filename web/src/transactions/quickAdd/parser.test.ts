@@ -465,7 +465,6 @@ describe("parseQuickAdd decoration ranges", () => {
     const result = parse(input);
 
     expect(result.ranges.map((range) => input.slice(range.start, range.end))).toEqual([
-      "Spent",
       "5",
       "euros",
       "Albert Heijn",
@@ -475,5 +474,43 @@ describe("parseQuickAdd decoration ranges", () => {
     expect(result.ranges.every((range) => range.status === "recognized")).toBe(true);
     expect(result.announcement).toBe("tag: family recognized");
     expect(result.announcement).not.toContain(input);
+  });
+
+  it.each(["at", "in", "on", "from"])(
+    "consumes the connective %s instead of keeping it in the merchant",
+    (connective) => {
+      const input = `Spent 5 dollars ${connective} Albert Heijn`;
+      const result = parse(input);
+      const range = result.ranges.find((candidate) => candidate.field === "merchant");
+
+      expect(result.draft.merchant).toEqual({ id: "albert", label: "Albert Heijn", create: false });
+      expect(range).toMatchObject({
+        start: input.indexOf("Albert Heijn"),
+        end: input.length,
+        text: "Albert Heijn",
+        status: "recognized",
+      });
+    }
+  );
+
+  it("reports a merchant it cannot resolve instead of guessing a name", () => {
+    const input = "Spent 5 dollars in Albert hijn";
+    const result = parse(input);
+    const range = result.ranges.find((candidate) => candidate.field === "merchant");
+
+    expect(result.draft.merchant).toEqual({ id: "", label: "Albert hijn", create: true });
+    expect(range).toMatchObject({
+      text: "Albert hijn",
+      status: "unresolved",
+      label: "No merchant matches Albert hijn",
+    });
+  });
+
+  it("leaves a bare kind word undecorated because only its effect matters", () => {
+    const result = parse("Spent 5 euros at Albert Heijn #shopping");
+
+    expect(result.ranges.some((range) => range.field === "kind")).toBe(false);
+    expect(result.ranges.some((range) => range.text === "Spent")).toBe(false);
+    expect(result.draft.kind).toBe("expense");
   });
 });
