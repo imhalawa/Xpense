@@ -11,14 +11,15 @@ transaction names at least one.
 | --- | --- |
 | Label | Required, up to 200 characters |
 | Currency | Chosen once, at creation, and fixed for the life of the account |
-| Opening balance | Required, zero or more, in minor units |
-| Default | Marks the account pre-selected on new transactions |
+| Opening balance | Required, zero or more, entered as you write it — `250` or `250.75` |
+| Default | Exactly one account is the default, pre-selected on new transactions |
 
 ## Creating one
 
-Use the **+** beside *Accounts* in the sidebar.
+Accounts are managed on the **Settings** page rather than from the sidebar, so a new one is a
+deliberate act rather than one stray click. The sidebar lists your accounts for filtering only.
 
-![The sidebar resource sections](images/sidebar-filters.png)
+![Managing accounts](images/settings.png)
 
 The opening balance carries a currency, and that currency denominates the account forever. The
 update form deliberately offers only the label and the default flag — there is no path to change an
@@ -30,9 +31,9 @@ are two accounts.
 
 ## The default account
 
-The first account you create becomes the default automatically. After that you set it yourself by
-editing an account. Nothing prevents marking several accounts as default; the form simply
-pre-selects one of them.
+Exactly one account is the default. The first one you create takes the flag and cannot give it up,
+because something has to be the default. Marking another account as default warns you by name that
+the current one is about to lose it, and clears it there when you save.
 
 ## How balances are computed
 

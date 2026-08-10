@@ -8,6 +8,7 @@ reports on it. It never moves money itself, and it never converts between curren
 | Guide | Covers |
 | --- | --- |
 | [Getting started](getting-started.md) | Running the stack, creating the first account, the development loop |
+| [Settings](accounts.md) | Managing accounts, and the one-default rule |
 | [Users and access](users-and-access.md) | Registration, passkeys, sessions, recovery, groups, invitations |
 | [Accounts](accounts.md) | Creating accounts, the fixed currency rule, balances, the default account |
 | [Transactions](transactions.md) | Income, expense and transfer; Quick Add; filtering; editing and deleting |
@@ -53,3 +54,5 @@ calls them yet. They are documented here so the gap is explicit rather than surp
 - Recovery-file and recovery-password sign-in
 - Registering an additional passkey
 - Budget alert thresholds, which are stored and reported but raise no notification
+- Choosing how soon the vault re-locks. It locks on every reload and after 15 minutes idle, which
+  is deliberate but not yet adjustable

@@ -26,10 +26,10 @@ operator-initiated password reset.
 | Area | Description |
 | --- | --- |
 | Authentication | Passkey-based. A single passkey both authenticates the user and unlocks the encrypted vault |
-| Accounts | Unlimited accounts, each denominated in one currency for its lifetime |
+| Accounts | Unlimited accounts, each denominated in one currency for its lifetime, exactly one of them the default. Managed on the Settings page |
 | Transactions | Income, expense and transfer, with a deterministic natural-language entry field |
 | Categories | Ranked on a five-level necessity scale for discretionary-spending analysis |
-| Tags and merchants | Free-form labels and counterparties, creatable inline during entry |
+| Tags and merchants | Free-form labels and counterparties, creatable inline during entry. Tag colours come from checked presets |
 | Budgets | Weekly, monthly, yearly or single-period. Budgets report and never block a transaction |
 | Multi-currency | Balances and budgets reported per currency, with no conversion |
 | Sharing | Per-resource grants to a group. Currently exposed through the API only |
@@ -78,6 +78,9 @@ The documentation index is [docs/README.md](docs/README.md).
 
 ## Screenshots
 
+These are a fresh install: a new account starts with an empty, encrypted ledger and fills as you
+record.
+
 | | |
 | --- | --- |
 | ![Transactions](docs/images/transactions.png) | ![Budgets](docs/images/budgets.png) |
@@ -115,6 +118,7 @@ The following are known and intentional as of this release.
 | Supported currencies | EUR and USD |
 | Analytics | A single endpoint reporting the current day's spending by category. No charts are implemented |
 | No administrative recovery | If all unlock methods are lost, the data cannot be recovered by anyone |
+| Lock behaviour is fixed | The vault locks on every reload and after 15 minutes idle. Deliberate, but not yet adjustable |
 
 ## Testing
 

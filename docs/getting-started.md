@@ -80,7 +80,7 @@ point and `make start` copies it to `api/.env` on first run.
 | `XPENSE_AUTH_REGISTRATION` | `Open`, `InviteOnly` or `Closed` |
 | `XPENSE_PUBLIC_URL` | The URL used in invitation links |
 | `XPENSE_EMAIL_*` | SMTP settings; with email disabled, invitation links are returned to the owner instead |
-| `XPENSE_DATA_MODE` | `legacy` or `encrypted` — see [Security and encryption](security-and-encryption.md) |
+| `XPENSE_DATA_MODE` | `legacy` or `encrypted`. Development runs `encrypted`, so each account starts empty and sees only its own records — see [Security and encryption](security-and-encryption.md) |
 
 Outside development the relying-party domain may not be `localhost` and the public URL must use
 HTTPS. The API validates both at startup and refuses to run otherwise.

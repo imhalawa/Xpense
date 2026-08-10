@@ -11,12 +11,18 @@ A transaction may carry any number of tags, or none.
 | Field | Notes |
 | --- | --- |
 | Label | Required, up to 100 characters |
-| Background colour | Required, hex |
-| Foreground colour | Required, hex |
+| Colour | Chosen from a set of presets, or named by hand |
 
-Colours accept 3 or 6 hex digits, with or without a leading `#` — `#1a2b3c`, `1a2b3c` and `#abc`
-are all valid. Anything else is rejected with a message that shows the expected shape. They are
-stored without the `#`.
+You pick a colour from a row of preset chips, each previewing the tag as it will look. The presets
+come from the eight category slots in the design tokens, tinted for a background and deepened for
+the text, and every one is checked to clear 4.5:1 contrast — so no preset can produce a tag you
+cannot read.
+
+![Choosing a tag colour](images/tag-colours.png)
+
+If none of them suit, **Choose my own colours** exposes the background and foreground directly.
+Those accept 3 or 6 hex digits, with or without a leading `#`; anything else is rejected with a
+message showing the expected shape. Both are stored without the `#`.
 
 Create a tag with the **+** beside *Tags* in the sidebar. Tags you type into the transaction form
 are created inline if they do not exist yet, so you do not have to define one before using it.

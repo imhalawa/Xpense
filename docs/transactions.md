@@ -31,7 +31,7 @@ There is a single `Transaction` entity with two nullable sides rather than three
 | Counterparty account | Transfers only |
 | Category | Required on income and expense, forbidden on transfers |
 | Merchant | Required on income and expense, forbidden on transfers |
-| Date and time | Defaults to now |
+| Date and time | One control for the moment the money moved. Prefilled, so you need only change what you know |
 | Tags | Optional, any number |
 | Reason | Optional free text |
 
