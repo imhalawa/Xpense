@@ -30,7 +30,6 @@ const requestOptionsJson = JSON.stringify({
 
 const bytes = (value: string): Uint8Array => new TextEncoder().encode(value);
 
-// Real credentials always expose the PRF result here; the serializer must drop it.
 const extensionResults = () => ({ prf: { results: { first: bytes("prf-secret") } } });
 
 const fakeAttestation = () => ({
@@ -103,9 +102,6 @@ const registerOnce = async (): Promise<{
 };
 
 describe("registerWithPasskey", () => {
-  // The regression this guards: the wrapper identifier is bound into the master key's
-  // associated data, so it must be the browser's own identifier and must travel to the API
-  // unchanged. A server-assigned identifier produces a wrapper nothing can ever unwrap.
   it("submits a wrapper the same identifier can unwrap", async () => {
     const { body, wrappingKey, unlockedWith } = await registerOnce();
 
@@ -134,8 +130,6 @@ describe("registerWithPasskey", () => {
     )).rejects.toThrow();
   });
 
-  // The API stores the identity nonce and ciphertext in separate columns, while the crypto
-  // helpers pack them together. A split at the wrong offset silently breaks vault unlock.
   it("splits the encryption identity into the nonce and ciphertext the API expects", async () => {
     const { body, unlockedWith } = await registerOnce();
 

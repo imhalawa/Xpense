@@ -179,8 +179,6 @@ describe("passkey PRF vault wrapping", () => {
     ).rejects.toBeDefined();
   });
 
-  // The API requires clientExtensionResults to be present, so it is sent — but the PRF
-  // result inside it derives the vault wrapping key and must never leave the browser.
   it("serializes credentials without the PRF extension result", () => {
     const prfOutput = new Uint8Array(32).fill(24);
     const credential = assertionCredential(prfOutput);

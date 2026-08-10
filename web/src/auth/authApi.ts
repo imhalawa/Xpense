@@ -48,7 +48,6 @@ export const signInHttpDependencies = (): SignInDependencies => ({
   )).data,
 });
 
-/** Signs out and drops the session cookie, so the gate sends the browser back to sign-in. */
 export const signOut = async (): Promise<void> => {
   await axios.post("/api/v1/auth/logout", null, await antiforgeryConfig());
 };

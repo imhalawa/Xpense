@@ -72,11 +72,6 @@ const encodeBase64Url = (source: ByteSource): string => {
   return btoa(binary).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
 };
 
-/**
- * The API deserializes a WebAuthn credential and requires `clientExtensionResults`, so it
- * has to be present. The PRF result is deliberately dropped: it is the secret the vault
- * wrapping key is derived from, and it must never leave the browser.
- */
 const publishableExtensionResults = (
   credential: PublicKeyCredential,
 ): Record<string, unknown> => {

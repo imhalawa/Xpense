@@ -5,11 +5,6 @@ import { Navigate } from "react-router";
 import { loadLegacyClaimPasskeys, unlockLegacyClaim, type ClaimPasskeySelection } from "../claim/claimUnlock";
 import { useVault } from "./VaultProvider";
 
-/**
- * Every route behind the gate needs a session. Without one the data-mode probe answers 401,
- * which is a missing sign-in rather than a broken deployment — send the browser to sign in
- * instead of reporting that the protected mode could not be verified.
- */
 const isUnauthenticated = (error: unknown): boolean =>
   axios.isAxiosError(error) && error.response?.status === 401;
 

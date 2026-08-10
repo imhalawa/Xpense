@@ -147,9 +147,6 @@ public class AuthenticationEndpointTests
         wrapper.CredentialId.Should().Equal([1, 2, 3, 4]);
     }
 
-    // The browser binds the wrapper identifier into the master key's associated data before
-    // it encrypts, so the stored identifier has to be the one it sent. A server-generated
-    // identifier leaves a wrapper that no sign-in can ever unwrap.
     [Test]
     public async Task Registration_stores_the_vault_wrapper_identifier_the_browser_chose()
     {
@@ -1553,8 +1550,6 @@ public class AuthenticationEndpointTests
         string? Nonce,
         string? Label)
     {
-        // A fresh identifier per read: the wrapper identifier is now the primary key the
-        // browser chooses, so a shared instance would collide across registrations.
         public static VaultWrapperRequest Valid => new(
             Guid.CreateVersion7(),
             Convert.ToBase64String([10, 11, 12]),

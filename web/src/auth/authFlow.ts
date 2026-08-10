@@ -72,13 +72,6 @@ export interface RegisterInput {
   invitationToken: string | null;
 }
 
-/**
- * Registers a new identity and leaves its vault unlocked.
- *
- * The vault wrapper identifier is generated here rather than by the API: it is bound into
- * the master key's associated data before the ciphertext leaves the browser, so a
- * server-assigned identifier would produce a wrapper that no later sign-in could open.
- */
 export const registerWithPasskey = async (
   dependencies: RegisterDependencies,
   input: RegisterInput,
@@ -113,7 +106,6 @@ export const registerWithPasskey = async (
     pendingRegistrationId: registration.pendingRegistrationId,
     credentialJson: JSON.stringify(serializeAttestationForApi(passkey.credential)),
     encryptionPublicKey: encodeBase64(identity.publicKeyBytes),
-    // createEncryptionIdentity packs the nonce ahead of the ciphertext; the API stores them apart.
     encryptedPrivateKeyNonce: encodeBase64(identity.encryptedPrivateKey.slice(0, nonceBytes)),
     encryptedPrivateKey: encodeBase64(identity.encryptedPrivateKey.slice(nonceBytes)),
     vaultWrapper: {
@@ -131,11 +123,6 @@ export const registerWithPasskey = async (
   return { userId };
 };
 
-/**
- * Authenticates an existing identity. This establishes the session only — the vault stays
- * locked, because the wrapper salt needed to derive the unwrapping key is not known until
- * the identity has been read back. The unlock gate performs that second step.
- */
 export const signInWithPasskey = async (
   dependencies: SignInDependencies,
   email: string,

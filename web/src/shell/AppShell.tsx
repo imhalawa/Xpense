@@ -99,8 +99,6 @@ const useStyles = makeStyles({
   },
   header: {
     display: "flex",
-    // NavDrawerHeader lays its children out in a column, which stacked the notification
-    // bell under the identity block. State the axis so they sit on one row.
     flexDirection: "row",
     alignItems: "center",
     gap: tokens.spacingHorizontalS,
@@ -353,8 +351,6 @@ const AppShell = ({ children }: AppShellProps) => {
     projection.unlock().catch(() => setUnlockError(unlockFailureMessage));
   }, [projection]);
 
-  // Drop the decrypted projection before the session, so nothing readable outlives the
-  // sign-out even if the logout request fails.
   const endSession = useCallback(async () => {
     projection.lock();
     try {

@@ -13,7 +13,6 @@ export const decodeBase64 = (value: string, errorMessage: string): Uint8Array<Ar
   }
 };
 
-/** Standard base64 with padding — the API decodes these with Convert.FromBase64String. */
 export const encodeBase64 = (value: Uint8Array): string => {
   let binary = "";
   const chunkSize = 32_768;
@@ -26,10 +25,6 @@ export const encodeBase64 = (value: Uint8Array): string => {
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" ? value as Record<string, unknown> : null;
 
-/**
- * Reads the WebAuthn options the API produced. They arrive either bare or wrapped in a
- * `publicKey` member depending on the ceremony, so both shapes are accepted.
- */
 export const parseCredentialOptions = (
   optionsJson: string,
   errorMessage: string,
@@ -57,11 +52,6 @@ const decodeDescriptors = (value: unknown, errorMessage: string): PublicKeyCrede
   });
 };
 
-/**
- * The registration ceremony carries the user identifier the server minted, and the same
- * identifier is later bound into the vault's associated data. Read it back out of the
- * options rather than guessing it.
- */
 export const registrationUserId = (
   options: Record<string, unknown>,
   errorMessage: string,
@@ -107,10 +97,6 @@ export const toRequestOptions = (
   };
 };
 
-/**
- * A local assertion used only to read the passkey's PRF output when the authenticator
- * withholds it during creation. It never reaches the API, so the challenge is ours.
- */
 export const localPrfAssertionOptions = (
   creationOptions: Record<string, unknown>,
 ): CredentialRequestOptions => {

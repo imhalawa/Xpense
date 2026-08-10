@@ -36,8 +36,6 @@ const useStyles = makeStyles({
 });
 
 const messageFor = (error: unknown, fallback: string): string => {
-  // A cancelled or refused WebAuthn ceremony rejects with a DOMException, whose message is
-  // browser jargon. Everything else already carries a sentence written for a person.
   if (error instanceof DOMException) return "The passkey prompt was dismissed or refused.";
   return error instanceof Error && error.message !== "" ? error.message : fallback;
 };

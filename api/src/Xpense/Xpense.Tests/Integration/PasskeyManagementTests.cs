@@ -622,8 +622,6 @@ public class PasskeyManagementTests
         string? Nonce,
         string? Label);
 
-    // A fresh identifier per read: the wrapper identifier is now the primary key the
-    // browser chooses, so a shared instance would collide when a test adds two passkeys.
     private static VaultWrapperRequest ValidWrapper => new(
         Guid.CreateVersion7(),
         Convert.ToBase64String([41, 42, 43]),
