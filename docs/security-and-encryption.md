@@ -58,6 +58,10 @@ The master key is never persisted unlocked, so a reload always needs another unl
 auto-locks after 15 minutes idle and after 15 minutes hidden, and you can lock it yourself at any
 time.
 
+Those timings are fixed in this release. Reloading the page therefore always asks for the passkey
+again, which is the cost of never writing the master key to disk in a form that outlives the tab.
+Making the timing a user setting is not done yet.
+
 Two browser tests enforce the boundary: one asserts that nothing recognisable as plaintext leaves
 the page over the network, and one exercises the encrypted runtime end to end.
 

@@ -60,6 +60,10 @@ key and must never reach the server.
 Routes key on the public account number, not the database id. `PUT` accepts only the label and the
 default flag — the currency is fixed at creation.
 
+Exactly one account is the default. Setting the flag on one account clears it on every other in the
+same request, so the invariant cannot be broken by two calls. `POST /accounts` takes no default
+flag: the first account created receives it automatically.
+
 ## Transactions
 
 | Method | Route |
