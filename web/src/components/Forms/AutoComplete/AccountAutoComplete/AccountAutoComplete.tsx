@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Combobox, Field, Option, makeStyles, tokens } from "@fluentui/react-components";
 import { IAccount } from "../../../../typings/models/IAccount";
 
@@ -21,6 +21,9 @@ const useStyles = makeStyles({
   },
 });
 
+const preferredAccount = (options: IAccount[]): IAccount | null =>
+  options.find((account) => account.isDefault) ?? options[0] ?? null;
+
 const AccountAutoComplete = ({
   label,
   value,
@@ -30,13 +33,20 @@ const AccountAutoComplete = ({
   onChange,
 }: IAccountAutoCompleteProps) => {
   const styles = useStyles();
-  const [selected, setSelected] = useState<IAccount | null>(
-    value ?? options.find((account) => account.isDefault) ?? options[0] ?? null,
-  );
+  const [query, setQuery] = useState<string | null>(null);
+  const hasProposedDefault = useRef(false);
 
   useEffect(() => {
-    onChange(selected);
-  }, [selected]);
+    if (hasProposedDefault.current || value !== null) return;
+    const preferred = preferredAccount(options);
+    if (preferred === null) return;
+    hasProposedDefault.current = true;
+    onChange(preferred);
+  }, [onChange, options, value]);
+
+  const matches = query === null
+    ? options
+    : options.filter((account) => account.label.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <Field
@@ -45,14 +55,16 @@ const AccountAutoComplete = ({
       validationState={error ? "error" : "none"}
       validationMessage={helperText}>
       <Combobox
-        value={selected?.label ?? ""}
-        selectedOptions={selected === null ? [] : [selected.accountNumber]}
-        onOptionSelect={(_event, data) =>
-          setSelected(
-            options.find((account) => account.accountNumber === data.optionValue) ?? null
-          )
-        }>
-        {options.map((account) => (
+        freeform
+        value={query ?? value?.label ?? ""}
+        selectedOptions={value === null ? [] : [value.accountNumber]}
+        onChange={(event) => setQuery(event.target.value)}
+        onBlur={() => setQuery(null)}
+        onOptionSelect={(_event, data) => {
+          setQuery(null);
+          onChange(options.find((account) => account.accountNumber === data.optionValue) ?? null);
+        }}>
+        {matches.map((account) => (
           <Option key={account.accountNumber} value={account.accountNumber} text={account.label}>
             <span className={styles.option}>
               {account.label}
@@ -60,6 +72,11 @@ const AccountAutoComplete = ({
             </span>
           </Option>
         ))}
+        {matches.length === 0 && (
+          <Option value="" text="" disabled>
+            No account matches “{query}”
+          </Option>
+        )}
       </Combobox>
     </Field>
   );

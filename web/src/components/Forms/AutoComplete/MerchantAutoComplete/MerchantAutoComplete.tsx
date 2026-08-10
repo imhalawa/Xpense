@@ -24,9 +24,9 @@ const MerchantAutoComplete = ({
 }: IMerchantAutoCompleteProps) => {
   const { setLoading } = useLoading();
   const [merchantOptions, setMerchantOptions] = useState<IMerchant[]>([]);
-  const [selected, setSelected] = useState<IMerchant | null>(value);
-  const [search, setSearch] = useState(value?.label ?? "");
+  const [query, setQuery] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
+  const search = query ?? value?.label ?? "";
   const debouncedSearch = useDebouncedValue(search, searchDelayMilliseconds);
 
   useEffect(() => {
@@ -51,10 +51,6 @@ const MerchantAutoComplete = ({
     };
   }, [searching, debouncedSearch]);
 
-  useEffect(() => {
-    onChange(selected);
-  }, [selected]);
-
   const hasExactMatch = merchantOptions.some((option) => option.label === search);
 
   return (
@@ -66,19 +62,19 @@ const MerchantAutoComplete = ({
       <Combobox
         freeform
         value={search}
-        selectedOptions={selected?.id === null || selected === null ? [] : [String(selected.id)]}
+        selectedOptions={value === null || value.id === null ? [] : [String(value.id)]}
         onFocus={() => setSearching(true)}
         onChange={(event) => {
           setSearching(true);
-          setSearch(event.target.value);
+          setQuery(event.target.value);
         }}
         onOptionSelect={(_event, data) => {
           const existing = merchantOptions.find((option) => String(option.id) === data.optionValue);
           const next =
             existing ??
             (search === "" ? null : { id: null, label: search, create: true });
-          setSelected(next);
-          setSearch(next?.label ?? "");
+          setQuery(null);
+          onChange(next);
         }}>
         {merchantOptions.map((merchant) => (
           <Option key={merchant.id} value={String(merchant.id)} text={merchant.label}>

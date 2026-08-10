@@ -44,14 +44,10 @@ const TagAutoComplete = ({
   const styles = useStyles();
   const { setLoading } = useLoading();
   const [tagOptions, setTagOptions] = useState<ITag[]>([]);
-  const [selected, setSelected] = useState<ITag[]>(value ?? []);
   const [search, setSearch] = useState("");
   const [searching, setSearching] = useState(false);
+  const selected = value ?? [];
   const debouncedSearch = useDebouncedValue(search, searchDelayMilliseconds);
-
-  useEffect(() => {
-    onChange(selected);
-  }, [selected]);
 
   useEffect(() => {
     if (!searching) return;
@@ -84,7 +80,7 @@ const TagAutoComplete = ({
     const candidate = existing ?? createdTag(optionValue);
     const candidateValue = candidate.id === null ? candidate.label : String(candidate.id);
     const alreadySelected = selectedValues.includes(candidateValue);
-    setSelected(
+    onChange(
       alreadySelected
         ? selected.filter((tag) => (tag.id === null ? tag.label : String(tag.id)) !== candidateValue)
         : [...selected, candidate]

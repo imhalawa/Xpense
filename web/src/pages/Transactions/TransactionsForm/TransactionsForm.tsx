@@ -573,7 +573,6 @@ const TransactionsForm = ({
             control={control}
             render={({ field: { onChange, value }, fieldState: { error } }) => (
               <MerchantAutoComplete
-                key={value?.id ?? value?.label ?? "none"}
                 label="Merchant"
                 value={value}
                 error={error !== undefined}
@@ -597,7 +596,6 @@ const TransactionsForm = ({
             control={control}
             render={({ field: { onChange, value }, fieldState: { error } }) => (
               <CategoryAutoComplete
-                key={value?.id ?? "none"}
                 label="Category"
                 value={value}
                 error={error !== undefined}
@@ -662,7 +660,6 @@ const TransactionsForm = ({
         control={control}
         render={({ field: { onChange, value }, fieldState: { error } }) => (
           <AccountAutoComplete
-            key={value?.accountNumber ?? "none"}
             label="Account"
             value={value}
             options={accountOptions}
@@ -696,7 +693,6 @@ const TransactionsForm = ({
             control={control}
             render={({ field: { onChange, value }, fieldState: { error } }) => (
               <AccountAutoComplete
-                key={value?.accountNumber ?? "none"}
                 label="Destination account"
                 value={value}
                 options={accountOptions.filter(
@@ -722,7 +718,6 @@ const TransactionsForm = ({
         control={control}
         render={({ field: { onChange, value }, fieldState: { error } }) => (
           <TagAutoComplete
-            key={(value ?? []).map((tag) => tag.id ?? tag.label).join(",")}
             label="Tags"
             value={value}
             error={error !== undefined}
