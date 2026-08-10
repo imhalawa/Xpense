@@ -10,6 +10,7 @@ import {
 import { DismissRegular } from "@fluentui/react-icons";
 import { Button } from "@fluentui/react-components";
 import { useTransactionFilter } from "../../transactions/useTransactionFilter";
+import { useResourceVersion } from "../../contexts/ResourceVersionContext";
 import { useVault } from "../../vault/VaultProvider";
 import type { AccountView, TransactionView } from "../../vault/VaultProjection";
 import TransactionsToolbar from "./TransactionsToolbar";
@@ -30,6 +31,7 @@ const Transactions = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { projection, state } = useVault();
+  const resourceVersion = useResourceVersion();
   const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [accounts, setAccounts] = useState<AccountView[]>([]);
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -54,7 +56,7 @@ const Transactions = () => {
     return () => {
       isCurrent = false;
     };
-  }, [projection, state, transactionFilter.filter.space]);
+  }, [projection, resourceVersion, state, transactionFilter.filter.space]);
 
   const addTransaction = () =>
     navigate("/transactions/new", {

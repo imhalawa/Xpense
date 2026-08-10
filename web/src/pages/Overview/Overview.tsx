@@ -5,6 +5,7 @@ import { Caption1, Title3, makeStyles, tokens } from "@fluentui/react-components
 import AccountBalances from "../../components/AccountBalances/AccountBalances";
 import BudgetMeter from "../../components/BudgetMeter/BudgetMeter";
 import { IAccountResponse } from "../../clients/types";
+import { useResourceVersion } from "../../contexts/ResourceVersionContext";
 import { useVault } from "../../vault/VaultProvider";
 import type { AccountBalanceProjection, BudgetView } from "../../vault/VaultProjection";
 import { useTransactionFilter } from "../../transactions/useTransactionFilter";
@@ -38,6 +39,7 @@ const Overview = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { projection } = useVault();
+  const resourceVersion = useResourceVersion();
   const transactionFilter = useTransactionFilter(projection, fallbackSpace);
   const [accounts, setAccounts] = useState<IAccountResponse[]>([]);
   const [balanceResult, setBalanceResult] = useState<AccountBalanceProjection | null>(null);
@@ -82,7 +84,7 @@ const Overview = () => {
     return () => {
       isCurrent = false;
     };
-  }, [projection, now]);
+  }, [projection, now, resourceVersion]);
 
   return (
     <div className={styles.sections}>

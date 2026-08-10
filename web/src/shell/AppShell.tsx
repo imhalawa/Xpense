@@ -27,6 +27,7 @@ import {
 import { signOut } from "../auth/authApi";
 import NotificationBell from "../components/NotificationBell/NotificationBell";
 import { useLoading } from "../contexts/LoadingContext";
+import { ResourceVersionProvider } from "../contexts/ResourceVersionContext";
 import {
   getUnreadCount,
   listNotifications,
@@ -511,7 +512,7 @@ const AppShell = ({ children }: AppShellProps) => {
             </MessageBar>
           )}
           <PageTitle title={activeDestination.label} />
-          {children}
+          <ResourceVersionProvider version={resourceVersion}>{children}</ResourceVersionProvider>
         </div>
       </main>
       <TransactionDialog
