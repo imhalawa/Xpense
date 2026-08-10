@@ -395,4 +395,32 @@ describe("TransactionsForm quick add", () => {
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ id: "11" })),
     );
   });
+
+  it("keeps the instant an edited transaction already had", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const occurredAt = "2026-08-08T09:45:00.000Z";
+    const transaction: TransactionView = {
+      id: "11",
+      kind: "expense",
+      amountMinorUnits: 3456,
+      currency: Currency.EUR,
+      occurredAt,
+      accountId: "cash",
+      counterpartyAccountId: null,
+      isCounterpartyPrivate: false,
+      categoryId: "7",
+      merchantId: "3",
+      tagIds: ["5"],
+      reason: null,
+      canEdit: true,
+    };
+    renderForm(onSubmit, undefined, { transaction, submitLabel: "Save" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(dayjs(onSubmit.mock.calls[0][0].occurredAt).format("YYYY-MM-DDTHH:mm")).toBe(
+      dayjs(occurredAt).format("YYYY-MM-DDTHH:mm"),
+    );
+  });
 });

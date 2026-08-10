@@ -106,6 +106,9 @@ const useStyles = makeStyles({
   },
 });
 
+const namesAnInstant = (result: QuickAddParseResult): boolean =>
+  result.ranges.some((range) => range.field === "date" || range.field === "time");
+
 const TransactionsForm = ({
   onCancel,
   onSubmit,
@@ -265,7 +268,7 @@ const TransactionsForm = ({
     }
     if (draft.amountMinorUnits !== null) setValue("amount", draft.amountMinorUnits / 100);
     if (draft.currency !== null) setValue("currency", draft.currency);
-    if (draft.occurredAt !== null) {
+    if (draft.occurredAt !== null && namesAnInstant(result)) {
       setValue("dateOfTransaction", dayjs(draft.occurredAt).unix());
     }
     const primaryAccount = draft.kind === "income" ? draft.destinationAccount : draft.sourceAccount;
