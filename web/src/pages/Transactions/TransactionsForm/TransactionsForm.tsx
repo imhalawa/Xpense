@@ -10,7 +10,6 @@ import {
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
-import { DatePicker } from "@fluentui/react-datepicker-compat";
 import { ArrowTrendingDownRegular, ArrowTrendingRegular } from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import { Controller, useForm } from "react-hook-form";
@@ -63,6 +62,7 @@ export interface ITransactionFormProps {
 
 const currencies: Currency[] = Object.values(Currency);
 const categoryPriorities: QuickAddCategoryPriority[] = ["Low", "Medium", "High"];
+const momentFormat = "YYYY-MM-DDTHH:mm";
 
 interface PendingCategory {
   label: string;
@@ -214,7 +214,6 @@ const TransactionsForm = ({
   });
   const selectedType = watch("type");
   const selectedAccount = watch("account");
-  const selectedOccurredAt = watch("dateOfTransaction");
 
   const toAccount = useCallback(
     (id: string | null): IAccount | null =>
@@ -233,12 +232,7 @@ const TransactionsForm = ({
 
   const focusPicker = (request: QuickAddPickerRequest) => {
     setActivePickerRequest(request);
-    const control =
-      request.range.field === "time"
-        ? "time"
-        : request.range.field === "date"
-          ? "date"
-          : request.range.field;
+    const control = request.range.field === "time" ? "date" : request.range.field;
     window.setTimeout(() => {
       const container = formReference.current?.querySelector<HTMLElement>(
         `[data-quick-add-control="${control}"]`,
@@ -616,41 +610,23 @@ const TransactionsForm = ({
         name="dateOfTransaction"
         control={control}
         render={({ field: { onChange, value }, fieldState: { error } }) => (
-          <Field label="Date of transaction" required validationMessage={error?.message}>
-            <DatePicker
+          <Field label="Date and time of transaction" required validationMessage={error?.message}>
+            <Input
               className={styles.control}
-              value={dayjs.unix(value).toDate()}
-              maxDate={new Date()}
-              formatDate={(date) =>
-                date === undefined ? "" : dayjs(date).format("YYYY-MM-DD")
-              }
-              onSelectDate={(date) => {
-                onChange(date == null ? null : dayjs(date).unix());
-                if (date !== null) {
-                  rewriteActiveRange("date", `date:${dayjs(date).format("YYYY-MM-DD")}`);
-                }
+              type="datetime-local"
+              max={dayjs().format(momentFormat)}
+              value={dayjs.unix(value).format(momentFormat)}
+              onChange={(_event, data) => {
+                const occurredAt = dayjs(data.value).second(0);
+                if (!occurredAt.isValid()) return;
+                onChange(occurredAt.unix());
+                rewriteActiveRange("date", `date:${occurredAt.format("YYYY-MM-DD")}`);
+                rewriteActiveRange("time", `time:${occurredAt.format("HH:mm")}`);
               }}
             />
           </Field>
         )}
       /></div>
-
-      <div data-quick-add-control="time">
-        <Field label="Time of transaction">
-          <Input
-            className={styles.control}
-            type="time"
-            value={dayjs.unix(selectedOccurredAt).format("HH:mm")}
-            onChange={(_event, data) => {
-              if (data.value === "") return;
-              const [hours, minutes] = data.value.split(":").map(Number);
-              const next = dayjs.unix(selectedOccurredAt).hour(hours).minute(minutes).second(0);
-              setValue("dateOfTransaction", next.unix());
-              rewriteActiveRange("time", `time:${data.value}`);
-            }}
-          />
-        </Field>
-      </div>
 
       <div
         data-quick-add-control={

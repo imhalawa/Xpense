@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import dayjs from "dayjs";
 import { describe, expect, it, vi } from "vitest";
 import { LoadingContextProvider } from "../../../contexts/LoadingContext";
 import { Currency } from "../../../typings/enums/Currency";
@@ -323,6 +324,48 @@ describe("TransactionsForm quick add", () => {
       fireEvent.click(screen.getByRole("button", { name: "Create" }));
     });
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("submits the instant picked in the single date and time control", async () => {
+    const onSubmit = renderForm();
+    fireEvent.change(screen.getByRole("textbox", { name: "Quick Add" }), {
+      target: { value: "spent 12 at Bakery #Food" },
+    });
+    await waitFor(() => expect(screen.getByRole("spinbutton", { name: "Amount" })).toHaveValue(12));
+
+    fireEvent.change(screen.getByLabelText(/Date and time of transaction/), {
+      target: { value: "2026-08-08T14:30" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    });
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ occurredAt: dayjs("2026-08-08T14:30").toISOString() }),
+      ),
+    );
+  });
+
+  it("submits the defaulted time when the user only knows the day", async () => {
+    const onSubmit = renderForm();
+    fireEvent.change(screen.getByRole("textbox", { name: "Quick Add" }), {
+      target: { value: "spent 12 at Bakery #Food" },
+    });
+    await waitFor(() => expect(screen.getByRole("spinbutton", { name: "Amount" })).toHaveValue(12));
+
+    const moment = screen.getByLabelText<HTMLInputElement>(/Date and time of transaction/);
+    const defaulted = moment.value;
+    expect(defaulted).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    fireEvent.change(moment, { target: { value: "" } });
+    expect(moment).toHaveValue(defaulted);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    });
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(dayjs(onSubmit.mock.calls[0][0].occurredAt).format("YYYY-MM-DDTHH:mm")).toBe(defaulted);
   });
 
   it("populates edits and submits the existing id with a Save action", async () => {
