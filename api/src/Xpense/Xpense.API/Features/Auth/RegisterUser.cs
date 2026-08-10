@@ -42,8 +42,16 @@ public sealed class RegisterUser : IEndpoint
 
     /// <summary>
     /// Provides the encrypted material required to unlock a vault with a passkey.
+    /// The identifier is chosen by the browser because it is bound into the master key's
+    /// associated data before the ciphertext is sent; a server-assigned identifier would
+    /// never match on unlock.
     /// </summary>
-    public sealed record VaultWrapperRequest(string? Salt, string? Ciphertext, string? Nonce, string? Label);
+    public sealed record VaultWrapperRequest(
+        Guid? Id,
+        string? Salt,
+        string? Ciphertext,
+        string? Nonce,
+        string? Label);
 
     public sealed class Validator : AbstractValidator<Request>
     {
@@ -60,6 +68,9 @@ public sealed class RegisterUser : IEndpoint
                 .NotNull().WithMessage("The vault wrapper is required.");
             When(request => request.VaultWrapper is not null, () =>
             {
+                RuleFor(request => request.VaultWrapper!.Id)
+                    .NotNull().WithMessage("The vault wrapper identifier is required.")
+                    .NotEqual(Guid.Empty).WithMessage("The vault wrapper identifier is required.");
                 Base64(RuleFor(request => request.VaultWrapper!.Salt), "The vault wrapper salt is required.", "The vault wrapper salt must be valid and no larger than 4096 bytes.");
                 Base64(RuleFor(request => request.VaultWrapper!.Ciphertext), "The vault wrapper ciphertext is required.", "The vault wrapper ciphertext must be valid and no larger than 4096 bytes.");
                 Base64(RuleFor(request => request.VaultWrapper!.Nonce), "The vault wrapper nonce is required.", "The vault wrapper nonce must be valid and no larger than 4096 bytes.");
@@ -151,7 +162,7 @@ public sealed class RegisterUser : IEndpoint
         };
         var wrapper = new VaultWrapper
         {
-            Id = Guid.CreateVersion7(),
+            Id = vaultWrapper.Id!.Value,
             UserId = user.Id,
             Kind = VaultWrapperKind.Passkey,
             CredentialId = attestation.Passkey.CredentialId,

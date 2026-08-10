@@ -616,12 +616,16 @@ public class PasskeyManagementTests
         int ProtocolVersion);
 
     private sealed record VaultWrapperRequest(
+        Guid? Id,
         string? Salt,
         string? Ciphertext,
         string? Nonce,
         string? Label);
 
-    private static VaultWrapperRequest ValidWrapper { get; } = new(
+    // A fresh identifier per read: the wrapper identifier is now the primary key the
+    // browser chooses, so a shared instance would collide when a test adds two passkeys.
+    private static VaultWrapperRequest ValidWrapper => new(
+        Guid.CreateVersion7(),
         Convert.ToBase64String([41, 42, 43]),
         Convert.ToBase64String([44, 45, 46]),
         Convert.ToBase64String([47, 48, 49]),

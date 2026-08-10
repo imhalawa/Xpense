@@ -147,6 +147,38 @@ public class AuthenticationEndpointTests
         wrapper.CredentialId.Should().Equal([1, 2, 3, 4]);
     }
 
+    // The browser binds the wrapper identifier into the master key's associated data before
+    // it encrypts, so the stored identifier has to be the one it sent. A server-generated
+    // identifier leaves a wrapper that no sign-in can ever unwrap.
+    [Test]
+    public async Task Registration_stores_the_vault_wrapper_identifier_the_browser_chose()
+    {
+        var registration = await CreateOptions("wrapper-id@example.test");
+        var wrapper = VaultWrapperRequest.Valid;
+
+        var response = await Register(registration, wrapper: wrapper);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
+        var user = await dbContext.Users.SingleAsync(item => item.NormalizedEmail == "WRAPPER-ID@EXAMPLE.TEST");
+        (await dbContext.VaultWrappers.SingleAsync(item => item.UserId == user.Id)).Id
+            .Should().Be(wrapper.Id!.Value);
+    }
+
+    [Test]
+    public async Task Registration_without_a_vault_wrapper_identifier_creates_no_user()
+    {
+        var registration = await CreateOptions("no-wrapper-id@example.test");
+
+        var response = await Register(
+            registration,
+            wrapper: VaultWrapperRequest.Valid with { Id = null });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertNoUser("NO-WRAPPER-ID@EXAMPLE.TEST");
+    }
+
     [Test]
     public async Task Registration_without_a_vault_wrapper_creates_no_user()
     {
@@ -1515,12 +1547,16 @@ public class AuthenticationEndpointTests
         string? InvitationToken);
 
     private sealed record VaultWrapperRequest(
+        Guid? Id,
         string? Salt,
         string? Ciphertext,
         string? Nonce,
         string? Label)
     {
-        public static VaultWrapperRequest Valid { get; } = new(
+        // A fresh identifier per read: the wrapper identifier is now the primary key the
+        // browser chooses, so a shared instance would collide across registrations.
+        public static VaultWrapperRequest Valid => new(
+            Guid.CreateVersion7(),
             Convert.ToBase64String([10, 11, 12]),
             Convert.ToBase64String([13, 14, 15]),
             Convert.ToBase64String([16, 17, 18]),

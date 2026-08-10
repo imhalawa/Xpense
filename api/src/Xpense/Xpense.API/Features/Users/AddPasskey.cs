@@ -37,8 +37,12 @@ public sealed class AddPasskey : IEndpoint
 
     /// <summary>
     /// Provides the encrypted wrapper for the new passkey.
+    /// The identifier is chosen by the browser because it is bound into the master key's
+    /// associated data before the ciphertext is sent; a server-assigned identifier would
+    /// never match on unlock.
     /// </summary>
     public sealed record VaultWrapperRequest(
+        Guid? Id,
         string? Salt,
         string? Ciphertext,
         string? Nonce,
@@ -56,6 +60,9 @@ public sealed class AddPasskey : IEndpoint
                 .NotNull().WithMessage("The vault wrapper is required.");
             When(request => request.VaultWrapper is not null, () =>
             {
+                RuleFor(request => request.VaultWrapper!.Id)
+                    .NotNull().WithMessage("The vault wrapper identifier is required.")
+                    .NotEqual(Guid.Empty).WithMessage("The vault wrapper identifier is required.");
                 Base64(
                     RuleFor(request => request.VaultWrapper!.Salt),
                     "The vault wrapper salt is required.",
@@ -139,7 +146,7 @@ public sealed class AddPasskey : IEndpoint
         var wrapperRequest = request.VaultWrapper!;
         var wrapper = new VaultWrapper
         {
-            Id = Guid.CreateVersion7(),
+            Id = wrapperRequest.Id!.Value,
             UserId = user.Id,
             Kind = VaultWrapperKind.Passkey,
             CredentialId = attestation.Passkey.CredentialId,
