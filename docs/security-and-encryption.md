@@ -51,8 +51,10 @@ another owner or replayed at an older revision.
 
 ## In the browser
 
-Ciphertext, envelopes and sync metadata live in IndexedDB. Unwrapped keys and decrypted data live
-only inside a dedicated Web Worker, never in page scope.
+Ciphertext, envelopes and sync metadata live in IndexedDB. Unwrapped keys live only inside a
+dedicated Web Worker, never in page scope. Decrypted data does reach page scope: the worker returns
+plaintext to the main thread, which decodes it and holds it in memory for as long as the vault is
+unlocked.
 
 The master key is never persisted unlocked, so a reload always needs another unlock. The vault
 auto-locks after 15 minutes idle and after 15 minutes hidden, and you can lock it yourself at any
