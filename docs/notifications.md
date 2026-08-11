@@ -1,7 +1,9 @@
 # Notifications
 
-The bell in the sidebar shows what Xpense wants to tell you. Notifications are produced by a
-separate worker, not by the request that triggered them.
+The bell in the sidebar shows what Xpense wants to tell you. Notifications have two producers. In
+legacy mode a separate worker raises them, not the request that triggered them. Outside legacy mode
+budget alerts are worked out by the client itself — see
+[Notifications and the encrypted vault](#notifications-and-the-encrypted-vault).
 
 ## What raises one
 
@@ -76,8 +78,16 @@ health endpoint.
 ## Notifications and the encrypted vault
 
 Once an installation is in encrypted mode the server cannot read budgets or amounts, so it cannot
-decide that a budget was exceeded. In that mode budget alerts are computed by an unlocked client
-and the resulting notification is encrypted and synced like any other record.
+decide that a budget was exceeded. In that mode the client works the alerts out for itself, from the
+same budget periods the budget meters already show. A budget whose period reports as exceeded raises
+one alert, worded exactly as the server rule words it.
+
+These alerts are derived, not stored. They are not records, they are not encrypted, and they are not
+synced — they are recomputed from the budgets every time the client loads them, so an alert clears
+itself once the budget is no longer over. Only the fact that you have read one is kept, in browser
+storage keyed by the budget and its period. A new period raises a fresh alert, which is what keeps
+"told once, not nagged" true without a stored notification to mark.
 
 The practical consequence: in encrypted mode notifications appear when a client is open and
-unlocked, not while everything is closed. There are no server-generated budget emails.
+unlocked, not while everything is closed. There are no server-generated budget emails. Read marks
+live in one browser and do not travel to another device.

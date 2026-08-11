@@ -57,6 +57,45 @@ const seed: FixtureSeed = {
   transactions: { personal: [] },
 };
 
+const exceededBudgetSeed: FixtureSeed = {
+  ...seed,
+  transactions: {
+    personal: [
+      {
+        id: "transaction-1",
+        kind: "expense",
+        amountMinorUnits: 15750,
+        currency: Currency.EUR,
+        occurredAt: new Date().toISOString(),
+        accountId: "account-1",
+        counterpartyAccountId: null,
+        isCounterpartyPrivate: false,
+        categoryId: "category-1",
+        merchantId: null,
+        tagIds: [],
+        canEdit: true,
+      },
+    ],
+  },
+  budgets: {
+    personal: [
+      {
+        id: "budget-1",
+        category: { id: "category-1", label: "Food" },
+        amount: { minorUnits: 10000, currency: Currency.EUR },
+        recurrence: "Monthly",
+        startsOn: "2020-01-01",
+        endsOn: null,
+        alertThresholdPercent: 75,
+        period: null,
+        createdAt: "2020-01-01T00:00:00.000Z",
+        updatedAt: null,
+        canEdit: true,
+      },
+    ],
+  },
+};
+
 const setWindowWidth = (isWide: boolean) => {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: isWide && query === "(min-width: 1024px)",
@@ -112,19 +151,24 @@ describe("AppShell", () => {
     expect(screen.queryByRole("link", { name: "Manage" })).toBeNull();
   });
 
-  it("does not call or render legacy notifications in encrypted mode", async () => {
+  it("derives budget alerts on the client in encrypted mode and calls no notification route", async () => {
     setWindowWidth(true);
     vi.mocked(listNotifications).mockClear();
     vi.mocked(getUnreadCount).mockClear();
-    const encrypted = fixtureProjection(seed);
+    const encrypted = fixtureProjection(exceededBudgetSeed);
     Object.defineProperty(encrypted, "dataMode", { value: "encrypted" });
 
     renderShell("/transactions?space=personal", encrypted);
-    await screen.findByRole("button", { name: "Local user, Personal" });
+    const bell = await screen.findByRole("button", { name: "1 unread notification" });
 
     expect(listNotifications).not.toHaveBeenCalled();
     expect(getUnreadCount).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: /notifications/i })).toBeNull();
+
+    fireEvent.click(bell);
+    expect(await screen.findByText("Food is over budget")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark all read" }));
+    expect(await screen.findByRole("button", { name: "No unread notifications" })).toBeDefined();
   });
 
   it("locks and unlocks the vault from the identity menu on any route", async () => {

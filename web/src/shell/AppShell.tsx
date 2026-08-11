@@ -36,6 +36,7 @@ import {
   markNotificationRead,
 } from "../clients/notifications";
 import type { INotificationResponse } from "../clients/types";
+import { budgetAlerts, markBudgetAlertsRead } from "../notifications/budgetAlerts";
 import { useColorScheme } from "../fluent/useColorScheme";
 import { useVault } from "../vault/VaultProvider";
 import type {
@@ -210,9 +211,19 @@ const AppShell = ({ children }: AppShellProps) => {
 
   const refreshNotifications = useCallback(() => {
     if (!usesLegacyNotifications) {
-      setNotifications([]);
-      setNotificationPages(1);
-      setUnreadCount(0);
+      projection
+        .listBudgets(transactionFilter.filter.space, new Date())
+        .then((budgets) => {
+          const alerts = budgetAlerts(budgets);
+          setNotifications(alerts);
+          setNotificationPages(1);
+          setUnreadCount(alerts.filter((alert) => alert.readAt === null).length);
+        })
+        .catch(() => {
+          setNotifications([]);
+          setNotificationPages(1);
+          setUnreadCount(0);
+        });
       return;
     }
     Promise.all([
@@ -225,7 +236,24 @@ const AppShell = ({ children }: AppShellProps) => {
         setUnreadCount(count);
       })
       .catch((loadError) => console.error(loadError));
-  }, [notificationsPage, usesLegacyNotifications]);
+  }, [notificationsPage, projection, state, transactionFilter.filter.space, usesLegacyNotifications]);
+
+  const markNotificationsRead = (ids: number[]) => {
+    if (usesLegacyNotifications) {
+      void Promise.all(ids.map(markNotificationRead)).then(refreshNotifications);
+      return;
+    }
+    markBudgetAlertsRead(ids);
+    refreshNotifications();
+  };
+
+  const markAllRead = () => {
+    if (usesLegacyNotifications) {
+      void markAllNotificationsRead().then(refreshNotifications);
+      return;
+    }
+    markNotificationsRead(notifications.map((notification) => notification.id));
+  };
 
   useEffect(() => {
     refreshNotifications();
@@ -404,20 +432,18 @@ const AppShell = ({ children }: AppShellProps) => {
               onThemeModeChange={setThemeMode}
             />
           </div>
-          {usesLegacyNotifications && <div className={styles.headerNotifications}>
+          <div className={styles.headerNotifications}>
             <NotificationBell
               notifications={notifications}
               unreadCount={unreadCount}
               page={notificationsPage}
               totalPages={notificationPages}
               onPageChange={setNotificationsPage}
-              onMarkRead={(id) => markNotificationRead(id).then(refreshNotifications)}
-              onMarkSelectedRead={(ids) =>
-                Promise.all(ids.map(markNotificationRead)).then(refreshNotifications)
-              }
-              onMarkAllRead={() => markAllNotificationsRead().then(refreshNotifications)}
+              onMarkRead={(id) => markNotificationsRead([id])}
+              onMarkSelectedRead={markNotificationsRead}
+              onMarkAllRead={markAllRead}
             />
-          </div>}
+          </div>
         </NavDrawerHeader>
         <NavDrawerBody className={styles.body}>
           {needsFirstAccount ? (
