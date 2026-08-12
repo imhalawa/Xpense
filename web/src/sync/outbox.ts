@@ -15,20 +15,19 @@ import type {
   VaultRecord,
 } from "../vault/vaultDatabase";
 
-export interface OutboxEncryptionRequest {
+export interface OutboxRequest {
   kind: "create" | "replace" | "delete";
   recordId: string;
   expectedRevision?: number;
-  plaintext?: Uint8Array;
+  payload?: Uint8Array;
 }
 
-export interface OutboxCipher {
-  encrypt(request: OutboxEncryptionRequest): Promise<VaultOutboxMutation>;
-  decrypt(record: VaultRecord): Promise<Uint8Array>;
+export interface OutboxMutationBuilder {
+  build(request: OutboxRequest): Promise<VaultOutboxMutation>;
 }
 
 export interface OptimisticProjection {
-  apply(record: VaultRecord, plaintext: Uint8Array): void | Promise<void>;
+  apply(record: VaultRecord, payload: Uint8Array): void | Promise<void>;
   remove?(recordId: string): void | Promise<void>;
 }
 
@@ -53,11 +52,6 @@ const assertNotAborted = (signal: AbortSignal | undefined): void => {
   if (signal?.aborted) throw abortError();
 };
 
-const asVaultRecord = (record: SyncRecord, fallback: VaultRecord): VaultRecord => ({
-  ...record,
-  envelopes: record.envelopes.length === 0 ? fallback.envelopes : record.envelopes,
-});
-
 const createRequest = (entry: VaultOutboxEntry): CreateSyncRecord => {
   if (entry.mutation.kind !== "create") throw new Error("The queued mutation is not a create");
   return { ...entry.mutation.request, idempotencyKey: entry.idempotencyKey };
@@ -68,30 +62,27 @@ export class OutboxManager {
 
   constructor(
     private readonly database: VaultDatabase,
-    private readonly cipher: OutboxCipher,
+    private readonly mutations: OutboxMutationBuilder,
     private readonly projection: OptimisticProjection,
     readonly conflicts: ConflictManager,
     readonly syncApi: SyncMutationApi = syncMutationApi,
   ) {}
 
-  async queue(
-    request: OutboxEncryptionRequest,
-    signal?: AbortSignal,
-  ): Promise<VaultOutboxEntry> {
+  async queue(request: OutboxRequest, signal?: AbortSignal): Promise<VaultOutboxEntry> {
     return (await this.queueBatch([request], signal))[0]!;
   }
 
   async queueBatch(
-    requests: readonly OutboxEncryptionRequest[],
+    requests: readonly OutboxRequest[],
     signal?: AbortSignal,
   ): Promise<VaultOutboxEntry[]> {
     assertNotAborted(signal);
-    const mutations = await Promise.all(requests.map((request) => this.cipher.encrypt(request)));
+    const mutations = await Promise.all(requests.map((request) => this.mutations.build(request)));
     assertNotAborted(signal);
     for (const [index, mutation] of mutations.entries()) {
       const request = requests[index]!;
       if (mutation.kind !== request.kind || mutation.record.id !== request.recordId) {
-        throw new Error("The encrypted mutation does not match its request");
+        throw new Error("The queued mutation does not match its request");
       }
     }
     const entries = await this.database.enqueueOutboxBatch(mutations.map((mutation) => ({
@@ -102,7 +93,7 @@ export class OutboxManager {
     assertNotAborted(signal);
     for (const [index, mutation] of mutations.entries()) {
       const request = requests[index]!;
-      if (request.plaintext !== undefined) await this.projection.apply(mutation.record, request.plaintext);
+      if (request.payload !== undefined) await this.projection.apply(mutation.record, request.payload);
       else if (mutation.kind === "delete") await this.projection.remove?.(mutation.record.id);
     }
     return entries;
@@ -120,14 +111,14 @@ export class OutboxManager {
     const conflict = this.conflicts.get(recordId);
     if (conflict === undefined) throw new Error("The conflict was not found");
     assertNotAborted(signal);
-    const mutation = await this.cipher.encrypt({
+    const mutation = await this.mutations.build({
       kind: "replace",
       recordId,
       expectedRevision: conflict.latest.revision,
-      plaintext: conflict.mine,
+      payload: conflict.mine,
     });
     if (mutation.kind !== "replace" || mutation.record.id !== recordId) {
-      throw new Error("The encrypted replacement does not match the conflict");
+      throw new Error("The queued replacement does not match the conflict");
     }
     const entry: VaultOutboxEntry = {
       operationId: conflict.outboxEntry.operationId,
@@ -170,13 +161,13 @@ export class OutboxManager {
         const [created] = await this.syncApi.create({ records: [createRequest(entry)] }, signal);
         if (created === undefined) throw new Error("The create acknowledgement is missing");
         assertNotAborted(signal);
-        await this.database.acknowledgeOutbox(entry.operationId, asVaultRecord(created, mutation.record));
+        await this.database.acknowledgeOutbox(entry.operationId, created);
         return;
       }
       case "replace": {
         const replaced = await this.syncApi.replace(mutation.record.id, mutation.request, signal);
         assertNotAborted(signal);
-        await this.database.acknowledgeOutbox(entry.operationId, asVaultRecord(replaced, mutation.record));
+        await this.database.acknowledgeOutbox(entry.operationId, replaced);
         return;
       }
       case "delete":
@@ -192,35 +183,16 @@ export class OutboxManager {
     signal: AbortSignal | undefined,
   ): Promise<void> {
     const local = entry.mutation.record;
-    const latestRecord = asVaultRecord(latest, local);
-    const stagedEntry = { ...entry, latestServerRecord: latestRecord };
+    const stagedEntry = { ...entry, latestServerRecord: latest };
     await this.database.replaceOutbox(stagedEntry);
-    const decrypted = await Promise.allSettled([
-      this.cipher.decrypt(local),
-      this.cipher.decrypt(latestRecord),
-    ]);
-    const buffers = decrypted.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : []);
-    let transferred = false;
-    try {
-      const failure = decrypted.find((result) => result.status === "rejected");
-      if (failure?.status === "rejected") throw failure.reason;
-      assertNotAborted(signal);
-      const [mine, theirs] = buffers;
-      if (mine === undefined || theirs === undefined) {
-        throw new Error("The conflict could not be decrypted");
-      }
-      this.conflicts.add({
-        recordId: local.id,
-        outboxEntry: stagedEntry,
-        local,
-        latest: latestRecord,
-        mine,
-        theirs,
-      });
-      transferred = true;
-    } finally {
-      if (!transferred) buffers.forEach((buffer) => buffer.fill(0));
-    }
+    assertNotAborted(signal);
+    this.conflicts.add({
+      recordId: local.id,
+      outboxEntry: stagedEntry,
+      local,
+      latest,
+      mine: local.payload,
+      theirs: latest.payload,
+    });
   }
 }

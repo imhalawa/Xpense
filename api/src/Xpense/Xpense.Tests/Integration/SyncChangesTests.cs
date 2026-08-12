@@ -51,7 +51,7 @@ public class SyncChangesTests
 
         response.Should().NotBeNull();
         response!.Records.Should().HaveCount(2);
-        response.Records.Should().Contain(record => record.IsDeleted);
+        response.Records.Should().Contain(record => record.Tombstone);
         response.Records.Should().NotContain(record => record.Id == hidden.Id);
     }
 
@@ -104,9 +104,7 @@ public class SyncChangesTests
             RecordType = EncryptedRecordType.Account,
             OwnerUserId = ownerUserId,
             Revision = 1,
-            ProtocolVersion = 1,
-            Nonce = [1, 2, 3],
-            Ciphertext = [4, 5, 6],
+            Payload = [1, 2, 3],
             IsDeleted = isDeleted,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = updatedAt
@@ -125,5 +123,5 @@ public class SyncChangesTests
 
     private sealed record ChangesResponse(ChangeRecord[] Records, string NextCursor, bool HasMore);
 
-    private sealed record ChangeRecord(Guid Id, bool IsDeleted);
+    private sealed record ChangeRecord(Guid Id, bool Tombstone);
 }

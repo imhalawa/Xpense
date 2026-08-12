@@ -24,9 +24,9 @@ public class EncryptedRecordSchemaTests
     public async Task SetUp() => connectionString = await PostgresFixture.CreateDatabase();
 
     [Test]
-    public async Task The_encrypted_sync_tables_exist()
+    public async Task The_sync_tables_exist()
     {
-        var expected = new[] { "EncryptedRecords", "RecordEnvelopes", "ResourceGrants", "SyncOperations" };
+        var expected = new[] { "EncryptedRecords", "ResourceGrants", "SyncOperations" };
         var actual = await ReadStrings(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = 'Xpense'");
 
@@ -34,12 +34,21 @@ public class EncryptedRecordSchemaTests
     }
 
     [Test]
-    public async Task Envelope_and_idempotency_keys_are_unique()
+    public async Task The_envelope_and_claim_tables_are_gone()
+    {
+        var actual = await ReadStrings(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'Xpense'");
+
+        actual.Should().NotContain("RecordEnvelopes");
+        actual.Should().NotContain("ClaimTokens");
+    }
+
+    [Test]
+    public async Task Idempotency_keys_are_unique()
     {
         var actual = await ReadStrings(
             "SELECT indexname FROM pg_indexes WHERE schemaname = 'Xpense'");
 
-        actual.Should().Contain("IX_RecordEnvelopes_EncryptedRecordId_GroupId");
         actual.Should().Contain("IX_SyncOperations_UserId_IdempotencyKey");
         actual.Should().Contain("IX_ResourceGrants_GroupId_ResourceType_ResourceId");
     }
@@ -114,16 +123,15 @@ public class EncryptedRecordSchemaTests
         await using var command = new NpgsqlCommand(
             """
             INSERT INTO "Xpense"."EncryptedRecords"
-                ("Id", "RecordType", "OwnerUserId", "Revision", "ProtocolVersion", "Nonce", "Ciphertext", "IsDeleted", "CreatedAt", "UpdatedAt")
+                ("Id", "RecordType", "OwnerUserId", "Revision", "Payload", "IsDeleted", "CreatedAt", "UpdatedAt")
             VALUES
-                (@id, 0, @userId, 1, 1, @nonce, @ciphertext, false, now(), now())
+                (@id, 0, @userId, 1, @payload, false, now(), now())
             RETURNING "SequenceNumber"
             """,
             connection);
         command.Parameters.AddWithValue("id", Guid.CreateVersion7());
         command.Parameters.AddWithValue("userId", userId);
-        command.Parameters.AddWithValue("nonce", new byte[] { 1, 2, 3 });
-        command.Parameters.AddWithValue("ciphertext", new byte[] { 4, 5, 6 });
+        command.Parameters.AddWithValue("payload", new byte[] { 1, 2, 3 });
         return (long)(await command.ExecuteScalarAsync())!;
     }
 }

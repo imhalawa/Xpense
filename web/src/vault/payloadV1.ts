@@ -1,7 +1,8 @@
-import type { RecordType } from "../crypto/protocol";
 import { Currency } from "../typings/enums/Currency";
+import type { RecordType } from "./vaultDatabase";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const invalidPayloadPrefix = "The payload is invalid";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -14,7 +15,7 @@ export interface VaultPayloadV1 {
 }
 
 const invalid = (recordType: RecordType, recordId: string): never => {
-  throw new Error(`Encrypted ${recordType} ${recordId}: The payload is invalid.`);
+  throw new Error(`${invalidPayloadPrefix} for ${recordType} ${recordId}.`);
 };
 
 const objectValue = (
@@ -231,7 +232,7 @@ export const decodeVaultPayloadV1 = (
   try {
     return parseVaultPayloadV1(recordType, recordId, JSON.parse(decoder.decode(bytes)));
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("Encrypted ")) throw error;
+    if (error instanceof Error && error.message.startsWith(invalidPayloadPrefix)) throw error;
     return invalid(recordType, recordId);
   }
 };

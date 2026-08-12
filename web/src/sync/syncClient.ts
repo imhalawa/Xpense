@@ -1,20 +1,12 @@
 import axios from "axios";
-import type { RecordType } from "../crypto/protocol";
-import type {
-  VaultDatabase,
-  VaultRecord,
-  VaultRecordEnvelope,
-  VaultSyncMutation,
+import { decodeVaultPayloadV1 } from "../vault/payloadV1";
+import {
+  recordTypes,
+  type RecordType,
+  type VaultDatabase,
+  type VaultRecord,
+  type VaultSyncMutation,
 } from "../vault/vaultDatabase";
-
-export interface SyncEnvelope {
-  id: string;
-  groupId: string | null;
-  wrappedKey: Uint8Array;
-  nonce: Uint8Array;
-  encapsulatedKey: Uint8Array | null;
-  protocolVersion: number;
-}
 
 export interface SyncRecord {
   id: string;
@@ -22,10 +14,7 @@ export interface SyncRecord {
   ownerId: string;
   parentResourceId: string | null;
   revision: number;
-  protocolVersion: number;
-  nonce: Uint8Array;
-  ciphertext: Uint8Array;
-  envelopes: SyncEnvelope[];
+  payload: Uint8Array;
   tombstone: boolean;
   sequenceNumber: number;
   serverCreatedAt: string;
@@ -34,29 +23,17 @@ export interface SyncRecord {
 
 type ByteValue = Uint8Array | number[] | string;
 
-interface WireSyncEnvelope {
-  id: string;
-  groupId: string | null;
-  wrappedKey: ByteValue;
-  nonce: ByteValue;
-  encapsulatedKey: ByteValue | null;
-  protocolVersion: number;
-}
-
 interface WireSyncRecord {
   id: string;
   recordType: number;
-  ownerUserId: string;
+  ownerId: string;
   parentResourceId: string | null;
   revision: number;
-  protocolVersion: number;
-  nonce: ByteValue;
-  ciphertext: ByteValue;
-  envelopes: WireSyncEnvelope[];
-  isDeleted: boolean;
+  payload: ByteValue;
+  tombstone: boolean;
   sequenceNumber: number;
-  createdAt: string;
-  updatedAt: string;
+  serverCreatedAt: string;
+  serverUpdatedAt: string;
 }
 
 interface WireSyncChanges {
@@ -82,70 +59,21 @@ export interface CreateSyncRecord {
   idempotencyKey: string;
   recordType: number;
   parentResourceId: string | null;
-  protocolVersion: number;
-  nonce: Uint8Array;
-  ciphertext: Uint8Array;
-  personalEnvelope: {
-    wrappedKey: Uint8Array;
-    nonce: Uint8Array;
-    protocolVersion: number;
-  };
+  payload: Uint8Array;
 }
 
 export interface ReplaceSyncRecord {
   expectedRevision: number;
-  protocolVersion: number;
-  nonce: Uint8Array;
-  ciphertext: Uint8Array;
+  payload: Uint8Array;
 }
 
-export interface AddSyncRecordEnvelope {
-  groupId: string;
-  permission: 0 | 1;
-  wrappedKey: Uint8Array;
-  nonce: Uint8Array;
-  encapsulatedKey: Uint8Array | null;
-  protocolVersion: number;
+interface WireCreateSyncRecord extends Omit<CreateSyncRecord, "payload"> {
+  payload: string;
 }
 
-export interface VaultRecordDecryptor {
-  decrypt(record: VaultRecord): Promise<Uint8Array>;
+interface WireReplaceSyncRecord extends Omit<ReplaceSyncRecord, "payload"> {
+  payload: string;
 }
-
-interface WireCreateSyncRecord extends Omit<CreateSyncRecord, "nonce" | "ciphertext" | "personalEnvelope"> {
-  nonce: string;
-  ciphertext: string;
-  personalEnvelope: {
-    wrappedKey: string;
-    nonce: string;
-    protocolVersion: number;
-  };
-}
-
-interface WireReplaceSyncRecord extends Omit<ReplaceSyncRecord, "nonce" | "ciphertext"> {
-  nonce: string;
-  ciphertext: string;
-}
-
-interface WireAddSyncRecordEnvelope
-  extends Omit<AddSyncRecordEnvelope, "wrappedKey" | "nonce" | "encapsulatedKey"> {
-  wrappedKey: string;
-  nonce: string;
-  encapsulatedKey: string | null;
-}
-
-const recordTypes: readonly RecordType[] = [
-  "account",
-  "transaction",
-  "transfer",
-  "category",
-  "merchant",
-  "tag",
-  "budget",
-  "notification",
-  "userProfile",
-  "necessityScale",
-];
 
 const byteValue = (value: ByteValue): Uint8Array => {
   if (value instanceof Uint8Array) return new Uint8Array(value);
@@ -168,67 +96,19 @@ const toWireCreateRecord = (record: CreateSyncRecord): WireCreateSyncRecord => (
   idempotencyKey: record.idempotencyKey,
   recordType: record.recordType,
   parentResourceId: record.parentResourceId,
-  protocolVersion: record.protocolVersion,
-  nonce: base64(record.nonce),
-  ciphertext: base64(record.ciphertext),
-  personalEnvelope: {
-    wrappedKey: base64(record.personalEnvelope.wrappedKey),
-    nonce: base64(record.personalEnvelope.nonce),
-    protocolVersion: record.personalEnvelope.protocolVersion,
-  },
+  payload: base64(record.payload),
 });
 
 const toWireReplaceRecord = (record: ReplaceSyncRecord): WireReplaceSyncRecord => ({
   expectedRevision: record.expectedRevision,
-  protocolVersion: record.protocolVersion,
-  nonce: base64(record.nonce),
-  ciphertext: base64(record.ciphertext),
-});
-
-const toWireEnvelope = (envelope: AddSyncRecordEnvelope): WireAddSyncRecordEnvelope => ({
-  groupId: envelope.groupId,
-  permission: envelope.permission,
-  wrappedKey: base64(envelope.wrappedKey),
-  nonce: base64(envelope.nonce),
-  encapsulatedKey:
-    envelope.encapsulatedKey === null ? null : base64(envelope.encapsulatedKey),
-  protocolVersion: envelope.protocolVersion,
-});
-
-const toEnvelope = (envelope: WireSyncEnvelope): VaultRecordEnvelope => ({
-  id: envelope.id,
-  groupId: envelope.groupId,
-  wrappedKey: byteValue(envelope.wrappedKey),
-  nonce: byteValue(envelope.nonce),
-  encapsulatedKey:
-    envelope.encapsulatedKey === null ? null : byteValue(envelope.encapsulatedKey),
-  protocolVersion: envelope.protocolVersion,
+  payload: base64(record.payload),
 });
 
 const toSyncRecord = (record: WireSyncRecord): SyncRecord => {
   const recordType = recordTypes[record.recordType];
   if (recordType === undefined) throw new Error("The sync record type is not supported");
-  return {
-    id: record.id,
-    recordType,
-    ownerId: record.ownerUserId,
-    parentResourceId: record.parentResourceId,
-    revision: record.revision,
-    protocolVersion: record.protocolVersion,
-    nonce: byteValue(record.nonce),
-    ciphertext: byteValue(record.ciphertext),
-    envelopes: record.envelopes.map(toEnvelope),
-    tombstone: record.isDeleted,
-    sequenceNumber: record.sequenceNumber,
-    serverCreatedAt: record.createdAt,
-    serverUpdatedAt: record.updatedAt,
-  };
+  return { ...record, recordType, payload: byteValue(record.payload) };
 };
-
-const toVaultRecord = (record: SyncRecord): VaultRecord => ({
-  ...record,
-  envelopes: record.envelopes.map((envelope) => ({ ...envelope })),
-});
 
 const assertNotAborted = (signal: AbortSignal | undefined): void => {
   if (signal?.aborted) throw new Error("The sync was cancelled");
@@ -321,32 +201,8 @@ export const deleteSyncRecord = async (
   }
 };
 
-export const addSyncRecordEnvelope = async (
-  id: string,
-  request: AddSyncRecordEnvelope,
-): Promise<SyncEnvelope> =>
-  toEnvelope(
-    (await axios.post<{ envelope: WireSyncEnvelope }>(
-      `/api/v1/sync/records/${encodeURIComponent(id)}/envelopes`,
-      toWireEnvelope(request),
-    )).data.envelope,
-  );
-
-export const revokeSyncRecordEnvelope = async (
-  id: string,
-  groupId: string,
-): Promise<{ keyRotationRequired: boolean; warning: string }> =>
-  (
-    await axios.delete<{ keyRotationRequired: boolean; warning: string }>(
-      `/api/v1/sync/records/${encodeURIComponent(id)}/envelopes/${encodeURIComponent(groupId)}`,
-    )
-  ).data;
-
 export class SyncClient {
-  constructor(
-    private readonly database: VaultDatabase,
-    private readonly decryptor: VaultRecordDecryptor,
-  ) {}
+  constructor(private readonly database: VaultDatabase) {}
 
   async pull(signal?: AbortSignal): Promise<void> {
     let cursor = (await this.database.getSyncState())?.cursor ?? null;
@@ -372,7 +228,7 @@ export class SyncClient {
     record: SyncRecord,
     signal: AbortSignal | undefined,
   ): Promise<VaultSyncMutation[]> {
-    const stored = toVaultRecord(record);
+    const stored: VaultRecord = { ...record };
     const [current, pending] = await Promise.all([
       this.database.getRecord(record.id),
       this.database.outboxEntryForRecord(record.id),
@@ -380,40 +236,22 @@ export class SyncClient {
     assertNotAborted(signal);
     if (current !== undefined && current.revision > stored.revision) return [];
 
-    if (stored.tombstone) {
-      if (pending !== undefined) {
-        return [
-          {
-            kind: "stage-outbox-server-record",
-            operationId: pending.operationId,
+    if (!stored.tombstone) {
+      try {
+        decodeVaultPayloadV1(stored.recordType, stored.id, stored.payload);
+      } catch {
+        return [{
+          kind: "put-quarantine",
+          entry: {
+            recordId: stored.id,
+            revision: stored.revision,
             record: stored,
+            reason: "invalid-payload",
           },
-          { kind: "delete-quarantine", recordId: stored.id, revision: stored.revision },
-        ];
+        }];
       }
-      return [
-        { kind: "put-record", record: stored },
-        { kind: "delete-quarantine", recordId: stored.id, revision: stored.revision },
-      ];
     }
 
-    try {
-      const plaintext = await this.decryptor.decrypt(stored);
-      plaintext.fill(0);
-    } catch {
-      assertNotAborted(signal);
-      return [{
-        kind: "put-quarantine",
-        entry: {
-          recordId: stored.id,
-          revision: stored.revision,
-          record: stored,
-          reason: "authentication-failed",
-        },
-      }];
-    }
-
-    assertNotAborted(signal);
     if (pending !== undefined) {
       return [
         {

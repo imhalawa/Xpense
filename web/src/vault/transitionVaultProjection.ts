@@ -1,7 +1,4 @@
 import axios from "axios";
-import type { SealedBytes } from "../crypto/primitives";
-import type { EncryptedRecordResult } from "../crypto/worker/commands";
-import type { VaultRecord } from "./vaultDatabase";
 import type {
   AccountDraft,
   BudgetDraft,
@@ -19,15 +16,8 @@ import type {
 
 export type ProductionDataMode = "unknown" | "legacy" | "claiming" | "encrypted";
 
-export interface ProjectionCryptoBridge {
-  ownerId: string;
-  decrypt(record: VaultRecord): Promise<Uint8Array>;
-  encryptNew(record: VaultRecord, plaintext: Uint8Array): Promise<EncryptedRecordResult>;
-  encryptReplacement(record: VaultRecord, plaintext: Uint8Array): Promise<SealedBytes>;
-}
-
 export interface EncryptedProjection extends VaultProjection {
-  attachCrypto(bridge: ProjectionCryptoBridge): void;
+  attachOwner(ownerId: string): void;
 }
 
 interface TransitionOptions {
@@ -89,8 +79,8 @@ export const transitionVaultProjection = ({
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    attachCrypto(bridge) {
-      encrypted.attachCrypto(bridge);
+    attachOwner(ownerId) {
+      encrypted.attachOwner(ownerId);
     },
     async unlock() {
       moveTo("loading");

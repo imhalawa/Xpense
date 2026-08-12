@@ -114,24 +114,14 @@ const clearDataset = (dataset: LegacyClaimDataset | null): void => {
 const localRecord = (
   record: PreparedClaimRecord,
   ownerId: string,
-  encrypted: EncryptedRecordResult,
+  payload: Uint8Array,
 ): VaultRecord => ({
   id: record.id,
   recordType: record.recordType,
   ownerId,
   parentResourceId: record.parentResourceId,
   revision: 1,
-  protocolVersion: 1,
-  nonce: encrypted.sealedPayload.nonce,
-  ciphertext: encrypted.sealedPayload.ciphertext,
-  envelopes: [{
-    id: record.id,
-    groupId: null,
-    wrappedKey: encrypted.personalEnvelope.ciphertext,
-    nonce: encrypted.personalEnvelope.nonce,
-    encapsulatedKey: null,
-    protocolVersion: 1,
-  }],
+  payload,
   tombstone: false,
   sequenceNumber: 0,
   serverCreatedAt: record.createdAt,
@@ -144,38 +134,22 @@ const stageCreate = async (
   ownerId: string,
 ): Promise<VaultOutboxEntry> => {
   const payload = encoder.encode(JSON.stringify(record.payload));
-  try {
-    const encrypted = await options.cipher.encrypt(
-      payload,
-      { recordId: record.id, recordType: record.recordType, ownerId, revision: 1 },
-      { recordId: record.id, ownerId, groupId: null },
-    );
-    assertNotAborted(options.signal);
-    const stagedRecord = localRecord(record, ownerId, encrypted);
-    return options.database.enqueueOutboxOnce({
-      operationId: `${claimCreatePrefix}${record.id}`,
-      idempotencyKey: `${claimIdempotencyPrefix}${record.id}`,
-      mutation: {
-        kind: "create",
-        record: stagedRecord,
-        request: {
-          id: stagedRecord.id,
-          recordType: record.recordTypeCode,
-          parentResourceId: stagedRecord.parentResourceId,
-          protocolVersion: stagedRecord.protocolVersion,
-          nonce: stagedRecord.nonce,
-          ciphertext: stagedRecord.ciphertext,
-          personalEnvelope: {
-            wrappedKey: stagedRecord.envelopes[0]!.wrappedKey,
-            nonce: stagedRecord.envelopes[0]!.nonce,
-            protocolVersion: stagedRecord.envelopes[0]!.protocolVersion,
-          },
-        },
+  assertNotAborted(options.signal);
+  const stagedRecord = localRecord(record, ownerId, payload);
+  return options.database.enqueueOutboxOnce({
+    operationId: `${claimCreatePrefix}${record.id}`,
+    idempotencyKey: `${claimIdempotencyPrefix}${record.id}`,
+    mutation: {
+      kind: "create",
+      record: stagedRecord,
+      request: {
+        id: stagedRecord.id,
+        recordType: record.recordTypeCode,
+        parentResourceId: stagedRecord.parentResourceId,
+        payload: stagedRecord.payload,
       },
-    });
-  } finally {
-    payload.fill(0);
-  }
+    },
+  });
 };
 
 const uploadCreate = async (

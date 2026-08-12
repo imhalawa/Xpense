@@ -1,38 +1,33 @@
-import { PROTOCOL_VERSION, type RecordType } from "../crypto/protocol";
-
 export const VAULT_DATABASE_NAME = "xpense-vault";
-export const LEGACY_QUARANTINE_REVISION = 0;
 
-const vaultDatabaseVersion = 3;
+const vaultDatabaseVersion = 4;
 
-export type VaultStoreName =
-  | "records"
-  | "envelopes"
-  | "wrappers"
-  | "syncState"
-  | "outbox"
-  | "quarantine";
+export const recordTypes = [
+  "account",
+  "transaction",
+  "transfer",
+  "category",
+  "merchant",
+  "tag",
+  "budget",
+  "notification",
+  "userProfile",
+  "necessityScale",
+] as const;
+
+export type RecordType = (typeof recordTypes)[number];
+
+export type VaultStoreName = "records" | "syncState" | "outbox" | "quarantine";
 
 const storeDefinitions: ReadonlyArray<{
   name: VaultStoreName;
   keyPath: string | string[];
 }> = [
   { name: "records", keyPath: "id" },
-  { name: "envelopes", keyPath: ["recordId", "groupId"] },
-  { name: "wrappers", keyPath: "id" },
   { name: "syncState", keyPath: "key" },
   { name: "outbox", keyPath: "operationId" },
   { name: "quarantine", keyPath: ["recordId", "revision"] },
 ];
-
-export interface VaultRecordEnvelope {
-  id: string;
-  groupId: string | null;
-  wrappedKey: Uint8Array;
-  nonce: Uint8Array;
-  encapsulatedKey: Uint8Array | null;
-  protocolVersion: number;
-}
 
 export interface VaultRecord {
   id: string;
@@ -40,10 +35,7 @@ export interface VaultRecord {
   ownerId: string;
   parentResourceId: string | null;
   revision: number;
-  protocolVersion: number;
-  nonce: Uint8Array;
-  ciphertext: Uint8Array;
-  envelopes: VaultRecordEnvelope[];
+  payload: Uint8Array;
   tombstone: boolean;
   sequenceNumber: number;
   serverCreatedAt: string;
@@ -59,29 +51,19 @@ export interface VaultQuarantineEntry {
   recordId: string;
   revision: number;
   record?: VaultRecord;
-  ciphertext?: Uint8Array;
-  reason: "authentication-failed" | "invalid-payload";
+  reason: "invalid-payload";
 }
 
 export interface VaultOutboxCreateRequest {
   id: string;
   recordType: number;
   parentResourceId: string | null;
-  protocolVersion: number;
-  nonce: Uint8Array;
-  ciphertext: Uint8Array;
-  personalEnvelope: {
-    wrappedKey: Uint8Array;
-    nonce: Uint8Array;
-    protocolVersion: number;
-  };
+  payload: Uint8Array;
 }
 
 export interface VaultOutboxReplaceRequest {
   expectedRevision: number;
-  protocolVersion: number;
-  nonce: Uint8Array;
-  ciphertext: Uint8Array;
+  payload: Uint8Array;
 }
 
 export type VaultOutboxMutation =
@@ -102,69 +84,6 @@ export type VaultSyncMutation =
   | { kind: "put-quarantine"; entry: VaultQuarantineEntry }
   | { kind: "delete-quarantine"; recordId: string; revision: number }
   | { kind: "stage-outbox-server-record"; operationId: string; record: VaultRecord };
-
-interface StoredVaultRecord {
-  id: string;
-  recordType?: RecordType;
-  type?: RecordType;
-  ownerId: string;
-  parentResourceId?: string | null;
-  revision: number;
-  protocolVersion?: number;
-  nonce: Uint8Array;
-  ciphertext: Uint8Array;
-  envelopes?: VaultRecordEnvelope[];
-  tombstone: boolean;
-  sequenceNumber?: number;
-  serverCreatedAt: string;
-  serverUpdatedAt: string;
-}
-
-interface StoredVaultEnvelope {
-  id?: string;
-  recordId: string;
-  groupId: string | null;
-  wrappedKey: Uint8Array;
-  nonce: Uint8Array;
-  encapsulatedKey?: Uint8Array | null;
-  protocolVersion: number;
-}
-
-const normalizeEnvelope = (stored: StoredVaultEnvelope): VaultRecordEnvelope => ({
-  id: stored.id ?? `${stored.recordId}:${stored.groupId ?? "personal"}`,
-  groupId: stored.groupId === "personal" ? null : stored.groupId,
-  wrappedKey: stored.wrappedKey,
-  nonce: stored.nonce,
-  encapsulatedKey: stored.encapsulatedKey ?? null,
-  protocolVersion: stored.protocolVersion,
-});
-
-const normalizeVaultRecord = (
-  stored: StoredVaultRecord,
-  separateEnvelopes: readonly StoredVaultEnvelope[],
-): VaultRecord => {
-  const recordType = stored.recordType ?? stored.type;
-  if (recordType === undefined) throw new Error("The stored vault record type is missing");
-  const envelopes = stored.envelopes ?? separateEnvelopes
-    .filter((envelope) => envelope.recordId === stored.id)
-    .map(normalizeEnvelope);
-  return {
-    id: stored.id,
-    recordType,
-    ownerId: stored.ownerId,
-    parentResourceId: stored.parentResourceId ?? null,
-    revision: stored.revision,
-    protocolVersion:
-      stored.protocolVersion ?? envelopes[0]?.protocolVersion ?? PROTOCOL_VERSION,
-    nonce: stored.nonce,
-    ciphertext: stored.ciphertext,
-    envelopes,
-    tombstone: stored.tombstone,
-    sequenceNumber: stored.sequenceNumber ?? 0,
-    serverCreatedAt: stored.serverCreatedAt,
-    serverUpdatedAt: stored.serverUpdatedAt,
-  };
-};
 
 const assertNotAborted = (signal: AbortSignal | undefined): void => {
   if (signal?.aborted) throw new Error("The sync was cancelled");
@@ -220,26 +139,14 @@ export class VaultDatabase {
     return this.put("records", record);
   }
 
-  async getRecord(id: string): Promise<VaultRecord | undefined> {
-    const [stored, envelopes] = await Promise.all([
-      this.get<StoredVaultRecord>("records", id),
-      runTransaction<StoredVaultEnvelope[]>(this.database, "envelopes", "readonly", (store) =>
-        store.getAll(),
-      ),
-    ]);
-    return stored === undefined ? undefined : normalizeVaultRecord(stored, envelopes);
+  getRecord(id: string): Promise<VaultRecord | undefined> {
+    return this.get<VaultRecord>("records", id);
   }
 
-  async records(): Promise<VaultRecord[]> {
-    const [stored, envelopes] = await Promise.all([
-      runTransaction<StoredVaultRecord[]>(this.database, "records", "readonly", (store) =>
-        store.getAll(),
-      ),
-      runTransaction<StoredVaultEnvelope[]>(this.database, "envelopes", "readonly", (store) =>
-        store.getAll(),
-      ),
-    ]);
-    return stored.map((record) => normalizeVaultRecord(record, envelopes));
+  records(): Promise<VaultRecord[]> {
+    return runTransaction<VaultRecord[]>(this.database, "records", "readonly", (store) =>
+      store.getAll(),
+    );
   }
 
   getSyncState(): Promise<VaultSyncState | undefined> {
@@ -441,53 +348,13 @@ export class VaultDatabase {
 export const openVaultDatabase = (): Promise<VaultDatabase> =>
   new Promise((resolve, reject) => {
     const request = indexedDB.open(VAULT_DATABASE_NAME, vaultDatabaseVersion);
-    request.onupgradeneeded = (event) => {
+    request.onupgradeneeded = () => {
       const database = request.result;
-      const recreateQuarantine =
-        event.oldVersion < 2 && database.objectStoreNames.contains("quarantine");
-      if (recreateQuarantine) {
-        const existing = request.transaction!.objectStore("quarantine").getAll();
-        existing.onsuccess = () => {
-          database.deleteObjectStore("quarantine");
-          const quarantine = database.createObjectStore("quarantine", {
-            keyPath: ["recordId", "revision"],
-          });
-          for (const value of existing.result as Array<Record<string, unknown>>) {
-            const failedRecord = value.record as { revision?: unknown } | undefined;
-            const revision =
-              typeof value.revision === "number" ? value.revision : failedRecord?.revision;
-            quarantine.put({
-              ...value,
-              revision: typeof revision === "number" ? revision : LEGACY_QUARANTINE_REVISION,
-            });
-          }
-        };
+      for (const existing of Array.from(database.objectStoreNames)) {
+        database.deleteObjectStore(existing);
       }
       for (const definition of storeDefinitions) {
-        if (definition.name === "quarantine" && recreateQuarantine) continue;
-        if (!database.objectStoreNames.contains(definition.name)) {
-          database.createObjectStore(definition.name, { keyPath: definition.keyPath });
-        }
-      }
-      if (event.oldVersion < 3) {
-        const outbox = request.transaction!.objectStore("outbox");
-        if (!outbox.indexNames.contains("sequence")) {
-          outbox.createIndex("sequence", "sequence", { unique: true });
-        }
-        const existing = outbox.getAll();
-        existing.onsuccess = () => {
-          let nextSequence = (existing.result as Array<Record<string, unknown>>).reduce(
-            (highest, value) =>
-              typeof value.sequence === "number" ? Math.max(highest, value.sequence) : highest,
-            0,
-          ) + 1;
-          for (const value of existing.result as Array<Record<string, unknown>>) {
-            if (typeof value.sequence !== "number") {
-              outbox.put({ ...value, sequence: nextSequence });
-              nextSequence += 1;
-            }
-          }
-        };
+        database.createObjectStore(definition.name, { keyPath: definition.keyPath });
       }
     };
     request.onsuccess = () => resolve(new VaultDatabase(request.result));

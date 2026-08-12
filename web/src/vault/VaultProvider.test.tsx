@@ -197,10 +197,10 @@ describe("VaultProvider", () => {
     expect(screen.getByTestId("claim-encryption-ready").textContent).toBe("false");
   });
 
-  it("attaches the unlocked Worker bridge before the encrypted projection rebuilds", async () => {
+  it("attaches the signed-in owner before the local projection rebuilds", async () => {
     const worker = new ImmediateWorker({ ok: true, value: { unlocked: true } });
     const projection = stubProjection("locked") as StubProjection & EncryptedProjection;
-    projection.attachCrypto = vi.fn();
+    projection.attachOwner = vi.fn();
     const unlock = vi.spyOn(projection, "unlock");
     render(
       <VaultProvider projection={projection} workerFactory={() => worker} autoUnlock={false}>
@@ -210,9 +210,9 @@ describe("VaultProvider", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
 
-    await waitFor(() => expect(projection.attachCrypto).toHaveBeenCalledOnce());
+    await waitFor(() => expect(projection.attachOwner).toHaveBeenCalledOnce());
     expect(projection.unlockCount).toBe(1);
-    expect(vi.mocked(projection.attachCrypto).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(projection.attachOwner).mock.invocationCallOrder[0]).toBeLessThan(
       unlock.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER,
     );
   });

@@ -3,7 +3,6 @@ import { fixtureProjection } from "./fixtureProjection";
 import {
   transitionVaultProjection,
   type EncryptedProjection,
-  type ProjectionCryptoBridge,
 } from "./transitionVaultProjection";
 
 const empty = () => fixtureProjection({
@@ -15,7 +14,7 @@ const empty = () => fixtureProjection({
 
 const encrypted = (unlock = vi.fn().mockResolvedValue(undefined)): EncryptedProjection => {
   const projection = empty() as EncryptedProjection;
-  projection.attachCrypto = vi.fn();
+  projection.attachOwner = vi.fn();
   projection.unlock = unlock;
   return projection;
 };
@@ -56,19 +55,19 @@ describe("transition vault projection", () => {
     expect(encryptedUnlock).toHaveBeenCalledTimes(2);
   });
 
-  it("attaches Worker crypto only to the encrypted runtime before unlock", async () => {
+  it("attaches the owner only to the local runtime before unlock", async () => {
     const encryptedProjection = encrypted();
     const projection = transitionVaultProjection({
       legacy: empty(),
       encrypted: encryptedProjection,
       status: vi.fn().mockResolvedValue("encrypted"),
     });
-    const bridge = { ownerId: crypto.randomUUID() } as ProjectionCryptoBridge;
+    const ownerId = crypto.randomUUID();
 
-    projection.attachCrypto(bridge);
+    projection.attachOwner(ownerId);
     await projection.unlock();
 
-    expect(encryptedProjection.attachCrypto).toHaveBeenCalledWith(bridge);
+    expect(encryptedProjection.attachOwner).toHaveBeenCalledWith(ownerId);
     expect(encryptedProjection.unlock).toHaveBeenCalledOnce();
   });
 

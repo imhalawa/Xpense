@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
-using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Domain.Exceptions;
 using Xpense.Persistence;
 
@@ -15,7 +14,7 @@ namespace Xpense.API.Features.Budgets;
 public sealed class DeleteBudget : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapDelete("/api/v1/budgets/{id:int}", Handle).WithName(nameof(DeleteBudget)).BlocksDuringLegacyClaim();
+        app.MapDelete("/api/v1/budgets/{id:int}", Handle).WithName(nameof(DeleteBudget));
 
     private static async Task<NoContent> Handle(int id, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {

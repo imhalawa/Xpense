@@ -4,57 +4,33 @@ using Xpense.Domain.Enums;
 
 namespace Xpense.API.Features.Sync;
 
-/// <summary>An encrypted record and the key envelopes the current user may receive.</summary>
+/// <summary>A synchronised record and its JSON payload.</summary>
 public sealed record EncryptedRecordResponse(
     Guid Id,
     EncryptedRecordType RecordType,
-    Guid OwnerUserId,
+    Guid OwnerId,
     Guid? ParentResourceId,
     long Revision,
-    int ProtocolVersion,
-    byte[] Nonce,
-    byte[] Ciphertext,
-    RecordEnvelopeResponse[] Envelopes,
-    bool IsDeleted,
+    byte[] Payload,
+    bool Tombstone,
     long SequenceNumber,
-    DateTime CreatedAt,
-    DateTime UpdatedAt)
+    DateTime ServerCreatedAt,
+    DateTime ServerUpdatedAt)
 {
-    public static EncryptedRecordResponse Of(EncryptedRecord record, RecordEnvelopeResponse[] envelopes) => new(
+    public static EncryptedRecordResponse Of(EncryptedRecord record) => new(
         record.Id,
         record.RecordType,
         record.OwnerUserId,
         record.ParentResourceId,
         record.Revision,
-        record.ProtocolVersion,
-        record.Nonce,
-        record.Ciphertext,
-        envelopes,
+        record.Payload,
         record.IsDeleted,
         record.SequenceNumber,
         record.CreatedAt,
         record.UpdatedAt);
 }
 
-/// <summary>An opaque record key wrapped for the owner or one group.</summary>
-public sealed record RecordEnvelopeResponse(
-    Guid Id,
-    Guid? GroupId,
-    byte[] WrappedKey,
-    byte[] Nonce,
-    byte[]? EncapsulatedKey,
-    int ProtocolVersion)
-{
-    public static RecordEnvelopeResponse Of(RecordEnvelope envelope) => new(
-        envelope.Id,
-        envelope.GroupId,
-        envelope.WrappedKey,
-        envelope.Nonce,
-        envelope.EncapsulatedKey,
-        envelope.ProtocolVersion);
-}
-
-/// <summary>A sequence-ordered page of accessible encrypted changes.</summary>
+/// <summary>A sequence-ordered page of accessible changes.</summary>
 public sealed record SyncChangesResponse(
     EncryptedRecordResponse[] Records,
     string NextCursor,

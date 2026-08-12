@@ -72,7 +72,7 @@ public class SyncCreateTests
     {
         var response = await client.PostAsJsonAsync(
             "/api/v1/sync/records",
-            new CreateRequest([ValidRecord(), ValidRecord() with { ProtocolVersion = 0 }]));
+            new CreateRequest([ValidRecord(), ValidRecord() with { Payload = [] }]));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         await using var scope = factory.Services.CreateAsyncScope();
@@ -90,13 +90,25 @@ public class SyncCreateTests
     }
 
     [Test]
-    public async Task Oversized_ciphertext_is_rejected()
+    public async Task An_oversized_payload_is_rejected()
     {
         var response = await client.PostAsJsonAsync(
             "/api/v1/sync/records",
-            new CreateRequest([ValidRecord() with { Ciphertext = new byte[65537] }]));
+            new CreateRequest([ValidRecord() with { Payload = new byte[65537] }]));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task A_created_record_returns_the_payload_the_client_sent()
+    {
+        var item = ValidRecord();
+
+        var response = await client.PostAsJsonAsync("/api/v1/sync/records", new CreateRequest([item]));
+        var created = (await response.Content.ReadFromJsonAsync<CreateResponse>())!.Records.Single();
+
+        created.Payload.Should().Equal(item.Payload);
+        created.Tombstone.Should().BeFalse();
     }
 
     [Test]
@@ -144,9 +156,7 @@ public class SyncCreateTests
             RecordType = EncryptedRecordType.Account,
             OwnerUserId = currentUserId,
             Revision = 1,
-            ProtocolVersion = 1,
-            Nonce = [1],
-            Ciphertext = [2],
+            Payload = [1, 2, 3],
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -160,10 +170,7 @@ public class SyncCreateTests
         Guid.CreateVersion7().ToString(),
         (int)EncryptedRecordType.Account,
         null,
-        1,
-        [1, 2, 3],
-        [4, 5, 6],
-        new EnvelopeItem([7, 8, 9], [10, 11, 12], 1));
+        "{\"schemaVersion\":1}"u8.ToArray());
 
     private static XpenseUser User(Guid id) => new()
     {
@@ -179,14 +186,9 @@ public class SyncCreateTests
         string IdempotencyKey,
         int RecordType,
         Guid? ParentResourceId,
-        int ProtocolVersion,
-        byte[] Nonce,
-        byte[] Ciphertext,
-        EnvelopeItem PersonalEnvelope);
-
-    private sealed record EnvelopeItem(byte[] WrappedKey, byte[] Nonce, int ProtocolVersion);
+        byte[] Payload);
 
     private sealed record CreateResponse(CreatedRecord[] Records);
 
-    private sealed record CreatedRecord(Guid Id, long SequenceNumber);
+    private sealed record CreatedRecord(Guid Id, byte[] Payload, bool Tombstone, long SequenceNumber);
 }

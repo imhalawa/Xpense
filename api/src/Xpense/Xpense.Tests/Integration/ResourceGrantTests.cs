@@ -345,36 +345,6 @@ public class ResourceGrantTests
     }
 
     [Test]
-    public async Task Management_create_racing_sync_add_has_one_active_grant_and_no_unique_failure()
-    {
-        await using var connection = await HoldResourceLock(resourceId);
-        var attempts = resourceLockInterceptor.WaitForAttempts(2);
-        var managementTask = client.PostAsJsonAsync(
-            $"/api/v1/groups/{groupId}/grants",
-            ValidCreate());
-        var syncTask = client.PostAsJsonAsync(
-            $"/api/v1/sync/records/{recordId}/envelopes",
-            ValidEnvelope());
-        await attempts.WaitAsync(TimeSpan.FromSeconds(5));
-
-        await connection.Transaction.CommitAsync();
-        await Task.WhenAll(managementTask, syncTask);
-
-        syncTask.Result.StatusCode.Should().Be(HttpStatusCode.OK);
-        managementTask.Result.StatusCode.Should().BeOneOf(HttpStatusCode.Created, HttpStatusCode.Conflict);
-        await using var scope = factory.Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
-        var grant = await dbContext.ResourceGrants.SingleAsync(item =>
-            item.GroupId == groupId && item.ResourceId == resourceId && item.State == GrantState.Active);
-        var envelope = await dbContext.RecordEnvelopes.SingleAsync(item =>
-            item.EncryptedRecordId == recordId && item.GroupId == groupId);
-        grant.KeyEnvelopeReference.Should().Be(envelope.Id);
-        (await dbContext.ResourceGrants.CountAsync(item =>
-            item.GroupId == groupId && item.ResourceId == resourceId && item.State == GrantState.Active))
-            .Should().Be(1);
-    }
-
-    [Test]
     public async Task Grant_first_claim_racing_root_record_creation_has_one_owner_and_a_neutral_loser()
     {
         var unclaimedResourceId = Guid.CreateVersion7();
@@ -416,49 +386,28 @@ public class ResourceGrantTests
                 .Should().BeFalse();
             (await dbContext.EncryptedRecords.CountAsync(item => item.Id == unclaimedResourceId))
                 .Should().Be(1);
-            (await dbContext.RecordEnvelopes.CountAsync(item => item.EncryptedRecordId == unclaimedResourceId))
-                .Should().Be(1);
             (await dbContext.SyncOperations.CountAsync(item => item.EncryptedRecordId == unclaimedResourceId))
                 .Should().Be(1);
         }
     }
 
     [Test]
-    public async Task Management_revoke_racing_sync_add_leaves_grant_state_and_reference_consistent()
+    public async Task Management_revoke_leaves_grant_state_and_reference_consistent()
     {
         var createdResponse = await client.PostAsJsonAsync(
             $"/api/v1/groups/{groupId}/grants",
             ValidCreate());
         var created = (await createdResponse.Content.ReadFromJsonAsync<ResourceGrantContract>())!;
-        await using var connection = await HoldResourceLock(resourceId);
-        var attempts = resourceLockInterceptor.WaitForAttempts(2);
-        var revokeTask = client.DeleteAsync($"/api/v1/groups/{groupId}/grants/{created.Id}");
-        var syncTask = client.PostAsJsonAsync(
-            $"/api/v1/sync/records/{recordId}/envelopes",
-            ValidEnvelope());
-        await attempts.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await connection.Transaction.CommitAsync();
-        await Task.WhenAll(revokeTask, syncTask);
+        var revokeResponse = await client.DeleteAsync($"/api/v1/groups/{groupId}/grants/{created.Id}");
 
-        revokeTask.Result.StatusCode.Should().Be(HttpStatusCode.OK);
-        syncTask.Result.StatusCode.Should().Be(HttpStatusCode.OK);
+        revokeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<XpenseDbContext>();
         var grant = await dbContext.ResourceGrants.SingleAsync(item => item.Id == created.Id);
-        if (grant.State == GrantState.Active)
-        {
-            var envelope = await dbContext.RecordEnvelopes.SingleAsync(item =>
-                item.EncryptedRecordId == recordId && item.GroupId == groupId);
-            grant.KeyEnvelopeReference.Should().Be(envelope.Id);
-            grant.RevokedAt.Should().BeNull();
-        }
-        else
-        {
-            grant.State.Should().Be(GrantState.Revoked);
-            grant.KeyEnvelopeReference.Should().BeNull();
-            grant.RevokedAt.Should().NotBeNull();
-        }
+        grant.State.Should().Be(GrantState.Revoked);
+        grant.KeyEnvelopeReference.Should().BeNull();
+        grant.RevokedAt.Should().NotBeNull();
     }
 
     private async Task Seed()
@@ -491,9 +440,7 @@ public class ResourceGrantTests
             OwnerUserId = ownerId,
             ParentResourceId = resourceId,
             Revision = 1,
-            ProtocolVersion = 1,
-            Nonce = [1],
-            Ciphertext = [2],
+            Payload = [1, 2, 3],
             CreatedAt = now,
             UpdatedAt = now
         });
@@ -506,24 +453,13 @@ public class ResourceGrantTests
         GrantPermission.Viewer,
         Guid.CreateVersion7());
 
-    private AddEnvelopeRequest ValidEnvelope() => new(
-        groupId,
-        GrantPermission.Editor,
-        [31],
-        [32],
-        [33],
-        1);
-
     private static CreateSyncRequest RootCreate(Guid value) => new(
         [new CreateSyncRecordRequest(
             value,
             $"root-{value:N}",
             EncryptedRecordType.Account,
             value,
-            1,
-            [41],
-            [42],
-            new PersonalEnvelopeRequest([43], [44], 1))]);
+            [41, 42])]);
 
     private async Task<HeldResourceLock> HoldResourceLock(Guid value)
     {
@@ -659,14 +595,6 @@ public class ResourceGrantTests
 
     private sealed record KeyRotationContract(bool KeyRotationRequired, string Warning);
 
-    private sealed record AddEnvelopeRequest(
-        Guid GroupId,
-        GrantPermission Permission,
-        byte[] WrappedKey,
-        byte[] Nonce,
-        byte[]? EncapsulatedKey,
-        int ProtocolVersion);
-
     private sealed record CreateSyncRequest(CreateSyncRecordRequest[] Records);
 
     private sealed record CreateSyncRecordRequest(
@@ -674,15 +602,7 @@ public class ResourceGrantTests
         string IdempotencyKey,
         EncryptedRecordType RecordType,
         Guid? ParentResourceId,
-        int ProtocolVersion,
-        byte[] Nonce,
-        byte[] Ciphertext,
-        PersonalEnvelopeRequest PersonalEnvelope);
-
-    private sealed record PersonalEnvelopeRequest(
-        byte[] WrappedKey,
-        byte[] Nonce,
-        int ProtocolVersion);
+        byte[] Payload);
 
     private sealed record SyncChangesContract(SyncRecordContract[] Records);
 

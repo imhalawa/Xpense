@@ -1,14 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Xpense.Notifications;
 
 public sealed class EventPump(
     IServiceScopeFactory scopes,
-    ILogger<EventPump> logger,
-    IOptions<LegacyClaimOptions> legacyClaimOptions) : BackgroundService
+    ILogger<EventPump> logger) : BackgroundService
 {
     private static readonly TimeSpan IdleDelay = TimeSpan.FromSeconds(1);
 
@@ -22,12 +20,6 @@ public sealed class EventPump(
         {
             try
             {
-                if (legacyClaimOptions.Value.Enabled)
-                {
-                    await Task.Delay(IdleDelay, cancellationToken);
-                    continue;
-                }
-
                 using var scope = scopes.CreateScope();
                 var processor = scope.ServiceProvider.GetRequiredService<EventProcessor>();
 

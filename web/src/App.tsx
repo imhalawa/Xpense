@@ -17,7 +17,7 @@ import { LoadingContextProvider } from "./contexts/LoadingContext.tsx";
 import { VaultProvider } from "./vault/VaultProvider.tsx";
 import { plaintextProjection } from "./vault/plaintextProjection.ts";
 import { SyncLifecycleCoordinator } from "./sync/lifecycle.ts";
-import { encryptedVaultProjection } from "./vault/encryptedVaultProjection.ts";
+import { localVaultProjection } from "./vault/localVaultProjection.ts";
 import { transitionVaultProjection } from "./vault/transitionVaultProjection.ts";
 import { VaultUnlockGate } from "./vault/VaultUnlockGate.tsx";
 
@@ -35,7 +35,7 @@ function App() {
   const syncLifecycle = useMemo(() => new SyncLifecycleCoordinator(), []);
   const projection = useMemo(() => transitionVaultProjection({
     legacy: plaintextProjection(),
-    encrypted: encryptedVaultProjection(syncLifecycle),
+    encrypted: localVaultProjection(syncLifecycle),
   }), [syncLifecycle]);
 
   useEffect(() => {

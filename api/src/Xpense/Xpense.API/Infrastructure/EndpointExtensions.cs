@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Xpense.API.Infrastructure.Authentication;
-using Xpense.API.Infrastructure.LegacyClaim;
 
 namespace Xpense.API.Infrastructure;
 
@@ -14,8 +13,7 @@ public static class EndpointExtensions
     public static void MapEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup(string.Empty)
-            .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .AddEndpointFilter<LegacyClaimWriteEndpointFilter>();
+            .AddEndpointFilter<AntiforgeryEndpointFilter>();
         var endpoints = typeof(IEndpoint).Assembly
             .GetTypes()
             .Where(type => type is { IsAbstract: false, IsInterface: false }

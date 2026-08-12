@@ -48,7 +48,7 @@ public class SyncDeleteTests
         var tombstone = changes!.Records.Single(item => item.Id == record.Id);
 
         delete.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        tombstone.IsDeleted.Should().BeTrue();
+        tombstone.Tombstone.Should().BeTrue();
         tombstone.Revision.Should().Be(record.Revision);
         tombstone.SequenceNumber.Should().BeGreaterThan(record.SequenceNumber);
     }
@@ -142,9 +142,7 @@ public class SyncDeleteTests
             OwnerUserId = ownerUserId,
             ParentResourceId = parentResourceId,
             Revision = 1,
-            ProtocolVersion = 1,
-            Nonce = [1],
-            Ciphertext = [2],
+            Payload = [1, 2, 3],
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -171,5 +169,5 @@ public class SyncDeleteTests
 
     private sealed record ChangesResponse(ChangeRecord[] Records);
 
-    private sealed record ChangeRecord(Guid Id, long Revision, bool IsDeleted, long SequenceNumber);
+    private sealed record ChangeRecord(Guid Id, long Revision, bool Tombstone, long SequenceNumber);
 }

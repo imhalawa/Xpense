@@ -45,9 +45,7 @@ namespace Xpense.Persistence
         public virtual DbSet<SharedResource> SharedResources { get; set; }
         public virtual DbSet<InvitationDelivery> InvitationDeliveries { get; set; }
         public virtual DbSet<EncryptedRecord> EncryptedRecords { get; set; }
-        public virtual DbSet<RecordEnvelope> RecordEnvelopes { get; set; }
         public virtual DbSet<SyncOperation> SyncOperations { get; set; }
-        public virtual DbSet<ClaimToken> ClaimTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

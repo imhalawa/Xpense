@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RecordType } from "../crypto/protocol";
+import type { RecordType } from "./vaultDatabase";
 import { decodeVaultPayloadV1, encodeVaultPayloadV1, parseVaultPayloadV1 } from "./payloadV1";
 
 const ids = {

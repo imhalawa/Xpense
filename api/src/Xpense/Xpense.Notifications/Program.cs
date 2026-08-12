@@ -23,9 +23,6 @@ public static class NotificationsProgram
         builder.Services.AddDbContext<XpenseDbContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
         builder.Services.AddNotificationRules();
-        builder.Services.AddOptions<LegacyClaimOptions>()
-            .Bind(builder.Configuration.GetSection(LegacyClaimOptions.SectionName))
-            .ValidateOnStart();
 
         var keyDirectory = builder.Configuration["DataProtection:KeyDirectory"]
             ?? throw new InvalidOperationException("The data-protection key directory is required.");

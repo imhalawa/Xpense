@@ -3,8 +3,8 @@ import axios from "axios";
 import { ConflictManager } from "./conflicts";
 import {
   OutboxManager,
-  type OutboxCipher,
-  type OutboxEncryptionRequest,
+  type OutboxMutationBuilder,
+  type OutboxRequest,
   type SyncMutationApi,
 } from "./outbox";
 import type { SyncRecord } from "./syncClient";
@@ -22,8 +22,7 @@ const ownerId = "11111111-1111-4111-8111-111111111111";
 const recordId = "22222222-2222-4222-8222-222222222222";
 const operationId = "33333333-3333-4333-8333-333333333333";
 const idempotencyKey = "44444444-4444-4444-8444-444444444444";
-const hiddenText = "cash withdrawal at a private merchant";
-const bytes = (seed: number): Uint8Array => new Uint8Array([seed, seed + 1, seed + 2]);
+const payloadBytes = new Uint8Array([1, 2, 3]);
 
 const record = (revision = 1): VaultRecord => ({
   id: recordId,
@@ -31,17 +30,7 @@ const record = (revision = 1): VaultRecord => ({
   ownerId,
   parentResourceId: null,
   revision,
-  protocolVersion: 1,
-  nonce: bytes(10 + revision),
-  ciphertext: bytes(20 + revision),
-  envelopes: [{
-    id: "55555555-5555-4555-8555-555555555555",
-    groupId: null,
-    wrappedKey: bytes(30 + revision),
-    nonce: bytes(40 + revision),
-    encapsulatedKey: null,
-    protocolVersion: 1,
-  }],
+  payload: payloadBytes,
   tombstone: false,
   sequenceNumber: revision,
   serverCreatedAt: "2026-08-09T10:00:00Z",
@@ -55,39 +44,14 @@ const createMutation = (revision = 1): VaultOutboxMutation => ({
     id: recordId,
     recordType: 0,
     parentResourceId: null,
-    protocolVersion: 1,
-    nonce: bytes(11),
-    ciphertext: bytes(12),
-    personalEnvelope: {
-      wrappedKey: bytes(13),
-      nonce: bytes(14),
-      protocolVersion: 1,
-    },
+    payload: payloadBytes,
   },
 });
 
-const wireRecord = (revision = 1) => {
-  const value = record(revision);
-  return {
-    id: value.id,
-    recordType: 0,
-    ownerUserId: value.ownerId,
-    parentResourceId: value.parentResourceId,
-    revision: value.revision,
-    protocolVersion: value.protocolVersion,
-    nonce: value.nonce,
-    ciphertext: value.ciphertext,
-    envelopes: value.envelopes,
-    isDeleted: value.tombstone,
-    sequenceNumber: value.sequenceNumber,
-    createdAt: value.serverCreatedAt,
-    updatedAt: value.serverUpdatedAt,
-  };
-};
+const wireRecord = (revision = 1) => ({ ...record(revision), recordType: 0 });
 
-const cipher = (mutation = createMutation()): OutboxCipher => ({
-  encrypt: vi.fn(async (_request: OutboxEncryptionRequest) => mutation),
-  decrypt: vi.fn(async () => new TextEncoder().encode(hiddenText)),
+const builder = (mutation = createMutation()): OutboxMutationBuilder => ({
+  build: vi.fn(async (_request: OutboxRequest) => mutation),
 });
 
 let database: VaultDatabase | undefined;
@@ -105,33 +69,24 @@ afterEach(async () => {
 });
 
 describe("OutboxManager", () => {
-  it("queues an offline encrypted create and replays it with the original idempotency key", async () => {
+  it("queues an offline create and replays it with the original idempotency key", async () => {
     vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
       .mockReturnValueOnce(operationId)
       .mockReturnValueOnce(idempotencyKey) });
     const projection = { apply: vi.fn() };
-    const manager = new OutboxManager(database!, cipher(), projection, new ConflictManager());
+    const manager = new OutboxManager(database!, builder(), projection, new ConflictManager());
 
-    await manager.queue({
-      kind: "create",
-      recordId,
-      plaintext: new TextEncoder().encode(hiddenText),
-    });
+    await manager.queue({ kind: "create", recordId, payload: payloadBytes });
 
     expect(axios.post).not.toHaveBeenCalled();
     expect(projection.apply.mock.calls[0][0]).toMatchObject({ id: recordId });
     expect(ArrayBuffer.isView(projection.apply.mock.calls[0][1]!)).toBe(true);
-    expect(JSON.stringify(await database!.outboxEntries())).not.toContain(hiddenText);
 
     vi.mocked(axios.post).mockResolvedValue({ data: { records: [wireRecord()] } });
     await manager.replay();
 
     expect(axios.post).toHaveBeenCalledWith("/api/v1/sync/records", {
-      records: [expect.objectContaining({
-        idempotencyKey,
-        nonce: "CwwN",
-        ciphertext: "DA0O",
-      })],
+      records: [expect.objectContaining({ idempotencyKey, payload: "AQID" })],
     });
     await expect(database!.outboxEntries()).resolves.toEqual([]);
   });
@@ -140,8 +95,8 @@ describe("OutboxManager", () => {
     vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
       .mockReturnValueOnce(operationId)
       .mockReturnValueOnce(idempotencyKey) });
-    const manager = new OutboxManager(database!, cipher(), { apply: vi.fn() }, new ConflictManager());
-    await manager.queue({ kind: "create", recordId, plaintext: new Uint8Array([1]) });
+    const manager = new OutboxManager(database!, builder(), { apply: vi.fn() }, new ConflictManager());
+    await manager.queue({ kind: "create", recordId, payload: payloadBytes });
     vi.mocked(axios.post).mockResolvedValue({ data: { records: [wireRecord()] } });
 
     await manager.replay();
@@ -172,12 +127,12 @@ describe("OutboxManager", () => {
     };
     const firstManager = new OutboxManager(
       database!,
-      cipher(),
+      builder(),
       { apply: vi.fn() },
       new ConflictManager(),
       api,
     );
-    await firstManager.queue({ kind: "create", recordId, plaintext: new Uint8Array([1]) });
+    await firstManager.queue({ kind: "create", recordId, payload: payloadBytes });
 
     await firstManager.replay();
     await expect(database!.outboxEntries()).resolves.toHaveLength(1);
@@ -186,7 +141,7 @@ describe("OutboxManager", () => {
 
     const reloadedManager = new OutboxManager(
       database!,
-      cipher(),
+      builder(),
       { apply: vi.fn() },
       new ConflictManager(),
       api,
@@ -199,28 +154,22 @@ describe("OutboxManager", () => {
     await expect(database!.records()).resolves.toHaveLength(1);
   });
 
-  it("keeps the encrypted queue across lock and reload without persisting plaintext", async () => {
+  it("keeps the queue across lock and reload", async () => {
     vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
       .mockReturnValueOnce(operationId)
       .mockReturnValueOnce(idempotencyKey) });
-    const manager = new OutboxManager(database!, cipher(), { apply: vi.fn() }, new ConflictManager());
-    await manager.queue({
-      kind: "create",
-      recordId,
-      plaintext: new TextEncoder().encode(hiddenText),
-    });
+    const manager = new OutboxManager(database!, builder(), { apply: vi.fn() }, new ConflictManager());
+    await manager.queue({ kind: "create", recordId, payload: payloadBytes });
     database!.close();
     database = await openVaultDatabase();
 
     const queued = await database.outboxEntries();
     expect(queued).toHaveLength(1);
     expect(queued[0]).toMatchObject({ operationId, idempotencyKey, mutation: { kind: "create" } });
-    expect(JSON.stringify(queued)).not.toContain(hiddenText);
-    expect(JSON.stringify(await database.get("outbox", operationId))).not.toContain(hiddenText);
   });
 
   it("does not start a later operation when an earlier replay fails", async () => {
-    const first = cipher(createMutation());
+    const first = builder(createMutation());
     const secondMutation = createMutation();
     if (secondMutation.kind !== "create") throw new Error("The fixture must create a record");
     secondMutation.request.id = "66666666-6666-4666-8666-666666666666";
@@ -234,9 +183,9 @@ describe("OutboxManager", () => {
       .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey)
       .mockReturnValueOnce("77777777-7777-4777-8777-777777777777")
       .mockReturnValueOnce("88888888-8888-4888-8888-888888888888") });
-    await manager.queue({ kind: "create", recordId, plaintext: new Uint8Array([1]) });
-    vi.mocked(first.encrypt).mockResolvedValueOnce(secondMutation);
-    await manager.queue({ kind: "create", recordId: secondMutation.record.id, plaintext: new Uint8Array([2]) });
+    await manager.queue({ kind: "create", recordId, payload: payloadBytes });
+    vi.mocked(first.build).mockResolvedValueOnce(secondMutation);
+    await manager.queue({ kind: "create", recordId: secondMutation.record.id, payload: payloadBytes });
 
     await manager.replay();
 
@@ -248,8 +197,8 @@ describe("OutboxManager", () => {
     vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
       .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });
     const api = { create: vi.fn(), replace: vi.fn(), remove: vi.fn() };
-    const manager = new OutboxManager(database!, cipher(), { apply: vi.fn() }, new ConflictManager(), api);
-    await manager.queue({ kind: "create", recordId, plaintext: new Uint8Array([1]) });
+    const manager = new OutboxManager(database!, builder(), { apply: vi.fn() }, new ConflictManager(), api);
+    await manager.queue({ kind: "create", recordId, payload: payloadBytes });
     const controller = new AbortController();
     controller.abort();
 
@@ -281,12 +230,12 @@ describe("OutboxManager", () => {
     };
     const manager = new OutboxManager(
       database!,
-      cipher(),
+      builder(),
       { apply: vi.fn() },
       new ConflictManager(),
       api,
     );
-    await manager.queue({ kind: "create", recordId, plaintext: new Uint8Array([1]) });
+    await manager.queue({ kind: "create", recordId, payload: payloadBytes });
     const controller = new AbortController();
     const replay = manager.replay(controller.signal);
     await started;
@@ -306,8 +255,8 @@ describe("OutboxManager", () => {
       replace: vi.fn(),
       remove: vi.fn(),
     };
-    const manager = new OutboxManager(database!, cipher(), { apply: vi.fn() }, new ConflictManager(), api);
-    await manager.queue({ kind: "create", recordId, plaintext: new Uint8Array([1]) });
+    const manager = new OutboxManager(database!, builder(), { apply: vi.fn() }, new ConflictManager(), api);
+    await manager.queue({ kind: "create", recordId, payload: payloadBytes });
 
     const firstReplay = manager.replay();
     const secondReplay = manager.replay();

@@ -31,5 +31,6 @@ An authenticated caller who cannot see a private resource receives the same empt
 - Authorization tests must cover multi-group leakage, revoked state, deleted groups and mismatched resource types.
 - Reads must repeat the decisive predicates in their final data query to close time-of-check/time-of-use gaps.
 - Global visibility filters may hide ordinary soft-deleted rows, but they are not authorization controls.
-- Operators can inspect ciphertext and access metadata in PostgreSQL, but cannot use an application query path to bypass these rules.
-- Legacy plaintext accounts, transactions, budgets, categories, merchants and tags require a session but still lack per-user ownership. The encrypted-vault claim and migration flow owns closing that gap; until then, self-hosters must treat those tables as operator-readable shared legacy data.
+- Operators can read record payloads and access metadata in PostgreSQL, but cannot use an application query path to bypass these rules.
+- Legacy plaintext accounts, transactions, budgets, categories, merchants and tags require a session but still lack per-user ownership. Until that is closed, self-hosters must treat those tables as operator-readable shared legacy data.
+- [ADR 0010](0010-local-first-is-the-requirement-not-end-to-end-encryption.md) deleted the encrypted-vault claim and migration flow that used to own closing that ownership gap. Nothing stands in front of it now: it is an ordinary server-side change, and it has no owner until one is assigned.

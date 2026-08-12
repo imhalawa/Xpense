@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Xpense.API.Infrastructure;
-using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Persistence;
 using Xpense.Domain.Exceptions;
 
@@ -15,7 +14,7 @@ namespace Xpense.API.Features.Accounts;
 public sealed class DeleteAccount : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapDelete("/api/v1/accounts/{accountNumber}", Handle).WithName(nameof(DeleteAccount)).BlocksDuringLegacyClaim();
+        app.MapDelete("/api/v1/accounts/{accountNumber}", Handle).WithName(nameof(DeleteAccount));
 
     private static async Task<NoContent> Handle(string accountNumber, XpenseDbContext dbContext, CancellationToken cancellationToken)
     {

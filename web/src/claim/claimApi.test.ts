@@ -10,37 +10,20 @@ const record: CreateSyncRecord = {
   idempotencyKey: "legacy-claim-v1:11111111-1111-4111-8111-111111111111",
   recordType: 0,
   parentResourceId: "11111111-1111-4111-8111-111111111111",
-  protocolVersion: 1,
-  nonce: new Uint8Array([1, 2, 3]),
-  ciphertext: new Uint8Array([4, 5, 6]),
-  personalEnvelope: {
-    wrappedKey: new Uint8Array([7, 8, 9]),
-    nonce: new Uint8Array([10, 11, 12]),
-    protocolVersion: 1,
-  },
+  payload: new Uint8Array([4, 5, 6]),
 };
 
 const wireRecord = {
   id: record.id,
   recordType: 0,
-  ownerUserId: "22222222-2222-4222-8222-222222222222",
+  ownerId: "22222222-2222-4222-8222-222222222222",
   parentResourceId: record.parentResourceId,
   revision: 1,
-  protocolVersion: 1,
-  nonce: "AQID",
-  ciphertext: "BAUG",
-  envelopes: [{
-    id: "33333333-3333-4333-8333-333333333333",
-    groupId: null,
-    wrappedKey: "BwgJ",
-    nonce: "CgsM",
-    encapsulatedKey: null,
-    protocolVersion: 1,
-  }],
-  isDeleted: false,
+  payload: "BAUG",
+  tombstone: false,
   sequenceNumber: 1,
-  createdAt: "2026-08-09T10:00:00Z",
-  updatedAt: "2026-08-09T10:00:00Z",
+  serverCreatedAt: "2026-08-09T10:00:00Z",
+  serverUpdatedAt: "2026-08-09T10:00:00Z",
 };
 
 describe("ClaimHttpApi", () => {
@@ -95,7 +78,7 @@ describe("ClaimHttpApi", () => {
     });
   });
 
-  it("serializes ciphertext only and maps the sync acknowledgement", async () => {
+  it("serializes the payload and maps the sync acknowledgement", async () => {
     const created = await new ClaimHttpApi().upload(record);
 
     expect(vi.mocked(axios.post)).toHaveBeenCalledWith(
@@ -103,9 +86,7 @@ describe("ClaimHttpApi", () => {
       { records: [expect.objectContaining({
         id: record.id,
         idempotencyKey: record.idempotencyKey,
-        nonce: "AQID",
-        ciphertext: "BAUG",
-        personalEnvelope: { wrappedKey: "BwgJ", nonce: "CgsM", protocolVersion: 1 },
+        payload: "BAUG",
       })] },
       expect.objectContaining({ headers: { "X-Xpense-Antiforgery": "fresh-1" } }),
     );

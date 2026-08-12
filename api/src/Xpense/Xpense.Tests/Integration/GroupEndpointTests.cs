@@ -1103,9 +1103,7 @@ public class GroupEndpointTests
             OwnerUserId = ownerUserId,
             ParentResourceId = resourceId,
             Revision = 1,
-            ProtocolVersion = 1,
-            Nonce = [161],
-            Ciphertext = [162],
+            Payload = [1, 2, 3],
             CreatedAt = now,
             UpdatedAt = now
         });

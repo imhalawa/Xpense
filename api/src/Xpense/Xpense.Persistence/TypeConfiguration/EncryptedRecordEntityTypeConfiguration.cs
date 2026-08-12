@@ -13,8 +13,7 @@ public class EncryptedRecordEntityTypeConfiguration : IEntityTypeConfiguration<E
     {
         builder.ToTable("EncryptedRecords", XpenseSchema);
         builder.HasKey(record => record.Id);
-        builder.Property(record => record.Nonce).HasMaxLength(4096).IsRequired();
-        builder.Property(record => record.Ciphertext).HasMaxLength(65536).IsRequired();
+        builder.Property(record => record.Payload).HasMaxLength(65536).IsRequired();
         builder.Property(record => record.SequenceNumber).HasDefaultValueSql(SequenceDefault);
         builder.HasIndex(record => record.SequenceNumber).IsUnique();
         builder.HasOne<XpenseUser>()

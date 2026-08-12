@@ -39,10 +39,10 @@ public class SyncReplaceTests
     }
 
     [Test]
-    public async Task A_matching_revision_replaces_ciphertext_and_advances_revision_and_sequence()
+    public async Task A_matching_revision_replaces_the_payload_and_advances_revision_and_sequence()
     {
         var record = await AddRecord(currentUserId);
-        var request = new ReplaceRequest(1, 1, [7, 8, 9], [10, 11, 12]);
+        var request = new ReplaceRequest(1, [10, 11, 12]);
 
         var response = await client.PutAsJsonAsync($"/api/v1/sync/records/{record.Id}", request);
         var body = await response.Content.ReadFromJsonAsync<RecordResponse>();
@@ -50,26 +50,26 @@ public class SyncReplaceTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         body!.Revision.Should().Be(2);
         body.SequenceNumber.Should().BeGreaterThan(record.SequenceNumber);
-        body.Ciphertext.Should().Equal(request.Ciphertext);
+        body.Payload.Should().Equal(request.Payload);
     }
 
     [Test]
-    public async Task A_stale_revision_returns_conflict_with_the_latest_ciphertext()
+    public async Task A_stale_revision_returns_conflict_with_the_latest_payload()
     {
         var record = await AddRecord(currentUserId);
-        var firstCiphertext = new byte[] { 9, 9, 9 };
+        var firstPayload = new byte[] { 9, 9, 9 };
         await client.PutAsJsonAsync(
             $"/api/v1/sync/records/{record.Id}",
-            new ReplaceRequest(1, 1, [8], firstCiphertext));
+            new ReplaceRequest(1, firstPayload));
 
         var response = await client.PutAsJsonAsync(
             $"/api/v1/sync/records/{record.Id}",
-            new ReplaceRequest(1, 1, [7], [6]));
+            new ReplaceRequest(1, [6]));
         var body = await response.Content.ReadFromJsonAsync<RecordResponse>();
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         body!.Revision.Should().Be(2);
-        body.Ciphertext.Should().Equal(firstCiphertext);
+        body.Payload.Should().Equal(firstPayload);
     }
 
     [Test]
@@ -79,10 +79,10 @@ public class SyncReplaceTests
 
         var first = client.PutAsJsonAsync(
             $"/api/v1/sync/records/{record.Id}",
-            new ReplaceRequest(1, 1, [1], [2]));
+            new ReplaceRequest(1, [2]));
         var second = client.PutAsJsonAsync(
             $"/api/v1/sync/records/{record.Id}",
-            new ReplaceRequest(1, 1, [3], [4]));
+            new ReplaceRequest(1, [4]));
         var responses = await Task.WhenAll(first, second);
 
         responses.Select(response => response.StatusCode)
@@ -100,7 +100,7 @@ public class SyncReplaceTests
 
         var response = await client.PutAsJsonAsync(
             $"/api/v1/sync/records/{record.Id}",
-            new ReplaceRequest(1, 1, [7], [8]));
+            new ReplaceRequest(1, [8]));
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -112,7 +112,7 @@ public class SyncReplaceTests
 
         await client.PutAsJsonAsync(
             $"/api/v1/sync/records/{record.Id}",
-            new ReplaceRequest(1, 1, [7], [8]));
+            new ReplaceRequest(1, [8]));
 
         await using var scope = factory.Services.CreateAsyncScope();
         var stored = await scope.ServiceProvider.GetRequiredService<XpenseDbContext>()
@@ -181,9 +181,7 @@ public class SyncReplaceTests
             OwnerUserId = ownerUserId,
             ParentResourceId = parentResourceId,
             Revision = 1,
-            ProtocolVersion = 1,
-            Nonce = [1, 2, 3],
-            Ciphertext = [4, 5, 6],
+            Payload = [1, 2, 3],
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -199,13 +197,13 @@ public class SyncReplaceTests
         CreatedAt = DateTime.UtcNow
     };
 
-    private sealed record ReplaceRequest(long ExpectedRevision, int ProtocolVersion, byte[] Nonce, byte[] Ciphertext);
+    private sealed record ReplaceRequest(long ExpectedRevision, byte[] Payload);
 
     private sealed record RecordResponse(
         Guid Id,
         EncryptedRecordType RecordType,
-        Guid OwnerUserId,
+        Guid OwnerId,
         long Revision,
-        byte[] Ciphertext,
+        byte[] Payload,
         long SequenceNumber);
 }

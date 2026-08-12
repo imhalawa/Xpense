@@ -1,6 +1,4 @@
 import axios from "axios";
-import { PROTOCOL_VERSION, type RecordType } from "../crypto/protocol";
-import { VaultWorkerUnavailableError } from "../crypto/worker/vaultWorkerClient";
 import { SyncLifecycleCoordinator } from "../sync/lifecycle";
 import {
   createSyncRecords,
@@ -8,11 +6,11 @@ import {
   replaceSyncRecord,
   SyncClient,
 } from "../sync/syncClient";
-import type { OutboxCipher, OptimisticProjection, SyncMutationApi } from "../sync/outbox";
+import type { OutboxMutationBuilder, OptimisticProjection, SyncMutationApi } from "../sync/outbox";
 import { fixtureProjection } from "./fixtureProjection";
 import { decodeVaultPayloadV1, encodeVaultPayloadV1, parseVaultPayloadV1, type VaultPayloadV1 } from "./payloadV1";
-import type { EncryptedProjection, ProjectionCryptoBridge } from "./transitionVaultProjection";
-import { openVaultDatabase, type VaultDatabase, type VaultOutboxMutation, type VaultRecord } from "./vaultDatabase";
+import type { EncryptedProjection } from "./transitionVaultProjection";
+import { openVaultDatabase, recordTypes, type RecordType, type VaultDatabase, type VaultOutboxMutation, type VaultRecord } from "./vaultDatabase";
 import type {
   AccountDraft,
   BudgetDraft,
@@ -26,18 +24,6 @@ import type {
 } from "./VaultProjection";
 
 const personalSpace = "personal";
-const recordTypeCodes: Record<RecordType, number> = {
-  account: 0,
-  transaction: 1,
-  transfer: 2,
-  category: 3,
-  merchant: 4,
-  tag: 5,
-  budget: 6,
-  notification: 7,
-  userProfile: 8,
-  necessityScale: 9,
-};
 const priorityAliases: Record<CategoryCreationPriority, CategoryPriority> = {
   Essential: "Essential",
   Important: "Important",
@@ -49,9 +35,9 @@ const priorityAliases: Record<CategoryCreationPriority, CategoryPriority> = {
   Low: "Optional",
 };
 
-export interface EncryptedVaultDependencies {
+export interface LocalVaultDependencies {
   openDatabase?: () => Promise<VaultDatabase>;
-  pull?: (database: VaultDatabase, bridge: ProjectionCryptoBridge, signal: AbortSignal) => Promise<void>;
+  pull?: (database: VaultDatabase, signal: AbortSignal) => Promise<void>;
   syncApi?: SyncMutationApi;
   now?: () => Date;
   id?: () => string;
@@ -60,16 +46,10 @@ export interface EncryptedVaultDependencies {
 const freshAntiforgery = async (): Promise<string> =>
   (await axios.get<{ requestToken: string }>("/api/v1/auth/antiforgery")).data.requestToken;
 
-export const encryptedSyncMutationApi: SyncMutationApi = {
+export const localSyncMutationApi: SyncMutationApi = {
   create: async (request, signal) => createSyncRecords(request, signal, await freshAntiforgery()),
   replace: async (id, request, signal) => replaceSyncRecord(id, request, signal, await freshAntiforgery()),
   remove: async (id, signal) => deleteSyncRecord(id, signal, await freshAntiforgery()),
-};
-
-const personalEnvelope = (record: VaultRecord) => {
-  const envelope = record.envelopes.find((candidate) => candidate.groupId === null);
-  if (envelope === undefined) throw new Error("The personal record envelope is unavailable.");
-  return envelope;
 };
 
 const common = (id: string, createdAt: string, updatedAt: string | null) => ({
@@ -79,15 +59,15 @@ const common = (id: string, createdAt: string, updatedAt: string | null) => ({
   updatedAt,
 });
 
-export const encryptedVaultProjection = (
+export const localVaultProjection = (
   lifecycle: SyncLifecycleCoordinator,
-  dependencies: EncryptedVaultDependencies = {},
+  dependencies: LocalVaultDependencies = {},
 ): EncryptedProjection => {
   const openDatabase = dependencies.openDatabase ?? openVaultDatabase;
   const now = dependencies.now ?? (() => new Date());
   const id = dependencies.id ?? (() => crypto.randomUUID());
   let currentState: VaultState = "locked";
-  let cryptoBridge: ProjectionCryptoBridge | null = null;
+  let ownerId = "";
   let database: VaultDatabase | null = null;
   let abortController: AbortController | null = null;
   let delegate: VaultProjection | null = null;
@@ -177,8 +157,8 @@ export const encryptedVaultProjection = (
   };
 
   const apply: OptimisticProjection = {
-    apply(record, plaintext) {
-      payloads.set(record.id, { record, payload: decodeVaultPayloadV1(record.recordType, record.id, plaintext) });
+    apply(record, payload) {
+      payloads.set(record.id, { record, payload: decodeVaultPayloadV1(record.recordType, record.id, payload) });
       rebuild();
     },
     remove(recordId) {
@@ -187,46 +167,39 @@ export const encryptedVaultProjection = (
     },
   };
 
-  const cipher: OutboxCipher = {
-    async decrypt(record) {
-      if (cryptoBridge === null) throw new Error("The vault encryption Worker is unavailable.");
-      return cryptoBridge.decrypt(record);
-    },
-    async encrypt(request): Promise<VaultOutboxMutation> {
-      if (cryptoBridge === null) throw new Error("The vault encryption Worker is unavailable.");
+  const mutations: OutboxMutationBuilder = {
+    async build(request): Promise<VaultOutboxMutation> {
       const existing = database === null ? undefined : await database.getRecord(request.recordId);
       if (request.kind === "delete") {
-        if (existing === undefined) throw new Error("The encrypted record was not found.");
+        if (existing === undefined) throw new Error("The record was not found.");
         return { kind: "delete", record: { ...existing, tombstone: true } };
       }
-      if (request.plaintext === undefined) throw new Error("The encrypted payload is missing.");
+      if (request.payload === undefined) throw new Error("The record payload is missing.");
       if (request.kind === "replace") {
-        if (existing === undefined || request.expectedRevision !== existing.revision) throw new Error("The encrypted record revision changed.");
-        const sealedPayload = await cryptoBridge.encryptReplacement(existing, request.plaintext);
-        const record = { ...existing, revision: existing.revision + 1, nonce: sealedPayload.nonce, ciphertext: sealedPayload.ciphertext, serverUpdatedAt: now().toISOString() };
-        return { kind: "replace", record, request: { expectedRevision: existing.revision, protocolVersion: PROTOCOL_VERSION, nonce: record.nonce, ciphertext: record.ciphertext } };
+        if (existing === undefined || request.expectedRevision !== existing.revision) throw new Error("The record revision changed.");
+        const record = { ...existing, revision: existing.revision + 1, payload: request.payload, serverUpdatedAt: now().toISOString() };
+        return { kind: "replace", record, request: { expectedRevision: existing.revision, payload: request.payload } };
       }
       const pending = payloads.get(request.recordId);
-      if (pending === undefined) throw new Error("The encrypted record metadata is missing.");
-      const encrypted = await cryptoBridge.encryptNew(pending.record, request.plaintext);
-      const record = { ...pending.record, nonce: encrypted.sealedPayload.nonce, ciphertext: encrypted.sealedPayload.ciphertext, envelopes: [{ id: pending.record.id, groupId: null, wrappedKey: encrypted.personalEnvelope.ciphertext, nonce: encrypted.personalEnvelope.nonce, encapsulatedKey: null, protocolVersion: PROTOCOL_VERSION }] };
-      return { kind: "create", record, request: { id: record.id, recordType: recordTypeCodes[record.recordType], parentResourceId: record.parentResourceId, protocolVersion: PROTOCOL_VERSION, nonce: record.nonce, ciphertext: record.ciphertext, personalEnvelope: { wrappedKey: record.envelopes[0]!.wrappedKey, nonce: record.envelopes[0]!.nonce, protocolVersion: PROTOCOL_VERSION } } };
+      if (pending === undefined) throw new Error("The record metadata is missing.");
+      const record = { ...pending.record, payload: request.payload };
+      return { kind: "create", record, request: { id: record.id, recordType: recordTypes.indexOf(record.recordType), parentResourceId: record.parentResourceId, payload: request.payload } };
     },
   };
 
   const stage = async (recordType: RecordType, parentResourceId: string | null, payload: VaultPayloadV1, existing?: VaultRecord): Promise<void> => {
-    if (outbox === null || cryptoBridge === null) throw new Error("The vault is locked");
+    if (outbox === null) throw new Error("The vault is locked");
     parseVaultPayloadV1(recordType, payload.recordId, payload);
     const bytes = encodeVaultPayloadV1(payload);
     let createMetadataStaged = false;
     try {
       if (existing === undefined) {
         const instant = payload.createdAt;
-        payloads.set(payload.recordId, { payload, record: { id: payload.recordId, recordType, ownerId: cryptoBridge.ownerId, parentResourceId, revision: 1, protocolVersion: PROTOCOL_VERSION, nonce: new Uint8Array(), ciphertext: new Uint8Array(), envelopes: [], tombstone: false, sequenceNumber: 0, serverCreatedAt: instant, serverUpdatedAt: instant } });
+        payloads.set(payload.recordId, { payload, record: { id: payload.recordId, recordType, ownerId, parentResourceId, revision: 1, payload: bytes, tombstone: false, sequenceNumber: 0, serverCreatedAt: instant, serverUpdatedAt: instant } });
         createMetadataStaged = true;
-        await outbox.queue({ kind: "create", recordId: payload.recordId, plaintext: bytes }, abortController?.signal);
+        await outbox.queue({ kind: "create", recordId: payload.recordId, payload: bytes }, abortController?.signal);
       } else {
-        await outbox.queue({ kind: "replace", recordId: payload.recordId, expectedRevision: existing.revision, plaintext: bytes }, abortController?.signal);
+        await outbox.queue({ kind: "replace", recordId: payload.recordId, expectedRevision: existing.revision, payload: bytes }, abortController?.signal);
       }
       await outbox.replay(abortController?.signal);
     } catch (error) {
@@ -235,8 +208,6 @@ export const encryptedVaultProjection = (
         rebuild();
       }
       throw error;
-    } finally {
-      bytes.fill(0);
     }
   };
 
@@ -273,49 +244,31 @@ export const encryptedVaultProjection = (
 
   const api: EncryptedProjection = {
     get state() { return currentState; },
-    attachCrypto(bridge) { cryptoBridge = bridge; },
+    attachOwner(userId) { ownerId = userId; },
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     async unlock() {
-      if (cryptoBridge === null) throw new Error("Unlock with a vault wrapper first.");
       moveTo("loading");
       const unlockController = new AbortController();
       abortController = unlockController;
       try {
         database = await openDatabase();
-        const pull = dependencies.pull ?? (async (store, bridge, signal) => new SyncClient(store, bridge).pull(signal));
-        await pull(database, cryptoBridge, unlockController.signal);
+        const pull = dependencies.pull ?? (async (store, signal) => new SyncClient(store).pull(signal));
+        await pull(database, unlockController.signal);
         payloads.clear();
-        const quarantine = await database.quarantineEntries();
-        const quarantined = new Set(quarantine.map((entry) => `${entry.recordId}:${entry.revision}`));
-        const legacyQuarantined = new Set(
-          quarantine.filter((entry) => entry.revision === 0).map((entry) => entry.recordId),
+        const quarantined = new Set(
+          (await database.quarantineEntries()).map((entry) => `${entry.recordId}:${entry.revision}`),
         );
         for (const record of await database.records()) {
-          if (record.tombstone || record.ownerId !== cryptoBridge.ownerId) continue;
-          if (legacyQuarantined.has(record.id) || quarantined.has(`${record.id}:${record.revision}`)) continue;
-          let bytes: Uint8Array;
+          if (record.tombstone) continue;
+          if (quarantined.has(`${record.id}:${record.revision}`)) continue;
           try {
-            personalEnvelope(record);
-            bytes = await cryptoBridge.decrypt(record);
-          } catch (error) {
-            if (
-              unlockController.signal.aborted ||
-              error instanceof VaultWorkerUnavailableError
-            ) {
-              throw error;
-            }
-            await database.putQuarantine({ recordId: record.id, revision: record.revision, record, reason: "authentication-failed" });
-            continue;
-          }
-          try {
-            payloads.set(record.id, { record, payload: decodeVaultPayloadV1(record.recordType, record.id, bytes) });
+            payloads.set(record.id, { record, payload: decodeVaultPayloadV1(record.recordType, record.id, record.payload) });
           } catch {
             await database.putQuarantine({ recordId: record.id, revision: record.revision, record, reason: "invalid-payload" });
           }
-          finally { bytes.fill(0); }
         }
         rebuild();
-        outbox = lifecycle.createOutboxManager(database, cipher, apply, dependencies.syncApi ?? encryptedSyncMutationApi);
+        outbox = lifecycle.createOutboxManager(database, mutations, apply, dependencies.syncApi ?? localSyncMutationApi);
         await outbox.replay(unlockController.signal);
         moveTo("ready");
       } catch (error) {
@@ -324,7 +277,7 @@ export const encryptedVaultProjection = (
         throw error;
       }
     },
-    lock() { abortController?.abort(); abortController = null; database?.close(); database = null; payloads.clear(); delegate = null; outbox = null; cryptoBridge = null; lifecycle.lock(); moveTo("locked"); },
+    lock() { abortController?.abort(); abortController = null; database?.close(); database = null; payloads.clear(); delegate = null; outbox = null; lifecycle.lock(); moveTo("locked"); },
     listSpaces: () => requireReady().listSpaces(),
     listAccounts: (space) => requireReady().listAccounts(space),
     listAccountBalances: (space) => requireReady().listAccountBalances(space),

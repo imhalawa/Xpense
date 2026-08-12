@@ -51,15 +51,13 @@ The first account is created through the public registration flow. Set `XPENSE_A
 
 Users may create groups, invite other accounts and share selected accounts or budgets as viewer or editor. Membership in one group grants nothing in another. Private-resource authorization returns the same 404 for missing, unrelated, revoked and deleted data.
 
-The API stores encrypted group names, envelopes and record ciphertext. The server operator can still see identities, membership and grant metadata, timing, sizes, email delivery addresses and any legacy plaintext financial tables. This release does not migrate those legacy tables into the encrypted record store. Do not describe the whole database as zero knowledge until that migration is complete.
+The API stores sync record payloads as plaintext JSON and can read them, along with identities, membership and grant metadata, timing, sizes, email delivery addresses and the legacy plaintext financial tables. The operator is trusted; the database is defended by encryption at rest, encrypted backups and access control. See [ADR 0010](docs/adr/0010-local-first-is-the-requirement-not-end-to-end-encryption.md). Do not describe any part of this database as zero knowledge.
 
 Public endpoints include registration/sign-in ceremonies, invitation inspection, antiforgery token issuance and health. Authenticated browser mutations use the session cookie plus the paired antiforgery header and cookie. Refresh the antiforgery pair after authentication changes.
 
 For a hosted or internet-facing install, use HTTPS, set the relying-party domain and public URL to the external origin, list the exact browser origin, keep Data Protection keys on durable private storage, and run migrations before both API and worker. Never expose PostgreSQL or the backup directory publicly.
 
 Invitation email is optional. With `XPENSE_EMAIL_ENABLED=false`, invitations still work: the create response returns the one-time link and the owner copies it to the recipient. When enabled, configure SMTP host, port, from address, TLS, timeout and paired credentials. API and worker must share the same Data Protection key directory or the worker cannot decrypt the protected invitation link.
-
-Legacy claim mode is an operator-only migration bridge. Set `XPENSE_LEGACY_CLAIM_ENABLED=true` and `XPENSE_LEGACY_CLAIM_DESIGNATED_USER_ID` to an existing user UUID only during a rehearsed claim. The API blocks plaintext source writes and the notifications worker pauses. Keep claim mode enabled after completion until the reviewed Task 32 contract migration removes the plaintext schema; disabling it earlier can create new unclaimed rows. Claim mode never creates a user or changes plaintext ownership.
 
 Direct-host configuration uses the standard .NET double-underscore environment form:
 
@@ -73,9 +71,6 @@ Direct-host configuration uses the standard .NET double-underscore environment f
 | `DataProtection__KeyDirectory` | Writable, durable, private directory shared by the API and notification worker. |
 | `ForwardedHeaders__KnownIPNetworks__0` | Trusted proxy address as CIDR, as seen from the API process. Use a narrow range such as a single-address `/32`. |
 | `ForwardedHeaders__ForwardLimit` | Positive number of trusted proxy hops. The default is `1`. |
-| `LegacyClaim__Enabled` | `true` enables the controlled claim window and pauses plaintext writers. Keep it enabled through the contract migration. |
-| `LegacyClaim__DesignatedUserId` | Existing designated claimant UUID, required when claim mode is enabled. |
-| `LegacyClaim__DataMode` | Durable data authority: keep `legacy` through Task 32, then set `encrypted` only after the reviewed plaintext-removal cutover. Never switch back. |
 | `Email__Enabled` | `true` enables SMTP delivery in the notification worker. |
 | `Email__Host` | Required when email is enabled. |
 | `Email__Port` | Integer from 1 to 65535. The default is 587. |

@@ -132,17 +132,7 @@ const serverRecord = (id: string, tombstone = false): VaultRecord => ({
   ownerId,
   parentResourceId: accountId,
   revision: 1,
-  protocolVersion: 1,
-  nonce: bytes(1),
-  ciphertext: bytes(10),
-  envelopes: [{
-    id: "33333333-3333-4333-8333-333333333333",
-    groupId: null,
-    wrappedKey: bytes(30),
-    nonce: bytes(20),
-    encapsulatedKey: null,
-    protocolVersion: 1,
-  }],
+  payload: bytes(10),
   tombstone,
   sequenceNumber: 1,
   serverCreatedAt: timestamp,
@@ -250,16 +240,16 @@ describe("legacy claim flow", () => {
     expect(JSON.stringify(staged)).not.toContain(hiddenLabel);
     expect(JSON.stringify(staged)).not.toContain("memory-only-token");
     expect(JSON.stringify(await database.records())).not.toContain(hiddenLabel);
-    const originalCiphertext = Array.from(staged!.mutation.record.ciphertext);
+    const originalPayload = Array.from(staged!.mutation.record.payload);
     const { sequence: _sequence, ...duplicateStage } = staged!;
     await database.enqueueOutboxOnce({
       ...duplicateStage,
       mutation: {
         ...duplicateStage.mutation,
-        record: { ...duplicateStage.mutation.record, ciphertext: bytes(90) },
+        record: { ...duplicateStage.mutation.record, payload: bytes(90) },
       },
     });
-    expect(Array.from((await database.getRecord(accountId))!.ciphertext)).toEqual(originalCiphertext);
+    expect(Array.from((await database.getRecord(accountId))!.payload)).toEqual(originalPayload);
     await expect(database.outboxEntries()).resolves.toHaveLength(1);
     database.close();
     database = await openVaultDatabase();
@@ -271,8 +261,8 @@ describe("legacy claim flow", () => {
     expect(resumedCipher.encrypt).not.toHaveBeenCalled();
     expect(vi.mocked(resumedApi.upload).mock.calls[0]![0].idempotencyKey)
       .toBe(`legacy-claim-v1:${accountId}`);
-    expect(Array.from(vi.mocked(resumedApi.upload).mock.calls[0]![0].ciphertext))
-      .toEqual(originalCiphertext);
+    expect(Array.from(vi.mocked(resumedApi.upload).mock.calls[0]![0].payload))
+      .toEqual(originalPayload);
     await expect(database.outboxEntries()).resolves.toEqual([]);
   });
 

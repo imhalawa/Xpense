@@ -46,9 +46,6 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     private IPasswordHasher<XpenseUser>? passwordHasher;
     private IDataProtectionProvider? dataProtectionProvider;
     private RegistrationPolicy? registrationPolicy;
-    private bool? legacyClaimEnabled;
-    private Guid? designatedClaimUserId;
-    private string? legacyDataMode;
 
     public WebApiTestFactory(string connectionString, params IInterceptor[] interceptors)
     {
@@ -77,19 +74,6 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
     public WebApiTestFactory WithDataProtectionProvider(IDataProtectionProvider value)
     {
         dataProtectionProvider = value;
-        return this;
-    }
-
-    public WebApiTestFactory WithLegacyClaim(bool enabled, Guid? designatedUserId = null)
-    {
-        legacyClaimEnabled = enabled;
-        designatedClaimUserId = designatedUserId;
-        return this;
-    }
-
-    public WebApiTestFactory WithLegacyDataMode(string dataMode)
-    {
-        legacyDataMode = dataMode;
         return this;
     }
 
@@ -165,12 +149,6 @@ public sealed class WebApiTestFactory : WebApplicationFactory<Program>
 
         if (registrationPolicy.HasValue)
             builder.UseSetting("Authentication:Registration", registrationPolicy.Value.ToString());
-        if (legacyClaimEnabled.HasValue)
-            builder.UseSetting("LegacyClaim:Enabled", legacyClaimEnabled.Value.ToString());
-        if (designatedClaimUserId.HasValue)
-            builder.UseSetting("LegacyClaim:DesignatedUserId", designatedClaimUserId.Value.ToString());
-        if (legacyDataMode is not null)
-            builder.UseSetting("LegacyClaim:DataMode", legacyDataMode);
 
         builder.ConfigureServices(services =>
         {

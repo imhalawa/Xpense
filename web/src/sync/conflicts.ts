@@ -13,9 +13,6 @@ export class ConflictManager {
   private readonly conflicts = new Map<string, SyncConflict>();
 
   add(conflict: SyncConflict): void {
-    const previous = this.conflicts.get(conflict.recordId);
-    previous?.mine.fill(0);
-    previous?.theirs.fill(0);
     this.conflicts.set(conflict.recordId, conflict);
   }
 
@@ -24,9 +21,6 @@ export class ConflictManager {
   }
 
   remove(recordId: string): void {
-    const conflict = this.conflicts.get(recordId);
-    conflict?.mine.fill(0);
-    conflict?.theirs.fill(0);
     this.conflicts.delete(recordId);
   }
 
@@ -35,10 +29,6 @@ export class ConflictManager {
   }
 
   clear(): void {
-    for (const conflict of this.conflicts.values()) {
-      conflict.mine.fill(0);
-      conflict.theirs.fill(0);
-    }
     this.conflicts.clear();
   }
 }

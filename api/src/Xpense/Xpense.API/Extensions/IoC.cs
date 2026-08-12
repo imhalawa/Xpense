@@ -25,7 +25,6 @@ using Xpense.API.ExceptionHandlers;
 using Xpense.API.Infrastructure;
 using Xpense.API.Infrastructure.Authentication;
 using Xpense.API.Infrastructure.Authorization;
-using Xpense.API.Infrastructure.LegacyClaim;
 using Xpense.Domain.Entities;
 using Xpense.Domain.Events;
 using Xpense.Persistence;
@@ -51,28 +50,10 @@ public static class IoC
         services.AddScoped<AccessRules>();
         services.AddScoped<GroupTransactionLock>();
         services.AddScoped<ResourceTransactionLock>();
-        services.AddScoped<LegacyClaimTransactionLock>();
-        services.AddScoped<LegacyClaimDatasetBuilder>();
         services.AddScoped<SyncAuthorization>();
         services.AddScoped(typeof(OptionResolver<>));
 
         services.AddScoped<IEventBus, EventBus>();
-    }
-
-    public static void AddLegacyClaim(this IServiceCollection services, IConfiguration configuration)
-    {
-        services.AddOptions<LegacyClaimOptions>()
-            .Bind(configuration.GetSection(LegacyClaimOptions.SectionName))
-            .Validate(
-                options => options.HasKnownDataMode,
-                "The data mode must be legacy or encrypted.")
-            .Validate(
-                options => !options.IsEncrypted || !options.Enabled,
-                "Legacy claim mode cannot be enabled after encrypted data mode is selected.")
-            .Validate(
-                options => !options.Enabled || options.TryGetDesignatedUserId(out _),
-                "The designated legacy-claim user must be a nonempty UUID when legacy claim mode is enabled.")
-            .ValidateOnStart();
     }
 
     public static void AddXpenseAuthentication(this IServiceCollection services, IConfiguration configuration)
@@ -235,7 +216,6 @@ public static class IoC
         services.AddExceptionHandler<NotFoundExceptionHandler>();
         services.AddExceptionHandler<AuthenticationExceptionHandler>();
         services.AddExceptionHandler<InvitationInvalidExceptionHandler>();
-        services.AddExceptionHandler<LegacyClaimExceptionHandler>();
         services.AddExceptionHandler<StateConflictExceptionHandler>();
         services.AddExceptionHandler<ResourceGrantAlreadyActiveExceptionHandler>();
         services.AddExceptionHandler<DomainRuleViolationExceptionHandler>();

@@ -22,31 +22,19 @@ namespace Xpense.API.Features.Sync;
 public sealed class CreateSyncRecords : IEndpoint
 {
     private const int MaxBatchSize = 100;
-    private const int MaxCiphertextLength = 65536;
-    private const int MaxEnvelopeLength = 4096;
     private const int MaxIdempotencyKeyLength = 200;
-    private const int MaxNonceLength = 4096;
-    private const int SupportedProtocolVersion = 1;
+    private const int MaxPayloadLength = 65536;
 
-    /// <summary>A batch of encrypted records to create atomically.</summary>
+    /// <summary>A batch of records to create atomically.</summary>
     public sealed record Request(RecordRequest[] Records);
 
-    /// <summary>One encrypted record and its personal key envelope.</summary>
+    /// <summary>One record and the JSON payload it carries.</summary>
     public sealed record RecordRequest(
         Guid Id,
         string IdempotencyKey,
         EncryptedRecordType RecordType,
         Guid? ParentResourceId,
-        int ProtocolVersion,
-        byte[] Nonce,
-        byte[] Ciphertext,
-        PersonalEnvelopeRequest PersonalEnvelope);
-
-    /// <summary>The record key wrapped for its personal owner.</summary>
-    public sealed record PersonalEnvelopeRequest(
-        byte[] WrappedKey,
-        byte[] Nonce,
-        int ProtocolVersion);
+        byte[] Payload);
 
     /// <summary>The created records in request order.</summary>
     public sealed record Response(EncryptedRecordResponse[] Records);
@@ -56,11 +44,11 @@ public sealed class CreateSyncRecords : IEndpoint
         public Validator()
         {
             RuleFor(request => request.Records)
-                .NotEmpty().WithMessage("At least one encrypted record is required.")
+                .NotEmpty().WithMessage("At least one record is required.")
                 .Must(records => records.Length <= MaxBatchSize)
-                .WithMessage($"A batch cannot contain more than {MaxBatchSize} encrypted records.")
+                .WithMessage($"A batch cannot contain more than {MaxBatchSize} records.")
                 .Must(HaveUniqueIds)
-                .WithMessage("Every encrypted record id in a batch must be unique.")
+                .WithMessage("Every record id in a batch must be unique.")
                 .Must(HaveUniqueIdempotencyKeys)
                 .WithMessage("Every idempotency key in a batch must be unique.");
 
@@ -78,38 +66,16 @@ public sealed class CreateSyncRecords : IEndpoint
     {
         public RecordValidator()
         {
-            RuleFor(record => record.Id).NotEmpty().WithMessage("The encrypted record id is required.");
+            RuleFor(record => record.Id).NotEmpty().WithMessage("The record id is required.");
             RuleFor(record => record.IdempotencyKey)
                 .NotEmpty().WithMessage("The idempotency key is required.")
                 .MaximumLength(MaxIdempotencyKeyLength);
             RuleFor(record => record.RecordType)
-                .IsInEnum().WithMessage("The encrypted record type must be a valid selection.");
-            RuleFor(record => record.ProtocolVersion)
-                .Equal(SupportedProtocolVersion).WithMessage("The protocol version is not supported.");
-            RuleFor(record => record.Nonce)
-                .NotEmpty().WithMessage("The record nonce is required.")
-                .Must(nonce => nonce.Length <= MaxNonceLength).WithMessage("The record nonce is too large.");
-            RuleFor(record => record.Ciphertext)
-                .NotEmpty().WithMessage("The record ciphertext is required.")
-                .Must(ciphertext => ciphertext.Length <= MaxCiphertextLength)
-                .WithMessage("The record ciphertext is too large.");
-            RuleFor(record => record.PersonalEnvelope).SetValidator(new PersonalEnvelopeValidator());
-        }
-    }
-
-    public sealed class PersonalEnvelopeValidator : AbstractValidator<PersonalEnvelopeRequest>
-    {
-        public PersonalEnvelopeValidator()
-        {
-            RuleFor(envelope => envelope.WrappedKey)
-                .NotEmpty().WithMessage("The wrapped record key is required.")
-                .Must(wrappedKey => wrappedKey.Length <= MaxEnvelopeLength)
-                .WithMessage("The wrapped record key is too large.");
-            RuleFor(envelope => envelope.Nonce)
-                .NotEmpty().WithMessage("The envelope nonce is required.")
-                .Must(nonce => nonce.Length <= MaxNonceLength).WithMessage("The envelope nonce is too large.");
-            RuleFor(envelope => envelope.ProtocolVersion)
-                .Equal(SupportedProtocolVersion).WithMessage("The envelope protocol version is not supported.");
+                .IsInEnum().WithMessage("The record type must be a valid selection.");
+            RuleFor(record => record.Payload)
+                .NotEmpty().WithMessage("The record payload is required.")
+                .Must(payload => payload.Length <= MaxPayloadLength)
+                .WithMessage("The record payload is too large.");
         }
     }
 
@@ -174,19 +140,9 @@ public sealed class CreateSyncRecords : IEndpoint
                     OwnerUserId = currentUser.Id,
                     ParentResourceId = item.ParentResourceId,
                     Revision = 1,
-                    ProtocolVersion = item.ProtocolVersion,
-                    Nonce = item.Nonce,
-                    Ciphertext = item.Ciphertext,
+                    Payload = item.Payload,
                     CreatedAt = now,
                     UpdatedAt = now
-                };
-                var envelope = new RecordEnvelope
-                {
-                    Id = Guid.CreateVersion7(),
-                    EncryptedRecordId = record.Id,
-                    WrappedKey = item.PersonalEnvelope.WrappedKey,
-                    Nonce = item.PersonalEnvelope.Nonce,
-                    ProtocolVersion = item.PersonalEnvelope.ProtocolVersion
                 };
                 var operation = new SyncOperation
                 {
@@ -198,10 +154,9 @@ public sealed class CreateSyncRecords : IEndpoint
                 };
 
                 dbContext.EncryptedRecords.Add(record);
-                dbContext.RecordEnvelopes.Add(envelope);
                 dbContext.SyncOperations.Add(operation);
                 await dbContext.SaveChangesAsync(cancellationToken);
-                responses.Add(EncryptedRecordResponse.Of(record, [RecordEnvelopeResponse.Of(envelope)]));
+                responses.Add(EncryptedRecordResponse.Of(record));
             }
 
             await transaction.CommitAsync(cancellationToken);
@@ -273,11 +228,6 @@ public sealed class CreateSyncRecords : IEndpoint
         var record = await dbContext.EncryptedRecords
             .AsNoTracking()
             .SingleAsync(item => item.Id == encryptedRecordId, cancellationToken);
-        var envelope = await dbContext.RecordEnvelopes
-            .AsNoTracking()
-            .SingleAsync(
-                item => item.EncryptedRecordId == encryptedRecordId && item.GroupId == null,
-                cancellationToken);
-        return EncryptedRecordResponse.Of(record, [RecordEnvelopeResponse.Of(envelope)]);
+        return EncryptedRecordResponse.Of(record);
     }
 }

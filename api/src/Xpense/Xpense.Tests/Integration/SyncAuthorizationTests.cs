@@ -156,9 +156,7 @@ public class SyncAuthorizationTests
             OwnerUserId = resourceOwnerId,
             ParentResourceId = resourceId,
             Revision = 1,
-            ProtocolVersion = 1,
-            Nonce = [1, 2, 3],
-            Ciphertext = [4, 5, 6],
+            Payload = [1, 2, 3],
             CreatedAt = now,
             UpdatedAt = now
         });

@@ -20,7 +20,6 @@ interface ClaimStartResponse {
 
 const toVaultRecord = (record: Awaited<ReturnType<typeof createSyncRecords>>[number]): VaultRecord => ({
   ...record,
-  envelopes: record.envelopes.map((envelope) => ({ ...envelope })),
 });
 
 export class ClaimHttpApi implements ClaimApi {

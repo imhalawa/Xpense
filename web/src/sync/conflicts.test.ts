@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictManager } from "./conflicts";
-import { OutboxManager, type OutboxCipher } from "./outbox";
+import { OutboxManager, type OutboxMutationBuilder } from "./outbox";
 import { SyncConflictError, type SyncRecord } from "./syncClient";
 import {
   deleteVaultDatabase,
@@ -16,51 +16,31 @@ const operationId = "33333333-3333-4333-8333-433333333333";
 const idempotencyKey = "44444444-4444-4444-8444-444444444444";
 const localText = "my private changed account label";
 const serverText = "their private changed account label";
-const bytes = (seed: number): Uint8Array => new Uint8Array([seed, seed + 1, seed + 2]);
+const text = (value: string): Uint8Array => new TextEncoder().encode(value);
 
-const record = (revision: number, ciphertextSeed: number): VaultRecord => ({
+const record = (revision: number, label: string): VaultRecord => ({
   id: recordId,
   recordType: "account",
   ownerId,
   parentResourceId: null,
   revision,
-  protocolVersion: 1,
-  nonce: bytes(ciphertextSeed),
-  ciphertext: bytes(ciphertextSeed + 10),
-  envelopes: [{
-    id: "55555555-5555-4555-8555-555555555555",
-    groupId: null,
-    wrappedKey: bytes(30),
-    nonce: bytes(40),
-    encapsulatedKey: null,
-    protocolVersion: 1,
-  }],
+  payload: text(label),
   tombstone: false,
   sequenceNumber: revision,
   serverCreatedAt: "2026-08-09T10:00:00Z",
   serverUpdatedAt: "2026-08-09T10:00:00Z",
 });
 
-const syncRecord = (revision: number, ciphertextSeed: number): SyncRecord => ({
-  ...record(revision, ciphertextSeed),
-  envelopes: record(revision, ciphertextSeed).envelopes,
-});
+const syncRecord = (revision: number, label: string): SyncRecord => record(revision, label);
 
 const replaceMutation = (revision = 1): VaultOutboxMutation => ({
   kind: "replace",
-  record: record(revision, 20),
-  request: {
-    expectedRevision: revision,
-    protocolVersion: 1,
-    nonce: bytes(21),
-    ciphertext: bytes(22),
-  },
+  record: record(revision, localText),
+  request: { expectedRevision: revision, payload: text(localText) },
 });
 
-const cipher = (replacement = replaceMutation(2)): OutboxCipher => ({
-  encrypt: vi.fn().mockResolvedValue(replacement),
-  decrypt: vi.fn(async (value: VaultRecord) =>
-    new TextEncoder().encode(value.ciphertext[0] === 30 ? localText : serverText)),
+const builder = (replacement = replaceMutation(2)): OutboxMutationBuilder => ({
+  build: vi.fn().mockResolvedValue(replacement),
 });
 
 let database: VaultDatabase | undefined;
@@ -77,87 +57,28 @@ afterEach(async () => {
 });
 
 describe("ConflictManager", () => {
-  it("zeroes decrypted revisions when a same-record conflict is replaced", () => {
+  it("replaces a same-record conflict with the newer revision", () => {
     const conflicts = new ConflictManager();
-    const firstMine = bytes(1);
-    const firstTheirs = bytes(5);
-    const entry = {
-      operationId,
-      idempotencyKey,
-      sequence: 1,
-      mutation: replaceMutation(1),
-    };
-    conflicts.add({ recordId, outboxEntry: entry, local: record(1, 20), latest: record(2, 90), mine: firstMine, theirs: firstTheirs });
+    const entry = { operationId, idempotencyKey, sequence: 1, mutation: replaceMutation(1) };
+    conflicts.add({ recordId, outboxEntry: entry, local: record(1, localText), latest: record(2, serverText), mine: text(localText), theirs: text(serverText) });
 
-    conflicts.add({ recordId, outboxEntry: entry, local: record(1, 20), latest: record(3, 100), mine: bytes(9), theirs: bytes(12) });
+    conflicts.add({ recordId, outboxEntry: entry, local: record(1, localText), latest: record(3, serverText), mine: text(localText), theirs: text(serverText) });
 
-    expect(Array.from(firstMine)).toEqual([0, 0, 0]);
-    expect(Array.from(firstTheirs)).toEqual([0, 0, 0]);
+    expect(conflicts.entries()).toHaveLength(1);
+    expect(conflicts.get(recordId)).toMatchObject({ latest: { revision: 3 } });
   });
 
-  it("wipes a successful conflict decryption when the other revision rejects", async () => {
-    vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
-      .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });
-    const successfulBuffer = new TextEncoder().encode(localText);
-    const localCipher: OutboxCipher = {
-      encrypt: vi.fn().mockResolvedValue(replaceMutation(1)),
-      decrypt: vi.fn()
-        .mockResolvedValueOnce(successfulBuffer)
-        .mockRejectedValueOnce(new Error("invalid ciphertext")),
-    };
-    const manager = new OutboxManager(database!, localCipher, { apply: vi.fn() }, new ConflictManager(), {
-      create: vi.fn(),
-      replace: vi.fn().mockRejectedValue(new SyncConflictError(syncRecord(2, 90))),
-      remove: vi.fn(),
-    });
-    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, plaintext: new Uint8Array([1]) });
-
-    await expect(manager.replay()).rejects.toThrow("invalid ciphertext");
-
-    expect([...successfulBuffer].every((value) => value === 0)).toBe(true);
-  });
-
-  it("wipes both conflict decryptions when cancellation wins before storage", async () => {
-    vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
-      .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });
-    const controller = new AbortController();
-    const mine = new TextEncoder().encode(localText);
-    const theirs = new TextEncoder().encode(serverText);
-    const localCipher: OutboxCipher = {
-      encrypt: vi.fn().mockResolvedValue(replaceMutation(1)),
-      decrypt: vi.fn()
-        .mockResolvedValueOnce(mine)
-        .mockImplementationOnce(async () => {
-          controller.abort();
-          return theirs;
-        }),
-    };
-    const manager = new OutboxManager(database!, localCipher, { apply: vi.fn() }, new ConflictManager(), {
-      create: vi.fn(),
-      replace: vi.fn().mockRejectedValue(new SyncConflictError(syncRecord(2, 90))),
-      remove: vi.fn(),
-    });
-    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, plaintext: new Uint8Array([1]) });
-
-    await expect(manager.replay(controller.signal)).rejects.toMatchObject({ name: "AbortError" });
-
-    expect([...mine].every((value) => value === 0)).toBe(true);
-    expect([...theirs].every((value) => value === 0)).toBe(true);
-  });
-
-  it("keeps both decrypted revisions only in unlocked memory after a 409 and preserves the local record", async () => {
+  it("keeps both revisions in memory after a 409 and preserves the local record", async () => {
     vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
       .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });
     const conflicts = new ConflictManager();
-    const localMutation = replaceMutation(1);
-    const localCipher = cipher(localMutation);
-    const manager = new OutboxManager(database!, localCipher, { apply: vi.fn() }, conflicts, {
+    const manager = new OutboxManager(database!, builder(replaceMutation(1)), { apply: vi.fn() }, conflicts, {
       create: vi.fn(),
-      replace: vi.fn().mockRejectedValue(new SyncConflictError(syncRecord(2, 90))),
+      replace: vi.fn().mockRejectedValue(new SyncConflictError(syncRecord(2, serverText))),
       remove: vi.fn(),
     });
-    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, plaintext: new Uint8Array([1]) });
-    await database!.putRecord(record(2, 90));
+    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, payload: text(localText) });
+    await database!.putRecord(record(2, serverText));
 
     await manager.replay();
 
@@ -168,41 +89,35 @@ describe("ConflictManager", () => {
     });
     expect(new TextDecoder().decode(conflicts.get(recordId)!.mine)).toBe(localText);
     expect(new TextDecoder().decode(conflicts.get(recordId)!.theirs)).toBe(serverText);
-    await expect(database!.getRecord(recordId)).resolves.toMatchObject({
-      revision: 1,
-      ciphertext: expect.anything(),
-    });
-    expect(JSON.stringify(await database!.outboxEntries())).not.toContain(localText);
-    expect(JSON.stringify(await database!.outboxEntries())).not.toContain(serverText);
+    await expect(database!.getRecord(recordId)).resolves.toMatchObject({ revision: 1 });
     await expect(database!.outboxEntries()).resolves.toEqual([
       expect.objectContaining({ latestServerRecord: expect.objectContaining({ revision: 2 }) }),
     ]);
   });
 
-  it("keep mine re-encrypts against the latest revision and retries the queued replace", async () => {
+  it("keep mine rebuilds against the latest revision and retries the queued replace", async () => {
     vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
       .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });
     const conflicts = new ConflictManager();
-    const reencrypted = replaceMutation(2);
-    const localCipher = cipher(reencrypted);
+    const mutations = builder(replaceMutation(2));
     const api = {
       create: vi.fn(),
       replace: vi.fn()
-        .mockRejectedValueOnce(new SyncConflictError(syncRecord(2, 90)))
-        .mockResolvedValue(syncRecord(3, 100)),
+        .mockRejectedValueOnce(new SyncConflictError(syncRecord(2, serverText)))
+        .mockResolvedValue(syncRecord(3, localText)),
       remove: vi.fn(),
     };
-    const manager = new OutboxManager(database!, localCipher, { apply: vi.fn() }, conflicts, api);
-    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, plaintext: new Uint8Array([1]) });
+    const manager = new OutboxManager(database!, mutations, { apply: vi.fn() }, conflicts, api);
+    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, payload: text(localText) });
     await manager.replay();
 
     await manager.keepMine(recordId);
 
-    expect(localCipher.encrypt).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(mutations.build).toHaveBeenLastCalledWith(expect.objectContaining({
       kind: "replace",
       recordId,
       expectedRevision: 2,
-      plaintext: expect.anything(),
+      payload: expect.anything(),
     }));
     expect(api.replace).toHaveBeenLastCalledWith(recordId, expect.objectContaining({ expectedRevision: 2 }), undefined);
     expect(conflicts.get(recordId)).toBeUndefined();
@@ -210,17 +125,17 @@ describe("ConflictManager", () => {
     await expect(database!.getRecord(recordId)).resolves.toMatchObject({ revision: 3 });
   });
 
-  it("keep theirs drops the queued mutation and applies the latest encrypted record", async () => {
+  it("keep theirs drops the queued mutation and applies the latest record", async () => {
     vi.stubGlobal("crypto", { ...crypto, randomUUID: vi.fn()
       .mockReturnValueOnce(operationId).mockReturnValueOnce(idempotencyKey) });
     const projection = { apply: vi.fn() };
     const conflicts = new ConflictManager();
-    const manager = new OutboxManager(database!, cipher(), projection, conflicts, {
+    const manager = new OutboxManager(database!, builder(), projection, conflicts, {
       create: vi.fn(),
-      replace: vi.fn().mockRejectedValue(new SyncConflictError(syncRecord(2, 90))),
+      replace: vi.fn().mockRejectedValue(new SyncConflictError(syncRecord(2, serverText))),
       remove: vi.fn(),
     });
-    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, plaintext: new Uint8Array([1]) });
+    await manager.queue({ kind: "replace", recordId, expectedRevision: 1, payload: text(localText) });
     await manager.replay();
 
     await manager.keepTheirs(recordId);
@@ -229,9 +144,9 @@ describe("ConflictManager", () => {
     await expect(database!.outboxEntries()).resolves.toEqual([]);
     const stored = await database!.getRecord(recordId);
     expect(stored).toMatchObject({ revision: 2 });
-    expect(Array.from(stored!.ciphertext)).toEqual(Array.from(bytes(100)));
+    expect(new TextDecoder().decode(stored!.payload)).toBe(serverText);
     const lastProjectionCall = projection.apply.mock.calls[projection.apply.mock.calls.length - 1];
     expect(lastProjectionCall[0]).toMatchObject({ revision: 2 });
-    expect(ArrayBuffer.isView(lastProjectionCall[1]!)).toBe(true);
+    expect(new TextDecoder().decode(lastProjectionCall[1] as Uint8Array)).toBe(serverText);
   });
 });

@@ -14,11 +14,7 @@ public class EncryptedRecord
 
     public long Revision { get; set; }
 
-    public int ProtocolVersion { get; set; }
-
-    public byte[] Nonce { get; set; } = [];
-
-    public byte[] Ciphertext { get; set; } = [];
+    public byte[] Payload { get; set; } = [];
 
     public bool IsDeleted { get; set; }
 

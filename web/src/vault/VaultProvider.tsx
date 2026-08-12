@@ -19,8 +19,7 @@ import type { VaultWorkerFactory } from "../crypto/worker/vaultWorkerClient";
 import { VaultWorkerClient } from "../crypto/worker/vaultWorkerClient";
 import type { RowCeilingAware, RowCeilingReport } from "./plaintextProjection";
 import type { VaultProjection, VaultState as ProjectionState } from "./VaultProjection";
-import type { EncryptedProjection, ProjectionCryptoBridge } from "./transitionVaultProjection";
-import type { VaultRecord } from "./vaultDatabase";
+import type { EncryptedProjection } from "./transitionVaultProjection";
 import { VaultStateMachine, type VaultLifecycleState } from "./vaultState";
 
 const missingProviderMessage = "useVault must be used inside a VaultProvider";
@@ -187,49 +186,7 @@ export const VaultProvider = ({
         }
         workerUnlockedRef.current = true;
         setClaimEncryptionReady(true);
-        const encryptedProjection = projection as Partial<EncryptedProjection>;
-        if (encryptedProjection.attachCrypto !== undefined) {
-          const requirePersonalEnvelope = (record: VaultRecord) => {
-            const envelope = record.envelopes.find((candidate) => candidate.groupId === null);
-            if (envelope === undefined) throw new Error("The personal record envelope is unavailable.");
-            return envelope;
-          };
-          const bridge: ProjectionCryptoBridge = {
-            ownerId: userId,
-            async decrypt(record) {
-              const envelope = requirePersonalEnvelope(record);
-              const result = await worker.request<Uint8Array>({
-                type: "decryptRecord",
-                sealedPayload: { nonce: record.nonce, ciphertext: record.ciphertext },
-                payloadDescriptor: { recordId: record.id, recordType: record.recordType, ownerId: record.ownerId, revision: record.revision },
-                personalEnvelope: { nonce: envelope.nonce, ciphertext: envelope.wrappedKey },
-                personalEnvelopeDescriptor: { recordId: record.id, ownerId: record.ownerId, groupId: null },
-              });
-              if (!result.ok) throw new Error(result.error.message);
-              return result.value;
-            },
-            async encryptNew(record, plaintext) {
-              const result = await worker.request<EncryptedRecordResult>({
-                type: "encryptRecord",
-                payload: plaintext,
-                payloadDescriptor: { recordId: record.id, recordType: record.recordType, ownerId: record.ownerId, revision: record.revision },
-                personalEnvelopeDescriptor: { recordId: record.id, ownerId: record.ownerId, groupId: null },
-              });
-              if (!result.ok) throw new Error(result.error.message);
-              return result.value;
-            },
-            async encryptReplacement(record, plaintext) {
-              const result = await worker.request<EncryptedRecordResult["sealedPayload"]>({
-                type: "encryptReplacement",
-                payload: plaintext,
-                payloadDescriptor: { recordId: record.id, recordType: record.recordType, ownerId: record.ownerId, revision: record.revision + 1 },
-              });
-              if (!result.ok) throw new Error(result.error.message);
-              return result.value;
-            },
-          };
-          encryptedProjection.attachCrypto(bridge);
-        }
+        (projection as Partial<EncryptedProjection>).attachOwner?.(userId);
         if (projection.dataMode !== "claiming" && projection.state !== "ready") {
           await projection.unlock();
         }
