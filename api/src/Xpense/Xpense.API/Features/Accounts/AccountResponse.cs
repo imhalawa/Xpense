@@ -5,7 +5,7 @@ namespace Xpense.API.Features.Accounts;
 
 /// <summary>
 /// The account number is the public identifier; the database key is deliberately not exposed, so
-/// nothing can start depending on it. See docs/adr/0002-account-number-is-the-public-identifier.md.
+/// nothing can start depending on it. See docs/decisions/0002-account-number-is-the-public-identifier.md.
 /// </summary>
 public sealed record AccountResponse(
     string AccountNumber,

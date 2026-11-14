@@ -3,7 +3,7 @@ using Xpense.Domain.ValueObjects;
 namespace Xpense.API.Contracts;
 
 /// <summary>
-/// How money crosses the wire, per docs/contract/api-v1-contract-design.md.
+/// How money crosses the wire, per docs/domain/money.md.
 /// <para>
 /// Shared rather than duplicated because accounts, transactions and analytics all return money and
 /// it must look identical in each. Three private copies outlived the first attempt at this --
